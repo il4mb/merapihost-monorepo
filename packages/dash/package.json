@@ -1,0 +1,45 @@
+{
+    "name": "@merapihost/dash",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "NODE_ENV=production node next start"
+    },
+    "dependencies": {
+        "@craftjs/core": "^0.2.12",
+        "@emotion/cache": "^11.14.0",
+        "@emotion/react": "^11.14.0",
+        "@emotion/styled": "^11.14.1",
+        "@merapihost/editor": "workspace:*",
+        "@merapihost/theme": "workspace:*",
+        "@il4mb/rce": "^0.1.12",
+        "@monaco-editor/react": "^4.7.0",
+        "@mui/material": "^9.0.0",
+        "@types/lodash": "^4.17.24",
+        "colord": "^2.9.3",
+        "glob": "^13.0.6",
+        "lodash": "^4.18.1",
+        "lucide-react": "^1.14.0",
+        "monaco-editor": "^0.55.1",
+        "motion": "^12.38.0",
+        "mysql2": "^3.22.3",
+        "nanoid": "^5.1.9",
+        "next": "16.2.4",
+        "react": "19.2.4",
+        "react-colorful": "^5.7.0",
+        "react-dom": "19.2.4",
+        "sass": "^1.99.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "babel-plugin-react-compiler": "1.0.0",
+        "cross-env": "^10.1.0",
+        "tsx": "^4.7.0",
+        "typescript": "^5"
+    }
+}

@@ -1,0 +1,21 @@
+{
+    "name": "@merapihost/theme",
+    "varsion": "0.1.0",
+    "exports": {
+        ".": {
+            "import": "./src/index.ts",
+            "require": "./src/index.ts"
+        }
+    },
+    "peerDependencies": {
+        "@emotion/cache": "^11.14.0",
+        "@emotion/react": "^11.14.0",
+        "@emotion/styled": "^11.14.1",
+        "@mui/material": "^9.0.0",
+        "lucide-react": "^1.14.0",
+        "motion": "^12.40.0",
+        "react": "19.2.4",
+        "react-dom": "19.2.4",
+        "sass": "^1.99.0"
+    }
+}

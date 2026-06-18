@@ -1,0 +1,10 @@
+{
+    "name": "merapihost-monorepo",
+    "private": true,
+    "workspaces": [
+        "packages/*"
+    ],
+    "scripts": {
+        "dev:dash": "cd packages/dash && bun run dev"
+    }
+}
