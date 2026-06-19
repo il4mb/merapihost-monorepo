@@ -1,15 +1,15 @@
 import { styled } from "@mui/material";
 import EditorProvider from "./cores/EditorProvider";
 import Screen from "./cores/Screen";
-import { NodeObject } from "./type";
-import TreesManager from "./cores/panels/contents/TreesManager";
+import { NodeObject } from "./types/node";
 import SlotsManager from "./cores/SlotsManger";
-import { Topbar } from "./cores/Topbar";
+import { TopbarPanel } from "./cores/panels/TopbarPanel";
 import { useRef } from "react";
 import TypeRegistry from "./cores/TypeRegistry";
 import { Block } from "./components/Block";
 import { Navbar } from "./components/Navbar";
 import LeftPanel from "./cores/panels/LeftPanel";
+import RightPanel from "./cores/panels/RightPanel";
 
 const EditorContainer = styled("div")({
     position: "fixed",
@@ -94,7 +94,7 @@ const nodes = [
         tagName: "p",
         props: {},
         parent: "5",
-        order: 0
+        order: 0,
     },
     {
         id: "7",
@@ -103,6 +103,34 @@ const nodes = [
             content: "This is a paragraph inside the navbar"
         },
         parent: "6",
+    },
+    {
+        id: "8",
+        type: "Slots",
+        props: {},
+        parent: null,
+    },
+    {
+        id: "9",
+        tagName: "div",
+        parent: "8",
+        props: {
+            style: {
+            }
+        }
+    },
+    {
+        id: "10",
+        tagName: "p",
+        parent: "9",
+    },
+    {
+        id: "11",
+        type: "textnode",
+        props: {
+            content: "This is a paragraph inside the slot"
+        },
+        parent: "10",
     }
 ];
 
@@ -115,13 +143,14 @@ export default function Editor() {
         <TypeRegistry resolver={{ Block, Navbar }}>
             <EditorProvider onChange={onChange} nodes={nodes}>
                 <EditorContainer>
-                    <Topbar />
+                    <TopbarPanel />
                     <Main>
                         <LeftPanel />
                         <ScreenFrame>
                             <Screen iframeRef={iframeRef} />
                             <SlotsManager />
                         </ScreenFrame>
+                        <RightPanel />
                         {/* <Toolbox iframeRef={iframeRef} /> */}
                     </Main>
                 </EditorContainer>

@@ -1,11 +1,12 @@
 import { Box, Divider, IconButton, styled, Typography } from "@mui/material"
 import { useEditor } from "../../EditorProvider"
 import { useCallback, useMemo, useRef, useState } from "react"
-import { NodeObject } from "../../../type"
-import { ChevronRight, Component } from "lucide-react"
+import { NodeObject } from "../../../types/node"
+import { ChevronRight, CircleQuestionMark, Component, Eye, EyeOff } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
 import { useTypeRegistry } from "../../TypeRegistry"
-import LabelField from "../../tools/LabelField"
+import LabelField from "../../components/LabelField"
+import { useTypeContext } from "../../../hooks/useNodes"
 
 const ScrollContainer = styled("div")({
     width: "100%",
@@ -21,50 +22,53 @@ const ScrollContainer = styled("div")({
     "&::-webkit-scrollbar-thumb:hover": {
         backgroundColor: "rgba(0,0,0,0.3)"
     }
-})
+});
 
 const TreeContainer = styled("div")({
     display: "flex",
     flexDirection: "column",
     width: "100%"
-})
+});
 
 const ItemContainer = styled("div")({
     display: "flex",
     alignItems: "center",
-    padding: "4px 8px",
     cursor: "pointer",
-    borderRadius: "6px",
     userSelect: "none",
     transition: "background-color 0.15s ease",
     "&:hover": {
         backgroundColor: "rgba(0, 0, 0, 0.05)"
     }
-})
+});
 
 const ToggleButton = styled(IconButton)({
     padding: "2px",
     marginRight: "4px",
-    width: "18px",
-    height: "18px",
+    width: "16px",
+    height: "16px",
+    minWidth: "0px",
+    minHeight: "0px",
+    border: "none",
     "&:hover": {
-        backgroundColor: "rgba(0,0,0,0.08)"
+        // backgroundColor: "rgba(0,0,0,0.08)"
     }
-})
+});
 
 const ToggleIcon = styled(motion.div)({
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
-})
+});
 
 type TreeProps = {
     node: NodeObject
     defaultOpen?: boolean
     depth?: number
-}
+    color?: string
+    isNodeVisible?: boolean
+};
 
-const Tree = ({ node, defaultOpen = true, depth = 0 }: TreeProps) => {
+const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNodeVisible }: TreeProps) => {
 
     const ignoreInteractionRef = useRef(false);
     const { registries } = useTypeRegistry();
@@ -73,9 +77,22 @@ const Tree = ({ node, defaultOpen = true, depth = 0 }: TreeProps) => {
     const [collapsed, setCollapsed] = useState(!defaultOpen);
     const isSelected = state.selected.has(node.id);
     const isHovered = state.hovered.has(node.id);
+    const typeContext = useTypeContext(node.id);
+
+    const getDefaultName = useCallback(() => {
+        if (!typeContext.type?.model.default?.name) return node.name || node.type || node.tagName || "Unknown";
+        if (typeof typeContext.type.model.default.name === "string") {
+            return typeContext.type.model.default.name;
+        }
+        return typeContext.type.model.default.name.call(typeContext);
+    }, [typeContext]);
 
     const type = node.type ? registries[node.type] : undefined;
-    const name = typeof node.name === "string" ? node.name : node.type || node.tagName || "Unknown";
+    const name = (typeof node.name === "string" ? node.name : "") || getDefaultName();
+    const color = extendedColor || type?.model?.color;
+    const childrenColor = extendedColor || type?.model?.childrenColor;
+    const parentVisible = isNodeVisible ?? true;
+    const isVisible = parentVisible && (node.visible ?? true);
 
     const childNodes = useMemo(() => {
         return Array.from(state.nodes.values()).filter(n => {
@@ -143,19 +160,33 @@ const Tree = ({ node, defaultOpen = true, depth = 0 }: TreeProps) => {
     }, [node.id, dispatch]);
 
     const onFinishNameChange = useCallback((finalName: string) => {
-        dispatch({ type: "UPDATE_NODE", payload: { id: node.id, name: finalName || node.type || node.tagName || "Unknown" } });
+        const processedName = finalName || getDefaultName();
+        dispatch({ type: "UPDATE_NODE", payload: { id: node.id, name: processedName } });
         ignoreInteractionRef.current = false;
-    }, [node.id, dispatch]);
+    }, [node.id, dispatch, getDefaultName]);
 
     const onStartNameEditing = useCallback(() => {
         ignoreInteractionRef.current = true;
+        dispatch({
+            type: "BULK",
+            payload: [
+                { type: "CLEAR_SELECTED" },
+                { type: "CLEAR_HOVERED" },
+                { type: "SET_SELECTED", payload: node.id }
+            ]
+        })
     }, []);
+
+    const toggleVisibility = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+        e.stopPropagation();
+        dispatch({ type: "UPDATE_NODE", payload: { id: node.id, visible: !isVisible } });
+    }, [node.id, dispatch, isVisible]);
 
     if (type?.model?.visibleOnTree === false) {
         return null;
     }
 
-    const IconComponent = type?.model?.icon || Component;
+    const IconComponent = type?.model?.icon || CircleQuestionMark;
 
     return (
         <TreeContainer>
@@ -164,6 +195,7 @@ const Tree = ({ node, defaultOpen = true, depth = 0 }: TreeProps) => {
                 onMouseLeave={onMouseLeave}
                 onClick={onClick}
                 sx={theme => ({
+                    opacity: isVisible ? 1 : 0.5,
                     paddingLeft: `${depth * 16 + 8}px`,
                     backgroundColor: isSelected
                         ? "rgba(0, 120, 215, 0.1)"
@@ -173,7 +205,10 @@ const Tree = ({ node, defaultOpen = true, depth = 0 }: TreeProps) => {
                     "&:hover": {
                         backgroundColor: isSelected
                             ? "rgba(0, 120, 215, 0.15)"
-                            : "rgba(0, 0, 0, 0.1)"
+                            : "rgba(0, 0, 0, 0.1)",
+                        "& .visibility-toggle": {
+                            opacity: 1
+                        }
                     },
                     ...theme.applyStyles("dark", {
                         backgroundColor: isSelected
@@ -186,10 +221,15 @@ const Tree = ({ node, defaultOpen = true, depth = 0 }: TreeProps) => {
                                 ? "rgba(0, 128, 255, 0.5)"
                                 : "rgba(255, 255, 255, 0.15)"
                         }
-                    })
+                    }),
+                    "& .visibility-toggle": {
+                        opacity: 0
+                    }
                 })}>
                 {hasChildren ? (
-                    <ToggleButton size="small" onClick={onToggle}>
+                    <ToggleButton
+                        size="small"
+                        onClick={onToggle}>
                         <ToggleIcon
                             initial={false}
                             animate={{ rotate: collapsed ? 0 : 90 }}
@@ -201,18 +241,21 @@ const Tree = ({ node, defaultOpen = true, depth = 0 }: TreeProps) => {
                     <Box sx={{ width: "24px" }} />
                 )}
                 <Box sx={{ mr: .5 }}>
-                    <IconComponent size={13} />
+                    <IconComponent
+                        color={color}
+                        size={13} />
                 </Box>
-                {/* <Typography
-                    variant="body2"
-                    sx={{ fontWeight: hasChildren ? 500 : 400, fontSize: "12px" }}>
-                    {name}
-                </Typography> */}
                 <LabelField
+                    sx={{ color: color || "inherit" }}
                     value={name}
                     onChange={setName}
                     onFinish={onFinishNameChange}
                     onStartEditing={onStartNameEditing} />
+
+                <ToggleButton onClick={toggleVisibility} className="visibility-toggle" size="small" sx={{ ml: "auto", mr: 1 }}>
+                    {isVisible ? (<Eye size={12} />) : (<EyeOff size={12} style={{ opacity: 0.85 }} />)}
+                </ToggleButton>
+
             </ItemContainer>
             <AnimatePresence initial={false}>
                 {!collapsed && hasChildren && (
@@ -224,7 +267,13 @@ const Tree = ({ node, defaultOpen = true, depth = 0 }: TreeProps) => {
                         transition={{ duration: 0.2, ease: "easeInOut" }}
                         sx={{ overflow: "hidden" }}>
                         {childNodes.map(child => (
-                            <Tree key={child.id} node={child} depth={depth + 1} />
+                            <Tree
+                                key={child.id}
+                                node={child}
+                                depth={depth + 1}
+                                color={childrenColor}
+                                isNodeVisible={isVisible}
+                            />
                         ))}
                     </Box>
                 )}

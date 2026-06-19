@@ -1,5 +1,5 @@
 import React, { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { NodeObject } from "../type";
+import { NodeObject } from "../types/node";
 import { createTheme, CssBaseline, ThemeProvider, styled, Box } from "@mui/material";
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
@@ -7,9 +7,7 @@ import { createPortal } from "react-dom";
 import { inputsCustomizations, dataDisplayCustomizations, feedbackCustomizations, surfacesCustomizations, colorSchemes, shadows, shape, typography, navigationCustomizations } from "@merapihost/theme";
 import { useEditor } from "./EditorProvider";
 import debounce from "lodash/debounce";
-import { Root } from "../components/Root";
-// import { Element } from "../base/Element";
-// import { Root } from "../base/Root";
+import { Root } from "../components/Root"
 
 const Container = styled("div")({
     width: "100%",

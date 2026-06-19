@@ -1,18 +1,18 @@
-import { Box, styled, TextField, MenuItem, IconButton, Tooltip } from "@mui/material"
-import { useEditor } from "./EditorProvider"
-import { Eye, Moon } from "lucide-react"
+import { Box, styled, TextField, MenuItem, IconButton, Tooltip } from "@mui/material";
+import { useEditor } from "../EditorProvider";
+import { Eye, Moon } from "lucide-react";
 const Container = styled("div")({
     padding: "4px 8px",
     borderRadius: "4px",
     display: "flex",
     alignItems: "center",
     gap: "8px"
-})
-export const Topbar = () => {
-    const { state, dispatch } = useEditor()
-    const devices = state.devices
+});
+export const TopbarPanel = () => {
+    const { state, dispatch } = useEditor();
+    const devices = state.devices;
     const handleDeviceChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        dispatch({ type: "SET_DEVICE", payload: event.target.value })
+        dispatch({ type: "SET_DEVICE", payload: event.target.value });
     }
     return (
         <Container>
@@ -50,5 +50,5 @@ export const Topbar = () => {
                 </Tooltip>
             </Box>
         </Container>
-    )
+    );
 }

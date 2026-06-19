@@ -1,4 +1,6 @@
-import { NodeObject, EditorAction, EditorState } from "../type"
+import { nanoid } from "nanoid";
+import { EditorAction, EditorState } from "../type"
+import { NodeObject } from "../types/node";
 
 export const initialState: EditorState = {
     viewport: {
@@ -95,6 +97,7 @@ export const editorReducer = (
             newNodes.set(action.payload.id, {
                 ...node,
                 ...action.payload,
+                id: node.id, // Ensure ID remains unchanged 
                 props: {
                     ...node.props,
                     ...action.payload.props
@@ -173,12 +176,35 @@ export const editorReducer = (
         }
 
         case "SET_NODES": {
-            const newNodes = new Map(action.payload);
+            // We use a fresh map so we don't carry over mismatched keys from action.payload
+            const sourceNodes = new Map(action.payload);
+            const newNodes = new Map();
+            let rootNode = null;
 
-            // 1. Check if a node with type "Root" already exists
-            let rootNode = Array.from(newNodes.values()).find(node => node.type === "Root");
+            // 1. Single Pass: Sanitize IDs, assign types, and locate Root
+            for (const [oldKey, node] of sourceNodes.entries()) {
+                const sanitizedNode = { ...node };
 
-            // 2. If it doesn't exist, create and append the new Root
+                // Fix missing IDs
+                if (!sanitizedNode.id) {
+                    sanitizedNode.id = nanoid();
+                }
+
+                // Fix missing types
+                if (!sanitizedNode.type) {
+                    sanitizedNode.type = "Element";
+                }
+
+                // Identify Root
+                if (sanitizedNode.type === "Root") {
+                    rootNode = sanitizedNode;
+                }
+
+                // Store securely using the guaranteed ID as the Map key
+                newNodes.set(sanitizedNode.id, sanitizedNode);
+            }
+
+            // 2. If Root doesn't exist, create and append it
             if (!rootNode) {
                 rootNode = {
                     id: "root",
@@ -202,9 +228,8 @@ export const editorReducer = (
             }
 
             // 3. Make all other parentless nodes children of the Root
-            for (const [id, node] of Array.from(newNodes.entries())) {
-                if (node.id !== rootNode.id && node.parent === null) {
-                    // Spread the node to avoid mutating the original object reference
+            for (const [id, node] of newNodes.entries()) {
+                if (id !== rootNode.id && !node.parent) {
                     newNodes.set(id, {
                         ...node,
                         parent: rootNode.id
@@ -269,6 +294,21 @@ export const editorReducer = (
                 return state
             }
             return { ...state, device: action.payload }
+        }
+        case "BULK": {
+            return action.payload.reduce((currentState, bulkAction) => {
+                // @ts-ignore - TS might still complain about accessing type on a generic union, 
+                // but we know it exists on all actions.
+                if (bulkAction.type === "BULK") {
+                    console.warn("Nested BULK actions are not allowed. Ignoring this action.");
+                    return currentState;
+                }
+
+                // Just pass the entire action object directly. 
+                // It is already a valid EditorAction!
+                return editorReducer(currentState, bulkAction as EditorAction);
+
+            }, state);
         }
 
         default:

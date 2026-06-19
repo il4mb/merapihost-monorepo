@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo } from "react"
-import { NodeObject } from "../type"
+import { NodeObject } from "../types/node"
 
 /***
  * NodeOwnerProvider is a context provider that allows components to access their owning node in the editor's state.

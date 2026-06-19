@@ -1,6 +1,7 @@
 import { ElementType, useMemo } from "react"
 import { useEditor } from "../cores/EditorProvider"
-import { Component, NodeObject } from "../type"
+import { Component } from "../type"
+import { NodeObject } from "../types/node"
 import { useNode } from "../cores/Element"
 import { Root } from "../base/Root"
 import { Element } from "../components/Element"

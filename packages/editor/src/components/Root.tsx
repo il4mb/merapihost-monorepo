@@ -28,7 +28,7 @@ export const Root = createType<RootProps>(({ dom }) => {
                 <Element key={rootNode.id} node={rootNode} />
             )}
         </Fragment>
-    )
+    );
 }, {
     name: "Root",
     icon: PageIcon,

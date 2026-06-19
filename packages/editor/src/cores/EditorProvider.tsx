@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useReducer, Reducer, useEffect, useRef } from "react";
-import { NodeObject } from "../type";
+import { NodeObject } from "../types/node";
 import { EditorAction, EditorState } from "../type";
 import { editorReducer, initialState } from "../cores/reducer";
 import { isEqual } from "lodash";

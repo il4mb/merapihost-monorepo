@@ -57,60 +57,22 @@ export type ModifierSet = {
     nodeIds: string[];
 };
 
-/**
- * MODEL DEFINITION STRATEGY EXPLAINED:
- * 
- */
-// 1. Define the plain object shapes (Remove React.FC from here)
-// export type BaseModel<P = any> = {
-//     name: string
-//     extends?: string
-//     props: P
-//     related?: Record<string, ModifierComponent>
-//     rules?: {
-//         canMove?: (node: NodeObject<P>) => boolean
-//         canResize?: (node: NodeObject<P>) => boolean
-//         canDrag?: (node: NodeObject<P>) => boolean
-//         canDrop?: (node: NodeObject<P>, targetNode: NodeObject<P>) => boolean
-//     }
-// }
-
-// // prettier-ignore
-// export type StyledModel<P extends { style?: React.CSSProperties }> = BaseModel<P> & {
-//     // styles?: Styles
-// }
-
-// // 2. The Conditional Router (Resolves to the correct Model object)
-// export type ComponentModel<P = any> = P extends { style?: React.CSSProperties }
-//     ? StyledModel<P>
-//     : BaseModel<P>;
-
-// // 3. The actual React Component wrapper
-// // This states: "A Component is a React Function that also has a .model property"
-// export type Component<P = any> = React.FC<P & { ref?: RefObject<HTMLElement> }> & {
-//     model: ComponentModel<P>
-// }
-
-// export type NodeObject<T = any> = {
-//     id: string
-//     data: {
-//         props?: T
-//         type: string
-//         name?: string
-//         displayName?: string
-//         parent: string | null
-//         nodes?: string[]
-//         linkedNodes?: Record<string, string> // key is elementId in owner, value is linked node id
-//     }
-//     dom: HTMLElement | null
-// }
-
+export type TypeContext<T> = {
+    node: NodeObject<T> | undefined
+    dom: HTMLElement | null
+    type: TypeComponent<T> | undefined
+}
 export type TypeModel<T = any> = {
-    name: string
-    extends?: string
-    icon?: FC<{ size?: number, color?: string }>
-    props?: T
-    visibleOnTree?: boolean
+    name: string;
+    extends?: string;
+    icon?: FC<{ size?: number, color?: string }>;
+    color?: string;
+    childrenColor?: string;
+    visibleOnTree?: boolean;
+    default?: {
+        name?: string | ((this: TypeContext<T>) => string);
+        props?: T;
+    }
 }
 export type TypeComponent<T = any> = React.FC<T> & {
     model: TypeModel<T>
@@ -123,23 +85,19 @@ export type Block = {
     defaultProps?: Record<string, any>
 }
 
-export type NodeObject = {
-    id: string
-    type?: string
-    tagName?: string
-    name?: string
-    props?: Record<string, any>
-    parent?: string | null
-    order?: number
-}
-
 export interface EditorState {
+    /**
+     * devices is an array of device configurations that the editor can simulate. Each device has an id, name, width, and optional height. This allows users to preview their designs on different screen sizes and orientations, facilitating responsive design testing and development.
+     */
     devices: {
         id: string
         name: string
         width: number | string
         height?: number | string
     }[]
+    /**
+     * viewport contains information about the current viewport state, including scale, dimensions, scroll position, and the visible rectangle. This allows the editor to manage zooming, panning, and rendering optimizations based on what is currently visible to the user.
+     */
     viewport: {
         scale: number
         width: number
@@ -157,14 +115,35 @@ export interface EditorState {
     }
     // resolver: Record<string, Component<any>> // Changed from Set to Record for O(1) lookups by name
     nodes: Map<string, NodeObject>
+    /**
+     * doms is a Map where the key is the nodeId and the value is the corresponding HTMLElement.
+     */
     doms: Map<string, HTMLElement>
+    /**
+     * variables is a Map where the key is the nodeId and the value is another Map of variableName to NodeVariable.
+     * This allows us to store multiple variables for each node, and easily retrieve or update them by nodeId and variableName.
+     */
+    variables: Map<string, Map<string, NodeVariable>>
+    /**
+     * hovered is a Set of nodeIds that are currently being hovered over in the editor. This can be used to apply specific styles or behaviors to nodes while they are hovered.
+     */
     hovered: Set<string>
+    /**
+     * selected is a Set of nodeIds that are currently selected in the editor. This allows for multiple selection and easy checking of whether a node is selected.
+     */
     selected: Set<string>
+    /**
+     * dragged is a Set of nodeIds that are currently being dragged in the editor. This can be used to apply specific styles or behaviors to nodes while they are being dragged.
+     */
     dragged: Set<string>
+    /**
+     * device represents the currently active device or viewport configuration in the editor. This can be used to apply responsive design settings or to preview the layout on different screen sizes.
+     */
     device: string
 }
 
-export type ActionMap = {
+// 1. Define all of your actions EXCEPT BULK here
+export type CoreActionMap = {
     UPDATE_VIEWPORT: Partial<EditorState["viewport"]>;
     ADD_NODE: NodeObject;
     UPDATE_NODE: {
@@ -183,6 +162,22 @@ export type ActionMap = {
         dom: HTMLElement;
     };
     REMOVE_DOM: string;
+
+    ADD_VARIABLE: {
+        nodeId: string;
+        variable: NodeVariable;
+    };
+    
+    REMOVE_VARIABLE: {
+        nodeId: string;
+        variableName: string;
+    };
+
+    UPDATE_VARIABLE: {
+        nodeId: string;
+        variable: NodeVariable;
+    };
+
     ADD_HOVERED: string;
     SET_HOVERED: string;
     REMOVE_HOVERED: string;
@@ -197,6 +192,18 @@ export type ActionMap = {
     REMOVE_DRAGGED: string;
 
     SET_DEVICE: string;
+}
+
+// 2. Generate a strict mapped type that pairs each type exactly with its payload
+export type StrictActionUnion = {
+    [K in keyof CoreActionMap]: CoreActionMap[K] extends never
+    ? { type: K }                               // For actions with no payload (like CLEAR_HOVERED)
+    : { type: K; payload: CoreActionMap[K] };   // For standard actions requiring a payload
+}[keyof CoreActionMap];
+
+// 3. Create your final ActionMap and strictly type the BULK array
+export type ActionMap = CoreActionMap & {
+    BULK: StrictActionUnion[];
 }
 
 export type EditorAction = {
