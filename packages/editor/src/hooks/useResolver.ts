@@ -3,7 +3,7 @@ import { useEditor } from "../cores/EditorProvider"
 import { Component, NodeObject } from "../type"
 import { useNode } from "../cores/Element"
 import { Root } from "../base/Root"
-import { Element } from "../base/Element"
+import { Element } from "../components/Element"
 
 export const useModelRegistry = () => {
     const { state } = useEditor()

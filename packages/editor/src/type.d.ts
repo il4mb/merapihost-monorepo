@@ -1,4 +1,4 @@
-import { RefObject } from "react";
+import { FC, RefObject } from "react";
 export type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } : T
 
 export type RelativeRect = {
@@ -108,6 +108,7 @@ export type ModifierSet = {
 export type TypeModel<T = any> = {
     name: string
     extends?: string
+    icon?: FC<{ size?: number, color?: string }>
     props?: T
     visibleOnTree?: boolean
 }

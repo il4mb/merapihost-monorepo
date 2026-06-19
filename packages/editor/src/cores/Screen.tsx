@@ -7,8 +7,9 @@ import { createPortal } from "react-dom";
 import { inputsCustomizations, dataDisplayCustomizations, feedbackCustomizations, surfacesCustomizations, colorSchemes, shadows, shape, typography, navigationCustomizations } from "@merapihost/theme";
 import { useEditor } from "./EditorProvider";
 import debounce from "lodash/debounce";
-import { Element } from "../base/Element";
-import { Root } from "../base/Root";
+import { Root } from "../components/Root";
+// import { Element } from "../base/Element";
+// import { Root } from "../base/Root";
 
 const Container = styled("div")({
     width: "100%",

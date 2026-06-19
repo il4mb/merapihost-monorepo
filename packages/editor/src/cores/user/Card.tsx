@@ -2,7 +2,7 @@ import { Component } from "../../type";
 import { useConnector } from "../../cores/Connector";
 import { ReactNode } from "react";
 import { Text } from "./Text";
-import { Element } from "../../base/Element";
+import { Element } from "../../components/Element";
 import { Box, Paper } from "@mui/material";
 import Button from "./Button";
 

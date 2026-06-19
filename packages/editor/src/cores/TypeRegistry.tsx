@@ -1,8 +1,8 @@
 import { createContext, ElementType, FC, useCallback, useContext, useMemo, useState } from "react";
-import { Root } from "../base/Root";
-import { Element } from "../base/Element";
 import { TypeComponent } from "../type";
 import { TextNode } from "../components/TextNode";
+import { Root } from "../components/Root";
+// import { Element } from "../components/TextNode";
 
 type ComponentProviderProps = {
     children?: React.ReactNode;
@@ -12,13 +12,13 @@ type ComponentProviderProps = {
 }
 export default function TypeRegistry({ children, resolver }: ComponentProviderProps) {
 
-    const [registries, setRegistries] = useState<Record<string, TypeComponent<any>>>({ ...resolver, textnode: TextNode });
+    const [registries, setRegistries] = useState<Record<string, TypeComponent<any>>>({ ...resolver, textnode: TextNode, Root });
     const registerComponent = useCallback((name: string, component: TypeComponent<any>) => {
         if (["Element", "Root", "TextNode"].includes(name)) {
             console.warn(`Component name "${name}" is reserved and cannot be registered.`);
             return;
         }
-        if (component === Root || component === Element) {
+        if (component === Root) {
             console.warn(`Component "${name}" cannot be registered as it is a reserved base component.`);
             return;
         }

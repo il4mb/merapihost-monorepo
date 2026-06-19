@@ -155,6 +155,8 @@ const Tree = ({ node, defaultOpen = true, depth = 0 }: TreeProps) => {
         return null;
     }
 
+    const IconComponent = type?.model?.icon || Component;
+
     return (
         <TreeContainer>
             <ItemContainer
@@ -198,7 +200,9 @@ const Tree = ({ node, defaultOpen = true, depth = 0 }: TreeProps) => {
                 ) : (
                     <Box sx={{ width: "24px" }} />
                 )}
-                <Component size={12} style={{ marginRight: "8px" }} />
+                <Box sx={{ mr: .5 }}>
+                    <IconComponent size={13} />
+                </Box>
                 {/* <Typography
                     variant="body2"
                     sx={{ fontWeight: hasChildren ? 500 : 400, fontSize: "12px" }}>

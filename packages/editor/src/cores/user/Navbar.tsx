@@ -1,7 +1,7 @@
 import { Component } from "../../type";
 import { useConnector } from "../../cores/Connector";
 import { Box, Theme } from "@mui/material";
-import { Element } from "../../base/Element";
+import { Element } from "../../components/Element";
 import { BackgroundColor } from "../../base/mods/BackgroundColor";
 
 const applyStyle = (theme: Theme, style?: React.CSSProperties) => ({

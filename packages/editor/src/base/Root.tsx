@@ -1,6 +1,6 @@
 import { Fragment, useEffect } from "react";
 import { useEditor } from "../cores/EditorProvider";
-import { Element } from "./Element";
+import { Element } from "../components/Element";
 
 type RootProps = {
     dom?: HTMLIFrameElement | null

@@ -2,7 +2,7 @@ import { createContext, createElement, ElementType, useCallback, useContext, use
 import { useEditor } from "./EditorProvider"
 import { nanoid } from "nanoid"
 import { Component, NodeObject } from "../type"
-import { Element } from "../base/Element"
+import { Element } from "../components/Element"
 import Connector from "./Connector"
 import { Root } from "../base/Root"
 import NodeOwnerProvider, { useNodeOwner } from "./NodeOwnerProvider"
