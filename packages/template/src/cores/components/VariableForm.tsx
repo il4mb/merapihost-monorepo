@@ -1,6 +1,6 @@
 import { Box, Grid, TextField, MenuItem, Typography } from "@mui/material";
 import Switch from "./Switch";
-import { Editor } from "@monaco-editor/react";
+import { Editor } from "@merapihost/code";
 import { useCallback } from "react";
 
 type VariableFormProps = {
@@ -11,7 +11,19 @@ type VariableFormProps = {
 export default function VariableForm({ data, onChange }: VariableFormProps) {
 
     const handleChange = useCallback((key: string, value: any) => {
-        onChange?.({ ...data, [key]: value });
+        const newData = { ...data, [key]: value };
+        if (key === "type" && value !== data.type) {
+            if (value === "boolean") {
+                newData.value = false;
+            } else if (value === "number") {
+                newData.value = 0;
+            } else if (value === "json") {
+                newData.value = {};
+            } else {
+                newData.value = "";
+            }
+        }
+        onChange?.(newData);
     }, [data, onChange]);
 
     return (
@@ -79,33 +91,16 @@ export default function VariableForm({ data, onChange }: VariableFormProps) {
                     </Box>
                 ) : data.type === "json" ? (
                     <Editor
-                        theme="vs-dark"
-                        defaultLanguage="json"
-                        height="175px"
-                        defaultValue="{}"
-                        value={JSON.stringify(data.value || {}, null, 2)}
-                        onChange={(value) => {
+                        value={typeof data.value === "object" ? JSON.stringify(data.value, null, 2) : String(data.value || "")}
+                        onChange={(val) => {
                             try {
-                                const parsed = JSON.parse(value || "{}");
+                                const parsed = JSON.parse(val);
                                 handleChange("value", parsed);
-                            } catch (e) {
-                                console.error("Invalid JSON", e);
+                            } catch (err) {
+                                // Jika JSON tidak valid, simpan sebagai string biasa
+                                handleChange("value", val);
                             }
-                        }}
-                        options={{
-                            minimap: { enabled: false },
-                            fontSize: 12,
-                            scrollbar: {
-                                vertical: "hidden",
-                                horizontal: "hidden"
-                            },
-                            lineNumbers: "off",
-                            scrollBeyondLastLine: false,
-                            showFoldingControls: "never",
-                            wordWrap: "on",
-                            wrappingIndent: "indent"
-                        }}
-                    />
+                        }} />
                 ) : (
                     <Typography variant="body2" color="textSecondary" sx={{ p: 2 }}>
                         No editor for this type of variable. The value will be stored as a JSON string.

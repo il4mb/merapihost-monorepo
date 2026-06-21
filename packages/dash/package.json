@@ -13,7 +13,7 @@
         "@emotion/cache": "^11.14.0",
         "@emotion/react": "^11.14.0",
         "@emotion/styled": "^11.14.1",
-        "@merapihost/editor": "workspace:*",
+        "@merapihost/template": "workspace:*",
         "@merapihost/theme": "workspace:*",
         "@il4mb/rce": "^0.1.12",
         "@monaco-editor/react": "^4.7.0",

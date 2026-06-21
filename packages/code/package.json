@@ -9,9 +9,21 @@
         }
     },
     "peerDependencies": {
+        "@emotion/react": "^11.14.0",
         "@codemirror/lang-javascript": "^6.2.5",
         "@codemirror/lang-json": "^6.0.2",
         "@uiw/codemirror-theme-basic": "^4.25.10",
-        "@uiw/react-codemirror": "^4.25.10"
+        "@uiw/react-codemirror": "^4.25.10",
+        "codemirror": "^6.0.2",
+        "react": "^19.2.4",
+        "react-dom": "^19.2.4"
+    },
+    "devDependencies": {
+        "@types/react": "^19.0.28",
+        "@types/react-dom": "^19.0.11",
+        "typescript": "^5.2.2"
+    },
+    "dependencies": {
+        "@codemirror/lint": "^6.9.7"
     }
 }

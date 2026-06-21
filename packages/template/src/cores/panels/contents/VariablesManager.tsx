@@ -132,8 +132,9 @@ const VariablesManager = memo(({ node }: { node: NodeObject }) => {
                 open={adding}
                 onClose={handleCloseDialog}
                 anchor={containerRef}
-                width={300}
+                width={400}
                 height={300}
+                autoGrowthLayout={"vertical"}
                 movable
                 ancorOffset={{ x: 20, y: 10 }}
                 ancorOrigin={{

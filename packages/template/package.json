@@ -1,5 +1,5 @@
 {
-    "name": "@merapihost/editor",
+    "name": "@merapihost/template",
     "version": "0.1.0",
     "main": "src/index.ts",
     "exports": {
@@ -13,6 +13,7 @@
         "@emotion/react": "^11.14.0",
         "@emotion/styled": "^11.14.1",
         "@merapihost/theme": "workspace:*",
+        "@merapihost/code": "workspace:*",
         "@codemirror/lang-javascript": "^6.2.5",
         "@codemirror/lang-json": "^6.0.2",
         "@uiw/codemirror-theme-basic": "^4.25.10",
@@ -23,7 +24,6 @@
         "glob": "^13.0.6",
         "lodash": "^4.18.1",
         "lucide-react": "^1.14.0",
-        "monaco-editor": "^0.55.1",
         "motion": "^12.38.0",
         "react": "^19.2.4",
         "react-colorful": "^5.7.0",

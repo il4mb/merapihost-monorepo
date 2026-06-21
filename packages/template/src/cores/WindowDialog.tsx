@@ -12,15 +12,13 @@ const Container = styled("div")(({ theme }) => ({
     position: "fixed",
     top: 0,
     left: 0,
-    width: "100%",
-    height: "100%",
     backgroundColor: "rgb(255, 255, 255)",
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
     borderRadius: "8px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "start",
     overflow: "hidden",
     zIndex: 1000,
     ...theme.applyStyles("dark", {
@@ -67,6 +65,7 @@ interface WindowDialogProps {
     resizable?: boolean
     movable?: boolean
     maximizable?: boolean
+    autoGrowthLayout?: boolean | "vertical" | "horizontal"
     open?: boolean
     children?: React.ReactNode
     anchor?: React.RefObject<HTMLElement | null>
@@ -95,6 +94,7 @@ export default function WindowDialog({
     resizable = false,
     movable = false,
     maximizable = false,
+    autoGrowthLayout = false,
     open = false,
     children,
     anchor,
@@ -135,7 +135,43 @@ export default function WindowDialog({
         top: 0
     })
 
-    // Reset mounted state when closed so it recalculates position when reopened
+    // Strict Rule: Auto-growth only activates if the component is NOT resizable.
+    const isAutoGrowthActive = !resizable && !!autoGrowthLayout;
+
+    // Keeps the state synced with DOM based on specific growth axis
+    useEffect(() => {
+        if (!containerRef.current || !open || !isAutoGrowthActive) return;
+
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const rect = entry.target.getBoundingClientRect();
+                
+                setState(prev => {
+                    let newWidth = prev.width;
+                    let newHeight = prev.height;
+                    let hasChanged = false;
+
+                    const watchWidth = autoGrowthLayout === true || autoGrowthLayout === "horizontal";
+                    const watchHeight = autoGrowthLayout === true || autoGrowthLayout === "vertical";
+
+                    if (watchWidth && Math.abs(prev.width - rect.width) > 1) {
+                        newWidth = rect.width;
+                        hasChanged = true;
+                    }
+                    if (watchHeight && Math.abs(prev.height - rect.height) > 1) {
+                        newHeight = rect.height;
+                        hasChanged = true;
+                    }
+
+                    return hasChanged ? { ...prev, width: newWidth, height: newHeight } : prev;
+                });
+            }
+        });
+
+        observer.observe(containerRef.current);
+        return () => observer.disconnect();
+    }, [open, autoGrowthLayout, isAutoGrowthActive]);
+
     useEffect(() => {
         if (!open) {
             setMounted(false)
@@ -144,63 +180,60 @@ export default function WindowDialog({
 
     useEffect(() => {
         if (open && containerRef.current && !mounted) {
-            const minX = MARGIN
-            const maxX = window.innerWidth - (state.width + MARGIN)
-            const minY = MARGIN
-            const maxY = window.innerHeight - (state.height + MARGIN)
             const rect = containerRef.current.getBoundingClientRect()
-            const width = rect.width;
-            const height = rect.height;
+            const currentWidth = rect.width;
+            const currentHeight = rect.height;
 
-            let x = (window.innerWidth - width) / 2
-            let y = (window.innerHeight - height) / 2
+            const minX = MARGIN
+            const maxX = window.innerWidth - (currentWidth + MARGIN)
+            const minY = MARGIN
+            const maxY = window.innerHeight - (currentHeight + MARGIN)
+
+            let x = (window.innerWidth - currentWidth) / 2
+            let y = (window.innerHeight - currentHeight) / 2
 
             if (anchor?.current) {
-                // Calculate position relative to the anchor
                 const anchorRect = anchor.current.getBoundingClientRect()
 
-                // Horizontal anchor logic
                 if (ancorOrigin.horizontal === "left") {
-                    x = anchorRect.left - width - (ancorOffset?.x || 0) // Typically opens to the left of the anchor
+                    x = anchorRect.left - currentWidth - (ancorOffset?.x || 0) 
                 } else if (ancorOrigin.horizontal === "right") {
-                    x = anchorRect.right - width + (ancorOffset?.x || 0) // Opens to the right of the anchor
+                    x = anchorRect.right - currentWidth + (ancorOffset?.x || 0) 
                 } else {
-                    x = anchorRect.left + (anchorRect.width / 2) - (width / 2)
+                    x = anchorRect.left + (anchorRect.width / 2) - (currentWidth / 2)
                 }
 
-                // Vertical anchor logic
                 if (ancorOrigin.vertical === "top") {
-                    y = anchorRect.bottom + (ancorOffset?.y || 0) // Typically opens below the anchor
+                    y = anchorRect.bottom + (ancorOffset?.y || 0) 
                 } else if (ancorOrigin.vertical === "bottom") {
-                    y = anchorRect.top - height - (ancorOffset?.y || 0) // Opens above the anchor
+                    y = anchorRect.top - currentHeight - (ancorOffset?.y || 0) 
                 } else {
-                    y = anchorRect.top + (anchorRect.height / 2) - (height / 2)
+                    y = anchorRect.top + (anchorRect.height / 2) - (currentHeight / 2)
                 }
             } else {
-                // Calculate position relative to the screen (fallback)
                 if (ancorOrigin.horizontal === "left") {
                     x = MARGIN
                 } else if (ancorOrigin.horizontal === "right") {
-                    x = window.innerWidth - width - MARGIN
+                    x = window.innerWidth - currentWidth - MARGIN
                 }
 
                 if (ancorOrigin.vertical === "top") {
                     y = MARGIN
                 } else if (ancorOrigin.vertical === "bottom") {
-                    y = window.innerHeight - height - MARGIN
+                    y = window.innerHeight - currentHeight - MARGIN
                 }
             }
 
             setState(prev => ({
                 ...prev,
-                height: height,
-                width: width,
+                height: currentHeight,
+                width: currentWidth,
                 x: Math.min(Math.max(x, minX), maxX),
                 y: Math.min(Math.max(y, minY), maxY)
             }))
             setMounted(true)
         }
-    }, [open, containerRef.current, height, mounted, ancorOrigin.horizontal, ancorOrigin.vertical, anchor?.current])
+    }, [open, containerRef.current, height, width, mounted, ancorOrigin.horizontal, ancorOrigin.vertical, anchor?.current, ancorOffset])
 
     const calcX = (x: number) => {
         const minX = MARGIN
@@ -250,19 +283,19 @@ export default function WindowDialog({
         }))
     }
 
-    const blockInteractionTimeoutRef = useRef<number>(null);
+    const blockInteractionTimeoutRef = useRef<number | null>(null);
     const blockInteraction = () => {
         if (blockInteractionTimeoutRef.current) {
             clearTimeout(blockInteractionTimeoutRef.current);
         }
-        blockInteractionTimeoutRef.current = setTimeout(() => {
+        blockInteractionTimeoutRef.current = window.setTimeout(() => {
             document.body.style.userSelect = "none"
             document.body.style.cursor = "grabbing"
             document.body.style.pointerEvents = "none"
             document.querySelectorAll("iframe").forEach(iframe => {
                 (iframe as HTMLIFrameElement).style.pointerEvents = "none"
             })
-        }, 200); // Delay to prevent blocking interactions on the initial click
+        }, 200); 
     }
 
     const unblockInteraction = () => {
@@ -277,7 +310,6 @@ export default function WindowDialog({
             (iframe as HTMLIFrameElement).style.pointerEvents = ""
         })
     }
-
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if (!movable || state.maximized || e.button !== 0) return
@@ -382,16 +414,10 @@ export default function WindowDialog({
         let nextHeight = height
 
         if (state.resizeDirection.includes("e")) {
-            nextWidth = Math.max(
-                MIN_WIDTH,
-                Math.min(width + deltaX, maxRight - left)
-            )
+            nextWidth = Math.max(MIN_WIDTH, Math.min(width + deltaX, maxRight - left))
         }
         if (state.resizeDirection.includes("s")) {
-            nextHeight = Math.max(
-                MIN_HEIGHT,
-                Math.min(height + deltaY, maxBottom - top)
-            )
+            nextHeight = Math.max(MIN_HEIGHT, Math.min(height + deltaY, maxBottom - top))
         }
         if (state.resizeDirection.includes("w")) {
             const maxLeft = left + width - MIN_WIDTH
@@ -430,65 +456,21 @@ export default function WindowDialog({
     }, [state.isDragging, state.isResizing, state.resizeDirection])
 
     const resizeHandleStyles: Record<ResizeDirection, React.CSSProperties> = {
-        n: {
-            top: -RESIZE_HANDLE_SIZE / 2,
-            left: RESIZE_HANDLE_SIZE,
-            right: RESIZE_HANDLE_SIZE,
-            height: RESIZE_HANDLE_SIZE,
-            cursor: "ns-resize"
-        },
-        s: {
-            bottom: -RESIZE_HANDLE_SIZE / 2,
-            left: RESIZE_HANDLE_SIZE,
-            right: RESIZE_HANDLE_SIZE,
-            height: RESIZE_HANDLE_SIZE,
-            cursor: "ns-resize"
-        },
-        e: {
-            top: RESIZE_HANDLE_SIZE,
-            bottom: RESIZE_HANDLE_SIZE,
-            right: -RESIZE_HANDLE_SIZE / 2,
-            width: RESIZE_HANDLE_SIZE,
-            cursor: "ew-resize"
-        },
-        w: {
-            top: RESIZE_HANDLE_SIZE,
-            bottom: RESIZE_HANDLE_SIZE,
-            left: -RESIZE_HANDLE_SIZE / 2,
-            width: RESIZE_HANDLE_SIZE,
-            cursor: "ew-resize"
-        },
-        ne: {
-            top: -RESIZE_HANDLE_SIZE / 2,
-            right: -RESIZE_HANDLE_SIZE / 2,
-            width: RESIZE_HANDLE_SIZE,
-            height: RESIZE_HANDLE_SIZE,
-            cursor: "nesw-resize"
-        },
-        nw: {
-            top: -RESIZE_HANDLE_SIZE / 2,
-            left: -RESIZE_HANDLE_SIZE / 2,
-            width: RESIZE_HANDLE_SIZE,
-            height: RESIZE_HANDLE_SIZE,
-            cursor: "nwse-resize"
-        },
-        se: {
-            bottom: -RESIZE_HANDLE_SIZE / 2,
-            right: -RESIZE_HANDLE_SIZE / 2,
-            width: RESIZE_HANDLE_SIZE,
-            height: RESIZE_HANDLE_SIZE,
-            cursor: "nwse-resize"
-        },
-        sw: {
-            bottom: -RESIZE_HANDLE_SIZE / 2,
-            left: -RESIZE_HANDLE_SIZE / 2,
-            width: RESIZE_HANDLE_SIZE,
-            height: RESIZE_HANDLE_SIZE,
-            cursor: "nesw-resize"
-        }
+        n: { top: -RESIZE_HANDLE_SIZE / 2, left: RESIZE_HANDLE_SIZE, right: RESIZE_HANDLE_SIZE, height: RESIZE_HANDLE_SIZE, cursor: "ns-resize" },
+        s: { bottom: -RESIZE_HANDLE_SIZE / 2, left: RESIZE_HANDLE_SIZE, right: RESIZE_HANDLE_SIZE, height: RESIZE_HANDLE_SIZE, cursor: "ns-resize" },
+        e: { top: RESIZE_HANDLE_SIZE, bottom: RESIZE_HANDLE_SIZE, right: -RESIZE_HANDLE_SIZE / 2, width: RESIZE_HANDLE_SIZE, cursor: "ew-resize" },
+        w: { top: RESIZE_HANDLE_SIZE, bottom: RESIZE_HANDLE_SIZE, left: -RESIZE_HANDLE_SIZE / 2, width: RESIZE_HANDLE_SIZE, cursor: "ew-resize" },
+        ne: { top: -RESIZE_HANDLE_SIZE / 2, right: -RESIZE_HANDLE_SIZE / 2, width: RESIZE_HANDLE_SIZE, height: RESIZE_HANDLE_SIZE, cursor: "nesw-resize" },
+        nw: { top: -RESIZE_HANDLE_SIZE / 2, left: -RESIZE_HANDLE_SIZE / 2, width: RESIZE_HANDLE_SIZE, height: RESIZE_HANDLE_SIZE, cursor: "nwse-resize" },
+        se: { bottom: -RESIZE_HANDLE_SIZE / 2, right: -RESIZE_HANDLE_SIZE / 2, width: RESIZE_HANDLE_SIZE, height: RESIZE_HANDLE_SIZE, cursor: "nwse-resize" },
+        sw: { bottom: -RESIZE_HANDLE_SIZE / 2, left: -RESIZE_HANDLE_SIZE / 2, width: RESIZE_HANDLE_SIZE, height: RESIZE_HANDLE_SIZE, cursor: "nesw-resize" }
     }
 
     if (!open) return null;
+
+    // Evaluate dynamic width/height constraints specifically per axis, strictly enforcing the rule
+    const isAutoSizingWidth = isAutoGrowthActive && (autoGrowthLayout === true || autoGrowthLayout === "horizontal") && !state.maximized;
+    const isAutoSizingHeight = isAutoGrowthActive && (autoGrowthLayout === true || autoGrowthLayout === "vertical") && !state.maximized;
 
     return (
         <WindowContext.Provider value={state}>
@@ -496,8 +478,10 @@ export default function WindowDialog({
                 ref={containerRef}
                 sx={{
                     opacity: mounted ? 1 : 0,
-                    width: state.maximized ? "100%" : state.width,
-                    height: state.maximized ? "100%" : state.height,
+                    width: state.maximized ? "100%" : (isAutoSizingWidth ? "fit-content" : state.width),
+                    height: state.maximized ? "100%" : (isAutoSizingHeight ? "fit-content" : state.height),
+                    minWidth: isAutoSizingWidth ? Math.max(width || 0, MIN_WIDTH) : MIN_WIDTH,
+                    minHeight: isAutoSizingHeight ? Math.max(height || 0, MIN_HEIGHT) : MIN_HEIGHT,
                     top: state.y,
                     left: state.x,
                     cursor: state.isDragging ? "grabbing" : "default",
