@@ -1,5 +1,5 @@
 import { Component } from "../../type";
-import { useConnector } from "../../cores/Connector";
+import { useConnector } from "../Connector";
 import { Box, Theme } from "@mui/material";
 import { Element } from "../../components/Element";
 import { BackgroundColor } from "../../base/mods/BackgroundColor";

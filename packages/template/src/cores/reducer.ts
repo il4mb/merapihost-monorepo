@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { EditorAction, EditorState } from "../type"
-import { NodeObject } from "../types/node";
+import { NodeObject, Variable } from "../types/node";
 
 export const initialState: EditorState = {
     viewport: {
@@ -11,6 +11,7 @@ export const initialState: EditorState = {
         rect: { top: 0, left: 0, bottom: 0, right: 0 }
     },
     nodes: new Map<string, NodeObject>(),
+    variables: new Map<string, Map<string, Variable>>(),
     doms: new Map<string, HTMLElement>(),
     hovered: new Set<string>(),
     selected: new Set<string>(),
@@ -238,6 +239,46 @@ export const editorReducer = (
             }
 
             return { ...state, nodes: newNodes };
+        }
+
+        case "ADD_VARIABLE": {
+            const { nodeId, variable } = action.payload;
+            const newVariables = new Map(state.variables);
+
+            if (!newVariables.has(nodeId)) {
+                newVariables.set(nodeId, new Map());
+            }
+
+            const nodeVariables = newVariables.get(nodeId)!;
+            nodeVariables.set(variable.name, variable);
+
+            return { ...state, variables: newVariables };
+        }
+
+        case "REMOVE_VARIABLE": {
+            const { nodeId, variableName } = action.payload;
+            const newVariables = new Map(state.variables);
+
+            if (newVariables.has(nodeId)) {
+                const nodeVariables = new Map(newVariables.get(nodeId));
+                nodeVariables.delete(variableName);
+                newVariables.set(nodeId, nodeVariables);
+            }
+
+            return { ...state, variables: newVariables };
+        }
+
+        case "UPDATE_VARIABLE": {
+            const { nodeId, variable } = action.payload;
+            const newVariables = new Map(state.variables);
+
+            if (newVariables.has(nodeId)) {
+                const nodeVariables = new Map(newVariables.get(nodeId));
+                nodeVariables.set(variable.name, variable);
+                newVariables.set(nodeId, nodeVariables);
+            }
+
+            return { ...state, variables: newVariables };
         }
 
         case "SET_DOM": {

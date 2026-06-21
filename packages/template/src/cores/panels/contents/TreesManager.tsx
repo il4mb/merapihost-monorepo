@@ -243,7 +243,7 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
                 <Box sx={{ mr: .5 }}>
                     <IconComponent
                         color={color}
-                        size={13} />
+                        size={14} />
                 </Box>
                 <LabelField
                     sx={{ color: color || "inherit" }}

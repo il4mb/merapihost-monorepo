@@ -6,7 +6,7 @@ export type PageIconProps = {
     thickness?: number;
 };
 
-export default memo(({ size = 24, color = "black", thickness = .7 }: PageIconProps) => {
+export default memo(({ size = 24, color = "currentColor", thickness = .7 }: PageIconProps) => {
     // The base icon paths are drawn on a 7.44 x 7.44 coordinate grid
     const baseSize = 7.44;
 

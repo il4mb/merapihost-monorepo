@@ -1,5 +1,5 @@
 import { Component } from "../../type"
-import { useConnector } from "../../cores/Connector"
+import { useConnector } from "../Connector"
 import { ReactNode } from "react"
 import { styled } from "@mui/material"
 

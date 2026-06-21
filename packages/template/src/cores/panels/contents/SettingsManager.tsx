@@ -1,10 +1,11 @@
-import { styled, Typography, Box, Stack } from "@mui/material";
+import { styled, Typography, Box, Stack, Divider } from "@mui/material";
 import { memo, useEffect, useMemo, useState } from "react";
 import { NodeObject } from "../../../types/node";
 import { useNodeName, useNodeVisibility, useSelectedNodes, useTypeContext } from "../../../hooks/useNodes";
 import { Square } from "lucide-react";
 import TextField from "../../components/TextField";
 import Switch from "../../components/Switch";
+import VariablesManager from "./VariablesManager";
 
 const ScrollContainer = styled("div")({
     width: "100%",
@@ -66,7 +67,6 @@ const SettingContent = memo(({ node }: { node: NodeObject }) => {
     }, [typeContext, node.type]);
 
     const toggleVisibility = (visible: boolean) => {
-        console.log("Toggling visibility for node:", node.id, "to", visible);
         setVisibility(visible);
     }
 
@@ -105,6 +105,8 @@ const SettingContent = memo(({ node }: { node: NodeObject }) => {
                     />
                 </Stack>
             </Stack>
+            <Divider sx={{ mb: 1, mt: 2 }} />
+            <VariablesManager node={node} />
         </Box>
     );
 });

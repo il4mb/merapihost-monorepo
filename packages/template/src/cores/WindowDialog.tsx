@@ -74,6 +74,10 @@ interface WindowDialogProps {
         vertical: "top" | "center" | "bottom"
         horizontal: "left" | "center" | "right"
     }
+    ancorOffset?: {
+        x?: number
+        y?: number
+    }
     sxProps?: {
         window?: SxProps
         header?: SxProps
@@ -95,6 +99,7 @@ export default function WindowDialog({
     children,
     anchor,
     ancorOrigin = { vertical: "top", horizontal: "left" },
+    ancorOffset,
     sxProps,
     onInteractStart,
     onInteractEnd,
@@ -144,9 +149,11 @@ export default function WindowDialog({
             const minY = MARGIN
             const maxY = window.innerHeight - (state.height + MARGIN)
             const rect = containerRef.current.getBoundingClientRect()
+            const width = rect.width;
+            const height = rect.height;
 
-            let x = (window.innerWidth - rect.width) / 2
-            let y = (window.innerHeight - rect.height) / 2
+            let x = (window.innerWidth - width) / 2
+            let y = (window.innerHeight - height) / 2
 
             if (anchor?.current) {
                 // Calculate position relative to the anchor
@@ -154,45 +161,46 @@ export default function WindowDialog({
 
                 // Horizontal anchor logic
                 if (ancorOrigin.horizontal === "left") {
-                    x = anchorRect.left
+                    x = anchorRect.left - width - (ancorOffset?.x || 0) // Typically opens to the left of the anchor
                 } else if (ancorOrigin.horizontal === "right") {
-                    x = anchorRect.right - rect.width
+                    x = anchorRect.right - width + (ancorOffset?.x || 0) // Opens to the right of the anchor
                 } else {
-                    x = anchorRect.left + (anchorRect.width / 2) - (rect.width / 2)
+                    x = anchorRect.left + (anchorRect.width / 2) - (width / 2)
                 }
 
                 // Vertical anchor logic
                 if (ancorOrigin.vertical === "top") {
-                    y = anchorRect.bottom // Typically opens below the anchor
+                    y = anchorRect.bottom + (ancorOffset?.y || 0) // Typically opens below the anchor
                 } else if (ancorOrigin.vertical === "bottom") {
-                    y = anchorRect.top - rect.height // Opens above the anchor
+                    y = anchorRect.top - height - (ancorOffset?.y || 0) // Opens above the anchor
                 } else {
-                    y = anchorRect.top + (anchorRect.height / 2) - (rect.height / 2)
+                    y = anchorRect.top + (anchorRect.height / 2) - (height / 2)
                 }
             } else {
                 // Calculate position relative to the screen (fallback)
                 if (ancorOrigin.horizontal === "left") {
                     x = MARGIN
                 } else if (ancorOrigin.horizontal === "right") {
-                    x = window.innerWidth - rect.width - MARGIN
+                    x = window.innerWidth - width - MARGIN
                 }
 
                 if (ancorOrigin.vertical === "top") {
                     y = MARGIN
                 } else if (ancorOrigin.vertical === "bottom") {
-                    y = window.innerHeight - rect.height - MARGIN
+                    y = window.innerHeight - height - MARGIN
                 }
             }
 
             setState(prev => ({
                 ...prev,
-                height: height || rect.height,
+                height: height,
+                width: width,
                 x: Math.min(Math.max(x, minX), maxX),
                 y: Math.min(Math.max(y, minY), maxY)
             }))
             setMounted(true)
         }
-    }, [open, containerRef.current, height, mounted, ancorOrigin, anchor])
+    }, [open, containerRef.current, height, mounted, ancorOrigin.horizontal, ancorOrigin.vertical, anchor?.current])
 
     const calcX = (x: number) => {
         const minX = MARGIN
@@ -242,6 +250,35 @@ export default function WindowDialog({
         }))
     }
 
+    const blockInteractionTimeoutRef = useRef<number>(null);
+    const blockInteraction = () => {
+        if (blockInteractionTimeoutRef.current) {
+            clearTimeout(blockInteractionTimeoutRef.current);
+        }
+        blockInteractionTimeoutRef.current = setTimeout(() => {
+            document.body.style.userSelect = "none"
+            document.body.style.cursor = "grabbing"
+            document.body.style.pointerEvents = "none"
+            document.querySelectorAll("iframe").forEach(iframe => {
+                (iframe as HTMLIFrameElement).style.pointerEvents = "none"
+            })
+        }, 200); // Delay to prevent blocking interactions on the initial click
+    }
+
+    const unblockInteraction = () => {
+        if (blockInteractionTimeoutRef.current) {
+            clearTimeout(blockInteractionTimeoutRef.current);
+            blockInteractionTimeoutRef.current = null;
+        }
+        document.body.style.userSelect = ""
+        document.body.style.cursor = ""
+        document.body.style.pointerEvents = ""
+        document.querySelectorAll("iframe").forEach(iframe => {
+            (iframe as HTMLIFrameElement).style.pointerEvents = ""
+        })
+    }
+
+
     const handleMouseDown = (e: React.MouseEvent) => {
         if (!movable || state.maximized || e.button !== 0) return
 
@@ -269,6 +306,7 @@ export default function WindowDialog({
                 })
         }))
         onInteractStart?.()
+        blockInteraction();
     }
 
     const startResize = (e: React.MouseEvent<HTMLDivElement>, direction: ResizeDirection) => {
@@ -296,6 +334,7 @@ export default function WindowDialog({
                 height: prev.height
             }
         }))
+        blockInteraction();
     }
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -319,6 +358,13 @@ export default function WindowDialog({
         }))
         onInteractEnd?.()
         initialPositionRef.current = { x: 0, y: 0 }
+        document.body.style.userSelect = ""
+        document.body.style.cursor = ""
+        document.body.style.pointerEvents = ""
+        document.querySelectorAll("iframe").forEach(iframe => {
+            (iframe as HTMLIFrameElement).style.pointerEvents = ""
+        })
+        unblockInteraction();
     }
 
     const handleResizeMove = (e: MouseEvent) => {
@@ -442,10 +488,7 @@ export default function WindowDialog({
         }
     }
 
-
-    const shouldRenderHeader = title || movable || maximizable || onClose
-
-    if (!open) return null
+    if (!open) return null;
 
     return (
         <WindowContext.Provider value={state}>
@@ -480,7 +523,7 @@ export default function WindowDialog({
                             : "default",
                         ...sxProps?.header
                     }}>
-                    <Typography variant="h6">{title}</Typography>
+                    <Typography component={"div"} variant="h6">{title}</Typography>
                     <Box sx={{ display: "flex", gap: 1 }}>
                         {maximizable && (
                             <Button
@@ -491,11 +534,7 @@ export default function WindowDialog({
                                 <Maximize2 size={12} />
                             </Button>
                         )}
-                        <Button
-                            onClick={e => {
-                                e.stopPropagation()
-                                onClose?.()
-                            }}>
+                        <Button onClick={e => { e.stopPropagation(); onClose?.(); }}>
                             <X size={14} />
                         </Button>
                     </Box>

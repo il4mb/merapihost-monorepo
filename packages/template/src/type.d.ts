@@ -167,7 +167,7 @@ export type CoreActionMap = {
         nodeId: string;
         variable: NodeVariable;
     };
-    
+
     REMOVE_VARIABLE: {
         nodeId: string;
         variableName: string;
@@ -194,11 +194,10 @@ export type CoreActionMap = {
     SET_DEVICE: string;
 }
 
-// 2. Generate a strict mapped type that pairs each type exactly with its payload
 export type StrictActionUnion = {
     [K in keyof CoreActionMap]: CoreActionMap[K] extends never
-    ? { type: K }                               // For actions with no payload (like CLEAR_HOVERED)
-    : { type: K; payload: CoreActionMap[K] };   // For standard actions requiring a payload
+    ? { type: K }
+    : { type: K; payload: CoreActionMap[K] };
 }[keyof CoreActionMap];
 
 // 3. Create your final ActionMap and strictly type the BULK array

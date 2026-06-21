@@ -1,34 +1,36 @@
 type StringVariable = {
     name: string;
-    value: string;
+    type: "string";
+    value?: string;
 };
 type NumberVariable = {
     name: string;
-    value: number;
+    type: "number";
+    value?: number;
 };
 type BooleanVariable = {
     name: string;
-    value: boolean;
+    type: "boolean";
+    value?: boolean;
 };
-type ObjectVariable = {
+type JSONVariable = {
     name: string;
-    value: Record<string, any>;
+    type: "json";
+    value?: Record<string, any>;
 };
-type ArrayVariable = {
-    name: string;
-    value: any[];
-};
+
 type SourceVariable = {
     name: string;
-    value: string;
-    config: {
+    type: "source";
+    value?: string;
+    config?: {
         url: string;
         method: string;
         headers?: Record<string, string>;
     };
 };
 
-export type NodeVariable = StringVariable | NumberVariable | BooleanVariable | ObjectVariable | ArrayVariable | SourceVariable;
+export type Variable = StringVariable | NumberVariable | BooleanVariable | JSONVariable  | SourceVariable;
 export type NodeObject = {
     id: string;
     type?: string;
