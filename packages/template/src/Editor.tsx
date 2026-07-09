@@ -151,8 +151,8 @@ export default function Editor() {
                             <SlotsManager />
                         </ScreenFrame>
                         <RightPanel />
-                        {/* <Toolbox iframeRef={iframeRef} /> */}
                     </Main>
+
                 </EditorContainer>
             </EditorProvider>
         </TypeRegistry>

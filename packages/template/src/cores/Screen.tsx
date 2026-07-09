@@ -1,6 +1,6 @@
 import React, { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NodeObject } from "../types/node";
-import { createTheme, CssBaseline, ThemeProvider, styled, Box } from "@mui/material";
+import { createTheme, CssBaseline, ThemeProvider, styled, Typography } from "@mui/material";
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
 import { createPortal } from "react-dom";
@@ -23,14 +23,11 @@ const ScreenFrame = styled("div")({
     transformOrigin: "center center",
     margin: "auto",
     border: "none",
-    borderRadius: "8px",
     boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     userSelect: "none",
-    overflow: "hidden",
-    backgroundColor: "#ffffff",
     "&:hover": {
         boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)"
     },
@@ -46,6 +43,8 @@ const Iframe = styled("iframe")({
     height: "100%",
     border: "none",
     overflow: "hidden",
+    borderRadius: "8px",
+
 })
 
 const themeOptions = {
@@ -127,7 +126,13 @@ export default function Screen({ screenRef, iframeRef }: ScreenProps) {
             height: targetHeight,
             scale: calculatedScale
         }
-    }, [device, rect])
+    }, [device, rect]);
+
+    const mediaLabel = useMemo(() => {
+        if (!device) return "Unknown Device";
+        if (device.width === "100%") return "Responsive";
+        return `${device.name} (${device.width} x ${device.height || "auto"})`;
+    }, [device]);
 
     // Keep scaleRef synced for event listeners
     useEffect(() => {
@@ -345,6 +350,9 @@ export default function Screen({ screenRef, iframeRef }: ScreenProps) {
                 transform: `translate(-50%, -50%) scale(${scale})`,
                 transition: "opacity 0.3s ease, transform 0.3s ease"
             }}>
+                <Typography variant="caption" sx={{ position: "absolute", top: -22, left: 0, color: "rgb(202, 164, 121)", zIndex: 10 }}>
+                    {mediaLabel}
+                </Typography>
                 <Iframe sx={{ ...rootNode?.props?.style }} ref={setDom} />
             </ScreenFrame>
             {isReady &&
@@ -361,5 +369,5 @@ export default function Screen({ screenRef, iframeRef }: ScreenProps) {
                     bodyNode
                 )}
         </Container>
-    )
+    );
 }

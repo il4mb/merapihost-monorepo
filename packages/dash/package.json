@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "next dev",
+        "dev": "bun --bun --max-old-space-size=10240 next dev",
         "build": "next build",
         "start": "NODE_ENV=production node next start"
     },
