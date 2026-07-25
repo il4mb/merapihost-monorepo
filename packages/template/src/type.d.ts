@@ -71,6 +71,7 @@ export type TypeModel<T = any> = {
     visibleOnTree?: boolean;
     default?: {
         name?: string | ((this: TypeContext<T>) => string);
+        events?: string[] | ((this: TypeContext<T>) => string[]);
         props?: T;
     }
 }

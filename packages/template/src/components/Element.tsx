@@ -99,6 +99,19 @@ export const Element = createType<ElementProps>(({ node }) => {
     default: {
         name() {
             return this.node.tagName || "Element";
-        }
+        },
+        events: [
+            "onClick",
+            "onMouseEnter",
+            "onMouseLeave",
+            "onMouseOver",
+            "onMouseOut",
+            "onMouseMove",
+            "onMouseDown",
+            "onMouseUp",
+            "onKeyDown",
+            "onKeyUp",
+            "onKeyPress",
+        ]
     }
 });

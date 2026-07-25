@@ -1,0 +1,110 @@
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title || "Merapihost - Server" %></title>
+    <meta name="description" content="<%= description || "Default description" %>">
+    <meta name="keywords" content="<%= keywords || "default, keywords" %>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Figtree', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #fafafa;
+            padding: 20px;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+        }
+        .logo {
+            position: absolute; 
+            top: -95px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        h1 {
+            color: #1a1a1a;
+            font-size: 48px;
+            font-weight: 900;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 25px;
+        }
+
+        .status {
+            background: #f5f7fa;
+            padding: 18px 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+
+        .status-item {
+            text-align: center;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .status-item strong {
+            display: block;
+            font-weight: 500;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #27ae60;
+            color: white;
+            padding: 3px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .badge::before {
+            content: "● ";
+            font-size: 10px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 18px;
+            border-top: 1px solid #eee;
+            color: #aaa;
+            font-size: 13px;
+        }
+
+        #time {
+            font-weight: 500;
+            color: #1a1a1a;
+        }
+    </style>
+</head>

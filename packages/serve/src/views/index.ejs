@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<%- include('partials/head', { title: "Merapihost - " + serverName,description: "Merapihost server status page for " + serverName,keywords: "merapihost, server status, " + serverName }) %>
+
+    <body>
+        <div class="container">
+            <div class="logo">
+                <%- include('partials/logo', { full: true, width: 280, height: 75 }) %>
+            </div>
+
+            <p class="subtitle">Server is running</p>
+
+            <div class="status">
+                <div class="status-item">
+                    <strong>Server</strong>
+                    <span>
+                        <%= serverName %>
+                    </span>
+                </div>
+                <div class="status-item">
+                    <strong>Status</strong>
+                    <span class="badge">Online</span>
+                </div>
+                <div class="status-item">
+                    <strong>Uptime</strong>
+                    <span id="uptime">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <strong>Server time</strong>
+                    <span id="time">--:--:--</span>
+                </div>
+            </div>
+
+            <%- include('partials/footer') %>
+        </div>
+
+        <script>
+            const startTime = new Date("<%= startTime %>");
+
+            function updateTime() {
+                const now = new Date();
+                const h = String(now.getHours()).padStart(2, '0');
+                const m = String(now.getMinutes()).padStart(2, '0');
+                const s = String(now.getSeconds()).padStart(2, '0');
+                document.getElementById('time').textContent = h + ':' + m + ':' + s;
+
+                const elapsed = Math.floor((now.getTime() - startTime) / 1000);
+                const days = Math.floor(elapsed / 86400);
+                const hours = Math.floor((elapsed % 86400) / 3600);
+                const mins = Math.floor((elapsed % 3600) / 60);
+                const secs = elapsed % 60;
+
+                let str = '';
+                if (days > 0) str += days + 'd ';
+                if (hours > 0 || days > 0) str += String(hours).padStart(2, '0') + 'h ';
+                str += String(mins).padStart(2, '0') + 'm ';
+                str += String(secs).padStart(2, '0') + 's';
+
+                document.getElementById('uptime').textContent = str;
+            }
+            updateTime();
+            setInterval(updateTime, 1000);
+        </script>
+    </body>
+
+</html>

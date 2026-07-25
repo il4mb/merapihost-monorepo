@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<%- include('partials/head',{
+    title: "Default Page - Merapihost",
+    description: "This is the default page for the Merapihost server.",
+    keywords: "default, page, merapihost"
+}) %>
+
+    <body>
+        <div class="container">
+            <div class="logo">
+                <%- include('partials/logo', { full: true, width: 280, height: 75 }) %>
+            </div>
+
+            <p class="subtitle">
+                Your site is up and running!
+            </p>
+
+            <div class="message">
+                <p>This is the default page from Merapihost server.</p>
+                <p style="font-size:14px; color:#888; margin-top:8px;">
+                    If you are the owner of this server, you can replace this page at merapihost dash.
+                </p>
+            </div>
+
+            <%- include('partials/footer') %>
+        </div>
+    </body>
+
+</html>

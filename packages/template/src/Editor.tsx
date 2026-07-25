@@ -7,7 +7,6 @@ import { TopbarPanel } from "./cores/panels/TopbarPanel";
 import { useRef } from "react";
 import TypeRegistry from "./cores/TypeRegistry";
 import { Block } from "./components/Block";
-import { Navbar } from "./components/Navbar";
 import LeftPanel from "./cores/panels/LeftPanel";
 import RightPanel from "./cores/panels/RightPanel";
 
@@ -77,6 +76,9 @@ const nodes = [
                 padding: "5px 20px",
                 backgroundColor: "#eb6b6b",
                 borderRadius: "0px",
+                '@media (max-width: 600px)': {
+                    backgroundColor: "#6b9deb",
+                }
             }
         },
         parent: null,
@@ -131,6 +133,26 @@ const nodes = [
             content: "This is a paragraph inside the slot"
         },
         parent: "10",
+    },
+    {
+        id: "12",
+        tagName: "button",
+        parent: "9",
+        props: {
+        }
+    },
+    {
+        id: "13",
+        type: "textnode",
+        props: {
+            content: "Click me",
+            events: {
+                "onClick": [
+                    "alert('Button clicked!')"
+                ]
+            }
+        },
+        parent: "12",
     }
 ];
 
@@ -140,7 +162,7 @@ export default function Editor() {
         console.log("Changes ", nodes)
     }
     return (
-        <TypeRegistry resolver={{ Block, Navbar }}>
+        <TypeRegistry resolver={{ Block }}>
             <EditorProvider onChange={onChange} nodes={nodes}>
                 <EditorContainer>
                     <TopbarPanel />

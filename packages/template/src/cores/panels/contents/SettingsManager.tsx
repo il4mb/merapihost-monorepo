@@ -6,6 +6,7 @@ import { Square } from "lucide-react";
 import TextField from "../../components/TextField";
 import Switch from "../../components/Switch";
 import VariablesManager from "./VariablesManager";
+import EventsManager from "./EventsManager";
 
 const ScrollContainer = styled("div")({
     width: "100%",
@@ -58,6 +59,13 @@ const SettingContent = memo(({ node }: { node: NodeObject }) => {
     const [name, setName] = useNodeName(node.id);
     const { visible, canToggle, setVisibility } = useNodeVisibility(node.id);
 
+    const typeEvents = useMemo(() => {
+        if (!typeContext.type?.model.default?.events) return [];
+        if (typeof typeContext.type.model.default.events === "function") {
+            return typeContext.type.model.default.events.call(typeContext);
+        }
+        return typeContext.type.model.default.events;
+    }, [typeContext]);
     const defaultName = useMemo(() => {
         if (!typeContext.type?.model.default?.name) return node.type || node.tagName || "Name";
         if (typeof typeContext.type.model.default.name === "string") {
@@ -65,6 +73,10 @@ const SettingContent = memo(({ node }: { node: NodeObject }) => {
         }
         return typeContext.type.model.default.name.call(typeContext);
     }, [typeContext, node.type]);
+
+    const hasEvents = useMemo(() => {
+        return typeEvents.length > 0;
+    }, [typeEvents]);
 
     const toggleVisibility = (visible: boolean) => {
         setVisibility(visible);
@@ -107,6 +119,13 @@ const SettingContent = memo(({ node }: { node: NodeObject }) => {
             </Stack>
             <Divider sx={{ mb: 1, mt: 2 }} />
             <VariablesManager node={node} />
+
+            {hasEvents && (
+                <>
+                    <Divider sx={{ mb: 1, mt: 2 }} />
+                    <EventsManager typeEvents={typeEvents} />
+                </>
+            )}
         </Box>
     );
 });
