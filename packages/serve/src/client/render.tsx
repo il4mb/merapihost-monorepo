@@ -4,11 +4,13 @@ import { PAGE_DATA } from "./constants";
 import createEmotionCache from "./createEmotionCache";
 import { CacheProvider } from "@emotion/react";
 import createEmotionServer from "@emotion/server/create-instance";
+import { Service } from "@/entities/service";
 
 interface RenderOptions {
     path: string;
+    service: Service;
 }
-export function render({ path }: RenderOptions) {
+export function render({ path, service }: RenderOptions) {
 
     const cache = createEmotionCache();
     const { extractCriticalToChunks, constructStyleTagsFromChunks } = createEmotionServer(cache);
@@ -19,6 +21,7 @@ export function render({ path }: RenderOptions) {
             <App
                 title={page?.title ?? "Default Title"}
                 blocks={page?.data ?? []}
+                service={service}
             />
         </CacheProvider>
     );
@@ -34,6 +37,7 @@ export function render({ path }: RenderOptions) {
         html: rendered,
         styles,
         meta: [...page?.meta ?? []],
+        blocks: [...page?.data ?? []],
     }
 
 }

@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import { getConnection } from "@/connection";
 import { Service } from "@/entities/service";
 
-const TXT_PREFIX = "merapihost-verification=";
+const TXT_PREFIX = "merapihost-verification";
 
 export async function domainVerifyMiddleware(req: Request, res: Response, next: NextFunction) {
 
@@ -21,13 +21,16 @@ export async function domainVerifyMiddleware(req: Request, res: Response, next: 
 
         const records = await dns.resolveTxt(service.domain);
         const txtRecords = records.map(record => record.join(""));
-        const isVerified = txtRecords.some(record =>
-            record.startsWith(TXT_PREFIX)
-        );
+        const isVerified = txtRecords.some(record => {
+            const [prefix, code] = record.split("=");
+            return prefix === TXT_PREFIX && code === service.domainVerifyToken;
+        });
 
         if (!isVerified) {
-            return res.status(403).json({
-                error: "Domain verification failed. Please ensure the TXT record is set correctly.",
+            return res.status(403).render("domain-error", {
+                domain: service.domain,
+                serverName: process.env.SERVER_NAME || "Merapihost",
+                error: "Domain verification failed. Please ensure the correct TXT record is set in your DNS settings."
             });
         }
         /**

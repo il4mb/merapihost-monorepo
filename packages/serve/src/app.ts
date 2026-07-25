@@ -20,6 +20,7 @@ const bucketProxyMiddleware = createProxyMiddleware({
             throw new Error("Service is not defined in the request.");
         }
         const bucket = service.bucket;
+        console.log(`Proxying request for path: ${path} to bucket: ${bucket}`);
         if (!bucket) {
             throw new Error("Bucket is not defined for the service.");
         }
@@ -38,6 +39,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /**
+ * Serve static files from the "dist" directory
+ * This allows the application to serve static assets such as JavaScript, CSS, and images.
+ */
+app.use(express.static('dist'));
+
+/**
  * Set the views directory for EJS templates
  */
 app.set('views', path.join(__dirname, 'views'));
@@ -50,7 +57,7 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, QUERY, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('X-Powered-By', 'Merapihost');
-    const domain = req.headers.host || "localhost";
+    const domain = req.hostname || "localhost";
     LOGGER.info(`Incoming request from domain: ${domain}, method: ${req.method}, path: ${req.path}`);
     next();
 });

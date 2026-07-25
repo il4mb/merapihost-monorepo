@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap');
+
+html,
+body {
+    font-family: Figtree, sans-serif;
+    padding: 0;
+    margin: 0;
+}
+
+body.error-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: stretch;
+
+    & .flex {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        &.column {
+            flex-direction: column;
+        }
+    }
+
+    & .title {
+        font-size: 3rem;
+        font-weight: 900;
+        margin: 0;
+        @media (max-width: 600px) {
+            font-size: 2rem;
+        }
+
+        &.error {
+            text-shadow: 7px 0px red;
+        }
+    }
+
+    & .logo {
+        position: relative;
+        align-self: center;
+        & .error-icon {
+            position: absolute;
+            bottom: 0px;
+            left: -20px;
+        }
+    }
+
+    & .container {
+        text-align: center;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        max-width: 100%;
+    }
+
+    & .footer {
+        padding: 20px;
+        text-align: center;
+    }
+    & .subtitle {
+        font-size: 18px;
+        color: #888;
+        margin-top: 8px;
+    }
+
+    & .caption {
+        font-size: 14px;
+        color: #888;
+        margin-top: 8px;
+    }
+
+    & .error-details {
+        text-align: left;
+    }
+
+    a {
+        color: #2563eb;
+        text-decoration: none;
+    }
+
+    @media (max-width: 600px) {
+        svg {
+            width: min(100%, 280px);
+            height: auto;
+        }
+    }
+}

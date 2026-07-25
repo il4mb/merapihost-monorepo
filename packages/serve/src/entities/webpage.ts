@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { Service } from "./service";
-import { type MetaTag } from "@/types";
+import { type MetaTag } from "@/types/client";
 
 @Entity("webpages")
 @Index(["service", "route"], { unique: true })

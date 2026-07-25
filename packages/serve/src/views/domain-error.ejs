@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<%- include('partials/head', { 
+    title: "Domain Verification Failed" ,
+    description: "The domain could not be verified. Please ensure the correct TXT record is set in your DNS settings." ,
+    keywords: "domain verification, DNS, TXT record, Merapihost" 
+}) %>
+
+<body class="error-page">
+  <section class="container">
+    <header class="flex column">
+      <figure class="logo">
+        <%- include('partials/logo', { full: true, width: 280, height: 75, fill: '#ef1111' }) %>
+        <div class="error-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="-25 -25 135 135">
+            <path d="M 45 88.11 h 40.852 c 3.114 0 5.114 -3.307 3.669 -6.065 L 48.669 4.109 c -1.551 -2.959 -5.786 -2.959 -7.337 0 L 0.479 82.046 c -1.446 2.758 0.555 6.065 3.669 6.065 H 45 z" />
+            <path d="M 45 64.091 L 45 64.091 c -1.554 0 -2.832 -1.223 -2.9 -2.776 l -2.677 -25.83 c -0.243 -3.245 2.323 -6.011 5.577 -6.011 h 0 c 3.254 0 5.821 2.767 5.577 6.011 L 47.9 61.315 C 47.832 62.867 46.554 64.091 45 64.091 z" fill="#fff" />
+            <circle cx="44.995999999999995" cy="74.02600000000001" r="4.626" fill="#fff" />
+          </svg>
+        </div>
+      </figure>
+      <h1>Domain Verification Failed</h1>
+    </header>
+
+    <p class="subtitle">
+      <%= domain || 'This domain' %> could not be verified
+    </p>
+
+    <article>
+      <p>The domain <strong><%= domain || 'this domain' %></strong> is registered with Merapihost but failed verification.</p>
+      <div class="error-details">
+        <p>Possible reasons:</p>
+        <ul>
+          <li>DNS records haven't propagated yet</li>
+          <li>Verification token is missing or incorrect</li>
+          <li>Domain DNS is still pointing to the old server</li>
+          <li>SSL certificate verification failed</li>
+        </ul>
+      </div>
+      <br />
+      <contact>
+        <p class="caption">
+          <strong>Need help?</strong> Contact support at
+          <a href="mailto:support@merapihost.com">
+            support@merapihost.com
+          </a>
+        </p>
+      </contact>
+    </article>
+  </section>
+  <%- include('partials/footer') %>
+</body>
+
+</html>

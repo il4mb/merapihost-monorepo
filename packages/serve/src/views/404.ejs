@@ -1,34 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 
-<%- include('partials/head', {
-    title: "404 Not Found",
-    description: "The page you are looking for does not exist.",
-    keywords: "404, not found, error, page missing"
+<%- include('partials/head', { 
+    title: "404 Not Found" , 
+    description: "The page you are looking for does not exist." ,
+    keywords: "404, not found, error, page missing" 
 }) %>
 
-<body>
-    <div class="container" style="margin-top: -150px;">
-        <div class="logo">
-            <%- include('partials/logo', { full: true, width: 280, height: 75 }) %>
-        </div>
-        
-        <h1>404</h1>
-        <div class="message">
-            <p>The page you're looking for doesn't exist or has been moved.</p>
-            <p style="font-size:14px; color:#888; margin-top:8px;">
-                Check the URL or return to the homepage.
-            </p>
-        </div>
-
-        <div class="actions">
-            <a href="/" class="button">Go Home</a>
-        </div>
-
-        <div class="footer">
-            &copy; <%= new Date().getFullYear() %> Merapihost
-        </div>
+<body class="error-page">
+  <section class="container">
+    <header>
+      <figure class="logo">
+        <%- include('partials/logo', { full: true, width: 280, height: 75 }) %>
+      </figure>
+      <h1 class="title error">404</h1>
+    </header>
+    <div>
+      <p>The page you're looking for doesn't exist or has been moved.</p>
+      <p class="caption">
+        Check the URL or return to the homepage.
+      </p>
+      <a href="/" class="button">Go Home</a>
     </div>
+  </section>
+  <%- include('partials/footer') %>
 </body>
 
 </html>

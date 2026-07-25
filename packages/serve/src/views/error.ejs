@@ -7,24 +7,22 @@
     keywords: "error, server, internal server error, 500",
 }) %>
 
-<body>
-    <div class="container">
-        <div class="logo">
-            <%- include('partials/logo', { full: true, width: 280, height: 75, fill: '#ef1111' }) %>
-        </div>
-        
-        <h1><%= error.status || 500 %></h1>
-        <p class="subtitle">Something went wrong</p>
-
-        <div class="message">
-            <p>We're experiencing technical difficulties.</p>
-            <p style="font-size:14px; color:#888; margin-top:8px;">
-                Please try again later or contact support if the problem persists.
-            </p>
-        </div>
-
-        <%- include('partials/footer') %>
-    </div>
+<body class="error-page">
+  <section class="container">
+    <header>
+      <figure class="logo">
+        <%- include('partials/logo', { full: true, width: 280, height: 75, fill: '#ef1111' }) %>
+      </figure>
+      <h1 class="title error"><%= error.status || 500 %></h1>
+    </header>
+    <article>
+      <p class="subtitle">Something went wrong</p>
+      <p>We're experiencing technical difficulties.</p>
+      <p class="caption">
+        Please try again later or contact support if the problem persists.
+      </p>
+  </section>
+  <%- include('partials/footer') %>
 </body>
 
 </html>

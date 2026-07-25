@@ -1,4 +1,4 @@
-import { TPage } from "@/types";
+import { TPage } from "@/types/client";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -283,7 +283,9 @@ export const PAGE_DATA: TPage[] = [
                 props: { 
                     container: true,
                     spacing: 3,
-                    alignItems: "center"
+                    sx: {
+                        alignItems: "center"
+                    }
                 }
             },
             {
@@ -291,7 +293,7 @@ export const PAGE_DATA: TPage[] = [
                 type: "Grid",
                 parent: "15",
                 props: { 
-                    item: true,
+                    
                     xs: 12,
                     md: 8
                 }
@@ -375,7 +377,7 @@ export const PAGE_DATA: TPage[] = [
                 type: "Grid",
                 parent: "15",
                 props: { 
-                    item: true,
+                    
                     xs: 12,
                     md: 4,
                     sx: { textAlign: 'center' }
@@ -438,7 +440,7 @@ export const PAGE_DATA: TPage[] = [
                 type: "Grid",
                 parent: "31",
                 props: { 
-                    item: true,
+                    
                     xs: 12,
                     md: 4
                 }
@@ -497,7 +499,7 @@ export const PAGE_DATA: TPage[] = [
                 type: "Grid",
                 parent: "31",
                 props: { 
-                    item: true,
+                    
                     xs: 12,
                     md: 4
                 }
@@ -556,7 +558,7 @@ export const PAGE_DATA: TPage[] = [
                 type: "Grid",
                 parent: "31",
                 props: { 
-                    item: true,
+                    
                     xs: 12,
                     md: 4
                 }
@@ -634,7 +636,7 @@ export const PAGE_DATA: TPage[] = [
                 type: "Grid",
                 parent: "54",
                 props: { 
-                    item: true,
+                    
                     xs: 12,
                     sm: 4,
                     sx: { textAlign: 'center' }
@@ -677,7 +679,7 @@ export const PAGE_DATA: TPage[] = [
                 type: "Grid",
                 parent: "54",
                 props: { 
-                    item: true,
+                    
                     xs: 12,
                     sm: 4,
                     sx: { textAlign: 'center' }
@@ -720,7 +722,7 @@ export const PAGE_DATA: TPage[] = [
                 type: "Grid",
                 parent: "54",
                 props: { 
-                    item: true,
+                    
                     xs: 12,
                     sm: 4,
                     sx: { textAlign: 'center' }

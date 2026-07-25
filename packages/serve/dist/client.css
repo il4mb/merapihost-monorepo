@@ -1,0 +1,86 @@
+/*!*****************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../node_modules/.bun/css-loader@7.1.4+1af17d991b0e582c/node_modules/css-loader/dist/cjs.js!../../node_modules/.bun/sass-loader@17.0.0+f875d659b441d61f/node_modules/sass-loader/dist/cjs/index.js!./src/client/styles.scss ***!
+  \*****************************************************************************************************************************************************************************************************************************************/
+@import url(https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap);
+/*!*********************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../node_modules/.bun/css-loader@7.1.4+1af17d991b0e582c/node_modules/css-loader/dist/cjs.js!../../node_modules/.bun/sass-loader@17.0.0+f875d659b441d61f/node_modules/sass-loader/dist/cjs/index.js!./src/client/styles.scss (1) ***!
+  \*********************************************************************************************************************************************************************************************************************************************/
+html,
+body {
+  font-family: Figtree, sans-serif;
+  padding: 0;
+  margin: 0;
+}
+
+body.error-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: stretch;
+}
+body.error-page .flex {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body.error-page .flex.column {
+  flex-direction: column;
+}
+body.error-page .title {
+  font-size: 3rem;
+  font-weight: 900;
+  margin: 0;
+}
+@media (max-width: 600px) {
+  body.error-page .title {
+    font-size: 2rem;
+  }
+}
+body.error-page .title.error {
+  text-shadow: 7px 0px red;
+}
+body.error-page .logo {
+  position: relative;
+  align-self: center;
+}
+body.error-page .logo .error-icon {
+  position: absolute;
+  bottom: 0px;
+  left: -20px;
+}
+body.error-page .container {
+  text-align: center;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 100%;
+}
+body.error-page .footer {
+  padding: 20px;
+  text-align: center;
+}
+body.error-page .subtitle {
+  font-size: 18px;
+  color: #888;
+  margin-top: 8px;
+}
+body.error-page .caption {
+  font-size: 14px;
+  color: #888;
+  margin-top: 8px;
+}
+body.error-page .error-details {
+  text-align: left;
+}
+body.error-page a {
+  color: #2563eb;
+  text-decoration: none;
+}
+@media (max-width: 600px) {
+  body.error-page svg {
+    width: min(100%, 280px);
+    height: auto;
+  }
+}
