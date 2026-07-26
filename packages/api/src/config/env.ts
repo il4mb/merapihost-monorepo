@@ -3,7 +3,8 @@ import { LOGGER } from "@/utils/logger";
 
 const REQUIRED_ENV = [
     "JWT_SECRET",
-    "WHATSAPP_CALLBACK_VERIFY_TOKEN",
+    "WHATSAPP_CALLBACK_VERIFY_CODE",
+    "WHATSAPP_API_TOKEN",
     "REDIS_HOST",
     "REDIS_PORT",
     "MYSQL_HOST",
@@ -30,7 +31,8 @@ REQUIRED_ENV.forEach((key) => {
 export const env = {
 
     JWT_SECRET: String(process.env.JWT_SECRET),
-    WHATSAPP_CALLBACK_VERIFY_TOKEN: String(process.env.WHATSAPP_CALLBACK_VERIFY_TOKEN),
+    WHATSAPP_CALLBACK_VERIFY_CODE: String(process.env.WHATSAPP_CALLBACK_VERIFY_CODE),
+    WHATSAPP_API_TOKEN: String(process.env.WHATSAPP_API_TOKEN),
 
     FIREBASE_PROJECT_ID: String(process.env.FIREBASE_PROJECT_ID),
     FIREBASE_CLIENT_EMAIL: String(process.env.FIREBASE_CLIENT_EMAIL),

@@ -5,6 +5,7 @@ import { Webpage } from "@/entities/webpage";
 import { BlockNode } from "@/types/client";
 import { s3Client } from "@/utils/s3-client";
 import { Request, Response } from "express";
+import syspath from "path";
 
 const CACHE_TTL = 60 * 60 * 24; // 1 day in seconds
 
@@ -12,17 +13,20 @@ export const resolveClientRequest = async (req: Request, res: Response) => {
 
     const redis = await getRedis();
     const service = req.service!;
-    const cacheKey = `webpage:${service.id}:${req.params.path || "/"}`;
+    const cacheKey = `webpage:${service.id}:${req.params.path || "/"}.v2`;
     const path = (req.params.path ? String(req.params.path) : "/").trim().toLowerCase();
     const db = await getConnection();
     const webpageRepository = db.getRepository(Webpage);
 
-    const cachedData = await redis.get(cacheKey);
-    if (cachedData) {
-        const { webpage, blocks } = JSON.parse(cachedData) as { webpage: Webpage, blocks: BlockNode[] };
-        const data = render({ webpage, blocks });
-        return res.status(200).render("skeleton", data);
-    }
+    // const cachedData = await redis.get(cacheKey);
+    // if (cachedData) {
+    //     /**
+    //      * If cached data is found in Redis for the requested webpage, parse the cached JSON data and render the "skeleton" template with it.
+    //      * The cached data includes the webpage information and associated blocks, which are used to generate the HTML content.
+    //      */
+    //     const data = JSON.parse(cachedData) as { webpage: Webpage, blocks: BlockNode[] };
+    //     return res.status(200).render("skeleton", data);
+    // }
 
     /**
      * Attempt to find a webpage in the database that matches the requested path and is associated with the current service.
@@ -53,23 +57,28 @@ export const resolveClientRequest = async (req: Request, res: Response) => {
         });
     }
 
-    /**
-     * If a webpage is found, attempt to retrieve the associated blocks from S3 storage.
-     * The blocks are stored in a JSON file located at "webpages/{webpage.id}/blocks.json" within the service's bucket.
-     */
-    const s3File = s3Client.file(`webpages/${webpage.id}/blocks.json`, {
-        bucket: service.bucket
-    });
-    const blocks = ((await s3File.exists()) ? await s3File.json() : []) as BlockNode[];
+    // for testing purposes, read blocks from a local file instead of S3
+    const fileBlock = Bun.file(syspath.join(process.cwd(), "blocks.json"));
+    const blocks = await fileBlock.json() as BlockNode[];
 
-    await redis.set(cacheKey, JSON.stringify({ webpage, blocks }));
-    await redis.expire(cacheKey, CACHE_TTL);
     
+    // /**
+    //  * If a webpage is found, attempt to retrieve the associated blocks from S3 storage.
+    //  * The blocks are stored in a JSON file located at "webpages/{webpage.id}/blocks.json" within the service's bucket.
+    //  */
+    // const s3File = s3Client.file(`webpages/${webpage.id}/blocks.json`, {
+    //     bucket: service.bucket
+    // });
+    // const blocks = ((await s3File.exists()) ? await s3File.json() : []) as BlockNode[];
+
     /**
      * Render the webpage using the retrieved blocks and webpage data.
      * The render function generates the necessary HTML content, styles, and other data required to display the webpage.
      */
     const data = render({ webpage, blocks });
+
+    await redis.set(cacheKey, JSON.stringify(data));
+    await redis.expire(cacheKey, CACHE_TTL);
 
     /**
      * Render the "skeleton" template with the generated data.
