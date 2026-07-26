@@ -7,7 +7,7 @@ const TXT_PREFIX = "merapihost-verification";
 
 export async function domainVerifyMiddleware(req: Request, res: Response, next: NextFunction) {
 
-    const domain = req.hostname;
+    const domain = "test1.harci.id"; // req.hostname;
     const db = await getConnection();
     const serviceRepository = db.getRepository(Service);
     const service = await serviceRepository.findOne({ where: { domain } });

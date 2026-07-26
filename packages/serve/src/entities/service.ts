@@ -15,8 +15,8 @@ export class Service {
     @Column({ type: "varchar", length: 64 })
     domain: string;
 
-    @Column({ type: "varchar", length: 64, nullable: true })
-    bucket: string | null;
+    @Column({ type: "varchar", length: 64 })
+    bucket: string;
 
     @Column({ type: "varchar", length: 64, nullable: true })
     domainVerifyToken: string | null;

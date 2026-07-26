@@ -14,7 +14,7 @@ export interface TPage {
         type: string;
         content: string;
     }[];
-    data: BlockNode[];
+    blocks: BlockNode[];
 }
 
 export type BlockNode = {

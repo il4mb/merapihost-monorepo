@@ -1,0 +1,589 @@
+// ============================================
+// FLEX LAYOUT SYSTEM
+// Complete flex utility classes
+// ============================================
+
+// Configuration Maps
+$justify: (
+    start: flex-start,
+    end: flex-end,
+    center: center,
+    between: space-between,
+    around: space-around,
+    evenly: space-evenly
+);
+
+$align: (
+    start: flex-start,
+    end: flex-end,
+    center: center,
+    stretch: stretch,
+    baseline: baseline
+);
+
+$align-self: (
+    start: flex-start,
+    end: flex-end,
+    center: center,
+    stretch: stretch,
+    baseline: baseline,
+    auto: auto
+);
+
+// Gap sizes (multiplier * 4px)
+$gap-sizes: 10;
+
+// ============================================
+// FLEX CONTAINER
+// ============================================
+.flex {
+    display: flex;
+
+    // Default alignment (can be overridden)
+    align-items: stretch;
+    justify-content: flex-start;
+
+    // Direction
+    &.row {
+        flex-direction: row;
+    }
+
+    &.row-reverse {
+        flex-direction: row-reverse;
+    }
+
+    &.column {
+        flex-direction: column;
+    }
+
+    &.column-reverse {
+        flex-direction: column-reverse;
+    }
+
+    // Wrapping
+    &.wrap {
+        flex-wrap: wrap;
+    }
+
+    &.wrap-reverse {
+        flex-wrap: wrap-reverse;
+    }
+
+    &.nowrap {
+        flex-wrap: nowrap;
+    }
+
+    // Justify Content
+    @each $key, $value in $justify {
+        &.justify-#{$key} {
+            justify-content: #{$value};
+        }
+    }
+
+    // Align Items
+    @each $key, $value in $align {
+        &.align-#{$key} {
+            align-items: #{$value};
+        }
+    }
+
+    // Align Content (for wrapped lines)
+    @each $key, $value in $justify {
+        &.align-content-#{$key} {
+            align-content: #{$value};
+        }
+    }
+
+    // Gaps
+    @for $i from 1 through $gap-sizes {
+        &.gap-#{$i} {
+            gap: #{$i * 4}px;
+        }
+
+        &.gap-x-#{$i} {
+            column-gap: #{$i * 4}px;
+        }
+
+        &.gap-y-#{$i} {
+            row-gap: #{$i * 4}px;
+        }
+    }
+
+    // Auto margins helper
+    &.m-auto {
+        margin: auto;
+    }
+
+    &.mt-auto {
+        margin-top: auto;
+    }
+
+    &.mr-auto {
+        margin-right: auto;
+    }
+
+    &.mb-auto {
+        margin-bottom: auto;
+    }
+
+    &.ml-auto {
+        margin-left: auto;
+    }
+
+    &.mx-auto {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    &.my-auto {
+        margin-top: auto;
+        margin-bottom: auto;
+    }
+}
+
+// ============================================
+// FLEX ITEMS
+// ============================================
+.flex-item {
+    flex: 0 1 auto;
+
+    // Flex grow
+    &.grow {
+        flex-grow: 1;
+    }
+
+    &.grow-0 {
+        flex-grow: 0;
+    }
+
+    @for $i from 1 through 5 {
+        &.grow-#{$i} {
+            flex-grow: $i;
+        }
+    }
+
+    // Flex shrink
+    &.shrink {
+        flex-shrink: 1;
+    }
+
+    &.shrink-0 {
+        flex-shrink: 0;
+    }
+
+    @for $i from 1 through 5 {
+        &.shrink-#{$i} {
+            flex-shrink: $i;
+        }
+    }
+
+    // Flex basis
+    &.basis-auto {
+        flex-basis: auto;
+    }
+
+    &.basis-0 {
+        flex-basis: 0;
+    }
+
+    @for $i from 1 through 20 {
+        &.basis-#{$i} {
+            flex-basis: $i * 5 * 1%;
+        }
+    }
+
+    // Flex shorthand
+    &.flex-1 {
+        flex: 1 1 0%;
+    }
+
+    &.flex-auto {
+        flex: 1 1 auto;
+    }
+
+    &.flex-initial {
+        flex: 0 1 auto;
+    }
+
+    &.flex-none {
+        flex: 0 0 auto;
+    }
+
+    // Align self
+    @each $key, $value in $align-self {
+        &.self-#{$key} {
+            align-self: #{$value};
+        }
+    }
+
+    // Order
+    &.order-first {
+        order: -1;
+    }
+
+    &.order-last {
+        order: 999;
+    }
+
+    &.order-none {
+        order: 0;
+    }
+
+    @for $i from 1 through 12 {
+        &.order-#{$i} {
+            order: $i;
+        }
+    }
+}
+
+// ============================================
+// INLINE FLEX
+// ============================================
+.inline-flex {
+    display: inline-flex;
+
+    // Inherit all flex container classes
+    @extend .flex;
+}
+
+// ============================================
+// GRID SYSTEM (Complementary)
+// ============================================
+.grid {
+    display: grid;
+
+    // Grid template columns
+    &.cols-1 {
+        grid-template-columns: repeat(1, 1fr);
+    }
+
+    &.cols-2 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    &.cols-3 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    &.cols-4 {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    &.cols-5 {
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    &.cols-6 {
+        grid-template-columns: repeat(6, 1fr);
+    }
+
+    &.cols-7 {
+        grid-template-columns: repeat(7, 1fr);
+    }
+
+    &.cols-8 {
+        grid-template-columns: repeat(8, 1fr);
+    }
+
+    &.cols-9 {
+        grid-template-columns: repeat(9, 1fr);
+    }
+
+    &.cols-10 {
+        grid-template-columns: repeat(10, 1fr);
+    }
+
+    &.cols-11 {
+        grid-template-columns: repeat(11, 1fr);
+    }
+
+    &.cols-12 {
+        grid-template-columns: repeat(12, 1fr);
+    }
+
+    // Auto columns
+    &.cols-auto {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+
+    &.cols-auto-fill {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+
+    // Grid gaps
+    @for $i from 1 through $gap-sizes {
+        &.gap-#{$i} {
+            gap: #{$i * 4}px;
+        }
+
+        &.gap-x-#{$i} {
+            column-gap: #{$i * 4}px;
+        }
+
+        &.gap-y-#{$i} {
+            row-gap: #{$i * 4}px;
+        }
+    }
+
+    // Alignment
+    @each $key, $value in $justify {
+        &.justify-#{$key} {
+            justify-content: #{$value};
+        }
+
+        &.align-#{$key} {
+            align-content: #{$value};
+        }
+    }
+}
+
+// ============================================
+// SPACING UTILITIES (Padding & Margin)
+// ============================================
+$spacing-sizes: 20;
+
+@for $i from 0 through $spacing-sizes {
+
+    // Padding
+    .p-#{$i} {
+        padding: #{$i * 4}px;
+    }
+
+    .pt-#{$i} {
+        padding-top: #{$i * 4}px;
+    }
+
+    .pr-#{$i} {
+        padding-right: #{$i * 4}px;
+    }
+
+    .pb-#{$i} {
+        padding-bottom: #{$i * 4}px;
+    }
+
+    .pl-#{$i} {
+        padding-left: #{$i * 4}px;
+    }
+
+    .px-#{$i} {
+        padding-left: #{$i * 4}px;
+        padding-right: #{$i * 4}px;
+    }
+
+    .py-#{$i} {
+        padding-top: #{$i * 4}px;
+        padding-bottom: #{$i * 4}px;
+    }
+
+    // Margin
+    .m-#{$i} {
+        margin: #{$i * 4}px;
+    }
+
+    .mt-#{$i} {
+        margin-top: #{$i * 4}px;
+    }
+
+    .mr-#{$i} {
+        margin-right: #{$i * 4}px;
+    }
+
+    .mb-#{$i} {
+        margin-bottom: #{$i * 4}px;
+    }
+
+    .ml-#{$i} {
+        margin-left: #{$i * 4}px;
+    }
+
+    .mx-#{$i} {
+        margin-left: #{$i * 4}px;
+        margin-right: #{$i * 4}px;
+    }
+
+    .my-#{$i} {
+        margin-top: #{$i * 4}px;
+        margin-bottom: #{$i * 4}px;
+    }
+}
+
+// ============================================
+// RESPONSIVE UTILITIES
+// ============================================
+$breakpoints: (
+    sm: 576px,
+    md: 768px,
+    lg: 992px,
+    xl: 1200px,
+    xxl: 1400px
+);
+
+@each $name, $breakpoint in $breakpoints {
+    @media (min-width: $breakpoint) {
+
+        // Flex direction
+        .flex-#{$name}-row {
+            flex-direction: row;
+        }
+
+        .flex-#{$name}-column {
+            flex-direction: column;
+        }
+
+        // Justify
+        @each $key, $value in $justify {
+            .justify-#{$name}-#{$key} {
+                justify-content: #{$value};
+            }
+        }
+
+        // Align
+        @each $key, $value in $align {
+            .align-#{$name}-#{$key} {
+                align-items: #{$value};
+            }
+        }
+
+        // Grid columns
+        @for $i from 1 through 12 {
+            .cols-#{$name}-#{$i} {
+                grid-template-columns: repeat($i, 1fr);
+            }
+        }
+
+        // Display
+        .d-#{$name}-flex {
+            display: flex;
+        }
+
+        .d-#{$name}-inline-flex {
+            display: inline-flex;
+        }
+
+        .d-#{$name}-grid {
+            display: grid;
+        }
+
+        .d-#{$name}-none {
+            display: none;
+        }
+
+        .d-#{$name}-block {
+            display: block;
+        }
+
+        .d-#{$name}-inline-block {
+            display: inline-block;
+        }
+    }
+}
+
+// ============================================
+// VISIBILITY & POSITIONING
+// ============================================
+.relative {
+    position: relative;
+}
+
+.absolute {
+    position: absolute;
+}
+
+.fixed {
+    position: fixed;
+}
+
+.sticky {
+    position: sticky;
+}
+
+// Text alignment
+.text-left {
+    text-align: left;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-justify {
+    text-align: justify;
+}
+
+// Width & Height
+.w-full {
+    width: 100%;
+}
+
+.h-full {
+    height: 100%;
+}
+
+.w-auto {
+    width: auto;
+}
+
+.h-auto {
+    height: auto;
+}
+
+.w-screen {
+    width: 100vw;
+}
+
+.h-screen {
+    height: 100vh;
+}
+
+.min-h-screen {
+    min-height: 100vh;
+}
+
+.min-w-screen {
+    min-width: 100vw;
+}
+
+.max-w-full {
+    max-width: 100%;
+}
+
+.max-h-full {
+    max-height: 100%;
+}
+
+// Overflow
+.overflow-hidden {
+    overflow: hidden;
+}
+
+.overflow-auto {
+    overflow: auto;
+}
+
+.overflow-scroll {
+    overflow: scroll;
+}
+
+.overflow-visible {
+    overflow: visible;
+}
+
+.overflow-x-auto {
+    overflow-x: auto;
+}
+
+.overflow-y-auto {
+    overflow-y: auto;
+}
+
+.overflow-x-hidden {
+    overflow-x: hidden;
+}
+
+.overflow-y-hidden {
+    overflow-y: hidden;
+}

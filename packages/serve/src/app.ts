@@ -67,6 +67,7 @@ app.use((req, res, next) => {
  * Render the main index page for localhost requests
  */
 app.get("/{*path}", (req, res, next) => {
+    return next(); // Skip to the next middleware for all paths
     const domain = req.hostname || "localhost";
     if (domain.startsWith("localhost")) {
         if (req.path === "/favicon.ico") {

@@ -4,20 +4,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><% title %></title>
-  <% meta.forEach(meta => { %>
-  <meta name="<%= meta.name %>" content="<%= meta.content %>">
-  <% }) %>
+  <title><% webpage.title %></title>
+  <% webpage.meta.forEach(meta => { %><meta name="<%= meta.name %>" content="<%= meta.content %>"><% }) %>
   <link rel="stylesheet" href="/client.css">
   <%- styles %>
   <script id="initial-data">
-    window.__INITIAL_DATA__ = <%- JSON.stringify({ title, service, blocks }) %>;
+    window.__INITIAL_DATA__ = <%- JSON.stringify({ webpage, blocks }) %>;
   </script>
+  <script src="/client.js" defer></script>
 </head>
 
-<body>
-  <div id="root"><%- content %></div>
-  <script src="/client.js" defer></script>
-</body>
+<body><%- content %></body>
 
 </html>
