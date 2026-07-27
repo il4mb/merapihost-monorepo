@@ -1,6 +1,7 @@
 import { env } from "./config/env";
 import { DataSource } from "typeorm";
 import { LOGGER } from "./utils/logger";
+import path from "path";
 
 try {
     import("mysql2");
@@ -18,7 +19,9 @@ const snapshoots = {
         password: env.MYSQL_PASSWORD,
         database: env.MYSQL_DATABASE,
         synchronize: env.NODE_ENV === "development",
-        entities: [],
+        entities: [
+            path.join(__dirname, "entities", "**", "*.ts")
+        ],
         subscribers: [],
         migrations: [],
         cache: {
@@ -30,6 +33,7 @@ const snapshoots = {
         }
     })
 } as const;
+
 const databaseNames = Object.keys(snapshoots) as Array<keyof typeof snapshoots>;
 type DatabaseName = typeof databaseNames[number];
 export async function getConnection(database: DatabaseName = "main"): Promise<DataSource> {

@@ -9,9 +9,9 @@ services:
       - JWT_SECRET=e457bd37613a8fa736ec0234173dd22c7871602cc9368408aba4fa062fed8771
       - WHATSAPP_CALLBACK_VERIFY_CODE=e91b89f6a906d6cc357565227ee4594326130cdaeab7d22c87e79d3f9dc7e537
       - WHATSAPP_API_TOKEN=EAAC1E0iNBFsBSLrsZABHQZAl7OTDUdoqQELIFsrJIGwBigOZCPHR6LBHTcTBVRDOQ2ZARZBXk31iGNqtS7rZBeWb3mb2N6Tn5ZCZAwTzz2G2omyT40LPU9B3SrwjMcuViBpZCtQfH1ZCcZCC8iXsGGdO3YayDajp63vsCb0HPFU1sCGqQyR3MOUZCtoO4fg7kVOjKQZDZD
-      - REDIS_HOST=127.0.0.1
+      - REDIS_HOST=host.docker.internal
       - REDIS_PORT=6379
-      - MYSQL_HOST=127.0.0.1
+      - MYSQL_HOST=host.docker.internal
       - MYSQL_PORT=3306
       - MYSQL_USER=root
       - MYSQL_PASSWORD=Root#1234
@@ -25,6 +25,7 @@ services:
       - S3_ENDPOINT=is3.cloudhost.id
     volumes:
       - ./packages/api:/usr/local/merapihost/api
+      - api_node_modules:/usr/local/merapihost/api/node_modules
     extra_hosts:
       - "host.docker.internal:host-gateway"
   
@@ -40,4 +41,6 @@ services:
       - ./packages/serve:/usr/local/merapihost/serve
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    
+
+volumes:
+  api_node_modules: # virtual volume for node_modules in api package
