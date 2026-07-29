@@ -8,20 +8,19 @@
     ],
     "allowJs": true,
     "skipLibCheck": true,
-    "noImplicitAny": false,
-    "strict": true,
-    "esModuleInterop": true,
+    "strict": false,
+    "noEmit": true,
+    "incremental": true,
     "module": "esnext",
+    "esModuleInterop": true,
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "incremental": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "rewriteRelativeImportExtensions": true,
-    "strictPropertyInitialization": false,
-    "types": [
-      "bun"
+    "jsx": "react-jsx",
+    "plugins": [
+      {
+        "name": "next"
+      }
     ],
     "paths": {
       "@/*": [
@@ -30,7 +29,12 @@
     }
   },
   "include": [
-    "src"
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts",
+    "**/*.ts",
+    "**/*.tsx"
   ],
   "exclude": [
     "node_modules"

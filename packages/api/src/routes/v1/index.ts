@@ -1,8 +1,7 @@
 import { Router } from "express";
-import whatsappRouter from "./whatsapp";
+import serviceRouter from "./service";
+import { serviceMiddleware } from "@/middlewares/service.middleware";
 
 const router = Router();
-
-router.use("/whatsapp", whatsappRouter);
-
+router.use("/:serviceId", serviceMiddleware, serviceRouter);
 export default router;

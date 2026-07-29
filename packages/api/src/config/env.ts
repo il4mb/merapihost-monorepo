@@ -18,7 +18,9 @@ const REQUIRED_ENV = [
     "S3_ACCESS_KEY_ID",
     "S3_SECRET_ACCESS_KEY",
     "S3_BUCKET_NAME",
-    "S3_ENDPOINT"
+    "S3_ENDPOINT",
+    "GEMINI_API_KEY",
+    "DEEPSEEK_API_KEY"
 ];
 
 REQUIRED_ENV.forEach((key) => {
@@ -54,5 +56,8 @@ export const env = {
     S3_ACCESS_KEY_ID: String(process.env.S3_ACCESS_KEY_ID),
     S3_SECRET_ACCESS_KEY: String(process.env.S3_SECRET_ACCESS_KEY),
     S3_BUCKET_NAME: String(process.env.S3_BUCKET_NAME),
-    S3_ENDPOINT: String(process.env.S3_ENDPOINT)
+    S3_ENDPOINT: String(process.env.S3_ENDPOINT),
+
+    GEMINI_API_KEY: String(process.env.GEMINI_API_KEY),
+    DEEPSEEK_API_KEY: String(process.env.DEEPSEEK_API_KEY)
 }

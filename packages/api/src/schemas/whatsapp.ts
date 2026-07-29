@@ -2,13 +2,22 @@ import { z } from "zod";
 
 export const sendMessageSchema = z.object({
     accountId: z.uuid("Invalid account ID"),
-    contactId: z.uuid("Invalid contact ID"),
+    contactId: z.uuid("Invalid contact ID").optional(),
+    phoneNumber: z.string().optional(), // Added support for sending by number directly
     type: z.enum(["text", "image", "video", "audio", "document", "sticker"]).default("text"),
-    body: z.string().optional(), // Text message content OR caption for media
-    mediaId: z.string().optional(), // If sending via an already uploaded WhatsApp Media ID
-    mediaLink: z.url("Invalid media URL").optional(), // If sending via a public URL (e.g., your S3 bucket)
+    body: z.string().optional(),
+    mediaId: z.string().optional(),
+    mediaLink: z.url("Invalid media URL").optional(),
     replyToMessageId: z.string().optional(),
 }).superRefine((data, ctx) => {
+    // Ensure at least a contact ID or a phone number is provided
+    if (!data.contactId && !data.phoneNumber) {
+        ctx.addIssue({
+            code: "custom",
+            message: "Either contactId or phoneNumber must be provided",
+            path: ["phoneNumber"],
+        });
+    }
     if (data.type === "text" && !data.body) {
         ctx.addIssue({
             code: "custom",

@@ -1,5 +1,10 @@
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
+export interface ServiceMetadata {
+    wabaId?: string;
+    whatsappAccessToken?: string;
+}
+
 @Entity("services")
 export class Service {
 
@@ -17,6 +22,9 @@ export class Service {
 
     @Column({ type: "boolean", default: true })
     isActive: boolean = true;
+
+    @Column({ type: "json", nullable: true })
+    metadata: ServiceMetadata | null;
 
     @CreateDateColumn({ name: "created_at" })
     createdAt: Date;

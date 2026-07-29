@@ -3,6 +3,20 @@ export interface InputBody {
     entry: Entry[];
 }
 
+export interface StateSyncEvent {
+    type: string;
+    action: string;
+    contact?: {
+        full_name: string;
+        first_name: string;
+        phone_number: string;
+    };
+    metadata: {
+        timestamp: string;
+        version: number;
+    };
+}
+
 export interface Entry {
     id: string;
     changes: Change[];
@@ -11,15 +25,19 @@ export interface Entry {
 export interface Change {
     field: string;
     value: Value;
+    smb_message_echoes?: any[];
+    smb_app_state_sync?: any[];
 }
 
 export interface Value {
     messaging_product: string;
     metadata: Metadata;
-    contacts?: Contact[]; // Optional: Not present in status webhooks
-    messages?: Message[]; // Optional: Not present in status webhooks
-    statuses?: Status[];  // Added: Present when a message is sent, delivered, or read
-    errors?: WebhookError[]; // Added: Present if there is a message delivery failure
+    contacts?: Contact[];
+    messages?: Message[];
+    statuses?: Status[];
+    errors?: WebhookError[];
+    message_echoes?: Message[]; // Added for smb_message_echoes
+    state_sync?: StateSyncEvent[]; // Added for smb_app_state_sync
 }
 
 export interface Metadata {
