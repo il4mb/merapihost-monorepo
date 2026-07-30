@@ -7,7 +7,9 @@ import { LOGGER } from "@/utils/logger";
 LOGGER.info("Starting server...");
 
 const PORT = env.PORT || 4020;
-const httpServer = createServer(app);
-httpServer.listen(PORT, () => {
+
+app.listen(PORT, () => {
     LOGGER.info(`Server is running on port ${PORT}`);
+    LOGGER.info(`Environment: ${env.NODE_ENV}`);
+    LOGGER.info(`URL: http://localhost:${PORT}`);
 });

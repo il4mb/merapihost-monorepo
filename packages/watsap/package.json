@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "bun --bun --max-old-space-size=10240 next dev",
+        "dev": "next dev",
         "build": "next build",
         "start": "NODE_ENV=production node next start"
     },
@@ -26,7 +26,8 @@
         "notistack": "^3.0.2",
         "react": "19.2.4",
         "react-dom": "19.2.4",
-        "sass": "^1.99.0"
+        "sass": "^1.99.0",
+        "zod": "^4.4.3"
     },
     "devDependencies": {
         "@types/node": "^20",

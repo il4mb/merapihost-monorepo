@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Theme from '@/theme/Theme';
 import LocalizationAdapter from '@/contexts/LocalizationAdapter';
 import SnackbarProvider from '@/contexts/SnackbarProvider';
+import NavigationProvider from '@/components/navigations/NavigationProvider';
 
 export const metadata: Metadata = {
     title: 'Watsap',
@@ -21,11 +22,13 @@ export default function Layout({ children }: LayoutProps) {
             </head>
             <body>
                 <Theme>
-                    <LocalizationAdapter>
-                        <SnackbarProvider>
-                            {children}
-                        </SnackbarProvider>
-                    </LocalizationAdapter>
+                    <NavigationProvider>
+                        <LocalizationAdapter>
+                            <SnackbarProvider>
+                                {children}
+                            </SnackbarProvider>
+                        </LocalizationAdapter>
+                    </NavigationProvider>
                 </Theme>
             </body>
         </html>

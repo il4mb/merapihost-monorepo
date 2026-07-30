@@ -40,6 +40,7 @@ export const inputsCustomizations: Components<Theme> = {
                 textTransform: "none",
                 borderRadius: theme.shape.borderRadius,
                 transition: 'all 0.2s ease-out',
+                lineHeight: '1.2rem',
                 variants: [
                     ...['text', 'outlined', 'contained'].flatMap((variant) => colorsName.map((name) => {
                         const color = getColor(name);
@@ -268,7 +269,7 @@ export const inputsCustomizations: Components<Theme> = {
                 margin: 10,
                 height: 16,
                 width: 16,
-                borderRadius: 2,
+                borderRadius: 4,
                 border: "none",
                 backgroundColor: alpha(gray[100], 0.4),
                 transition: "border-color, background-color, 120ms ease-in",
@@ -338,18 +339,45 @@ export const inputsCustomizations: Components<Theme> = {
     MuiFormControl: {
         styleOverrides: {
             root: ({ theme }) => ({
-                "& .MuiFormLabel-root": {
-                    top: "50%",
+                "& .MuiFormLabel-root[data-shrink=false]": {
+                    top: "1.25rem",
                     transform: "translate(14px, -50%)",
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    "&.MuiInputLabel-sizeSmall": {
+                        top: "1rem"
+                    }
                 },
-                "&:has(.Mui-focused), &:has(.MuiFormLabel-filled), &:has(input:placeholder-shown)": {
-                    "& .MuiFormLabel-root": {
+                "&:has(.Mui-focused), &:has(.MuiFormLabel-filled)": {
+                    "& .MuiFormLabel-root[data-shrink=true]": {
                         top: 0,
                         transform: "translate(14px, -50%) scale(0.758)",
                         ...theme.applyStyles("dark", {
                             color: "white"
                         })
+                    }
+                },
+                "&:has( .MuiInputAdornment-positionStart)": {
+                    "& .MuiFormLabel-root[data-shrink=true]": {
+                        top: 0,
+                        transform: "translate(14px, -50%) scale(0.758)",
+                    }
+                },
+                "& .MuiPickersInputBase-root": {
+                    height: "2.6rem",
+                },
+
+                // input select
+                "&:has( .MuiSelect-root)": {
+                    "& .MuiSelect-root": {
+                        borderColor: 'transparent',
+
+                        "& .MuiSelect-select": {
+                            display: 'block !important',
+                            textOverflow: 'ellipsis',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            paddingRight: '2.2px !important',
+                        }
                     }
                 }
             })
@@ -382,7 +410,7 @@ export const inputsCustomizations: Components<Theme> = {
             },
             root: ({ theme, ownerState }) => {
 
-                const { multiline, size } = ownerState;
+                const { multiline } = ownerState;
 
                 return {
                     padding: "8px 12px",
@@ -415,6 +443,11 @@ export const inputsCustomizations: Components<Theme> = {
                             },
                             style: {
                                 height: multiline ? "unset" : "2rem",
+                                "& .MuiFormLabel-root": {
+                                    top: "0%",
+                                    transform: "translate(14px, -50%)",
+                                    transition: 'all 0.2s ease'
+                                },
                             },
                         },
                         {
@@ -431,9 +464,9 @@ export const inputsCustomizations: Components<Theme> = {
             notchedOutline: ({ theme }) => ({
                 border: `1px solid`,
                 transition: "border 120ms ease-in",
-                borderColor: gray[500],
+                borderColor: alpha(gray[600], 0.4),
                 ...theme.applyStyles("dark", {
-                    borderColor: gray[400],
+                    borderColor: alpha("#818181", 0.5),
                 }),
             }),
         },
@@ -488,6 +521,21 @@ export const inputsCustomizations: Components<Theme> = {
                 ],
 
 
+            })
+        }
+    },
+
+    MuiAutocomplete: {
+        styleOverrides: {
+            root: ({ theme }) => ({
+                "& > .MuiFormControl-root > .MuiFormLabel-root[data-shrink=false]": {
+                    top: '50%',
+                    transform: 'translate(14px, -50%) scale(1)'
+                },
+                "& > .MuiFormControl-root > .MuiFormLabel-root[data-shrink=true]": {
+                    top: 0,
+                    transform: "translate(14px, -50%) scale(0.758)",
+                }
             })
         }
     }
