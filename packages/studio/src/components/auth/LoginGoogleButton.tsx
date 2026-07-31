@@ -4,7 +4,8 @@ import { auth } from "@/libs/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { enqueueSnackbar } from "notistack";
 import { useState } from "react";
-import { clientApi } from "@/libs/api";
+import { clientApi } from "@/libs/api-client.ts";
+import { useNavigate } from "@/hooks/useNavigate";
 
 const provider = new GoogleAuthProvider();
 provider.addScope('profile');
@@ -17,18 +18,18 @@ type LoginGoogleButtonProps = {
 };
 
 export default function LoginGoogleButton({ disabled, onBeforeLogin, onAfterLogin }: LoginGoogleButtonProps) {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
 
     const handleLoginWithGoogle = async () => {
         try {
-            
+
             setLoading(true);
             if (onBeforeLogin) {
                 onBeforeLogin();
             }
             const result = await signInWithPopup(auth, provider);
-            const credential = GoogleAuthProvider.credentialFromResult(result);
-            const token = credential?.accessToken;
+            const token = await result.user.getIdToken();
             const { data: response } = await clientApi.post(`/api/auth`, { token }, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -38,7 +39,7 @@ export default function LoginGoogleButton({ disabled, onBeforeLogin, onAfterLogi
                 throw new Error(response.message || "Failed to login. Please try again.");
             }
             enqueueSnackbar("Berhasil login dengan Google!", { variant: "success" });
-
+            navigate("/dash");
         } catch (error) {
             console.error("Error logging in with Google:", error);
             enqueueSnackbar("Error logging in with Google. Please try again.", { variant: "error" });

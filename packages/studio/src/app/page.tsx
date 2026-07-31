@@ -10,7 +10,7 @@ import { auth } from "@/libs/firebase";
 import { useNavigate } from "@/hooks/useNavigate";
 import { useValidator } from "@/hooks/useValidator";
 import { loginSchema } from "@/libs/schemas/auth";
-import { clientApi } from "@/libs/api";
+import { clientApi } from "@/libs/api-client.ts";
 
 const RootElement = styled(Box)(({ theme }) => ({
     minHeight: "100vh",
