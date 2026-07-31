@@ -17,7 +17,7 @@ interface StylesProviderProps {
 export default function StylesProvider({ children }: StylesProviderProps) {
 
     const nodes = useSelectedNodes();
-    const nodeTypes = nodes.map(node => node.data.type);
+    const nodeTypes = nodes.map(node => node.type).filter((type): type is string => !!type);
     const models = useModelsFromArray(nodeTypes);
     const [modifiers, setModifiers] = useState<ModSet[]>([])
 
@@ -28,7 +28,7 @@ export default function StylesProvider({ children }: StylesProviderProps) {
     useEffect(() => {
         const modifiers = [] as ModSet[]
         models.forEach(model => {
-            const nodeIds = nodes.filter(node => node.data.type === model.name).map(node => node.id)
+            const nodeIds = nodes.filter(node => node.type === model.name).map(node => node.id)
             const modelModifiers = Object.values(model.model.related || {}) as ModifierComponent[]
             modelModifiers.forEach(modifier => {
                 const existing = modifiers.find(mod => mod.component === modifier)

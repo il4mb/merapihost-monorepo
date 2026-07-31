@@ -1,7 +1,7 @@
-import { NodeObject } from "../../types/node";
+import { NodeObject } from "@editor/types";
 import { useCallback, useEffect, useState } from "react";
-import { useViewport } from "../../cores/EditorProvider";
-import { Box, useColorScheme, useTheme } from "@mui/material";
+import { useViewport } from "@editor/cores/EditorProvider";
+import { Box, useColorScheme } from "@mui/material";
 
 interface SelectedProps {
     element: HTMLElement;

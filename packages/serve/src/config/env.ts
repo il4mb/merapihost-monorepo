@@ -3,6 +3,8 @@ import { LOGGER } from "@/utils/logger";
 
 const REQUIRED_ENV = [
     "SERVER_NAME",
+    "WHITELISTED_IPS",
+    "MASTER_KEY",
     "PORT",
     "JWT_SECRET",
     "REDIS_HOST",
@@ -32,6 +34,8 @@ export const env = {
     NODE_ENV: process.env.NODE_ENV || "development",
     PORT: process.env.PORT || 4020,
     SERVER_NAME: String(process.env.SERVER_NAME),
+    MASTER_KEY: String(process.env.MASTER_KEY),
+    WHITELISTED_IPS: String(process.env.WHITELISTED_IPS).split(",").map(ip => ip.trim()),
 
     JWT_SECRET: String(process.env.JWT_SECRET),
 

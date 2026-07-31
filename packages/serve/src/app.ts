@@ -4,6 +4,7 @@ import { LOGGER } from './utils/logger';
 import path from 'path';
 import { domainVerifyMiddleware } from './middleware/domainVerify';
 import clientRoutes from './routes/client';
+import masterRoutes from './routes/masters';
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { env } from './config/env';
 import { Service } from './utils/entities/service';
@@ -61,6 +62,9 @@ app.use((req, res, next) => {
     LOGGER.info(`Incoming request from domain: ${domain}, method: ${req.method}, path: ${req.path}`);
     next();
 });
+
+
+app.use("/__master", masterRoutes);
 
 
 /**
