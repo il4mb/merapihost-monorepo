@@ -1,12 +1,13 @@
+import CraftEditor from "@craft/CraftEditor";
+
 type PageProps = {
-    
+
 };
 
-export default function Page({}: PageProps) {
+export default function Page({ }: PageProps) {
     return (
         <div>
-            {/* Page content goes here */}
-            <h1>Page</h1>
+            <CraftEditor />
         </div>
     );
 }

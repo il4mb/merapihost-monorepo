@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@merapihost/blocks",
+      "name": "@merapihost/craft",
       "dependencies": {
         "@craftjs/core": "^0.2.12",
         "@emotion/cache": "^11.14.0",
