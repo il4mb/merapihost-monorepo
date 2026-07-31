@@ -1,0 +1,62 @@
+"use client";
+import { auth } from "@/libs/firebase";
+import { Box, CircularProgress, Fade, Typography } from "@mui/material";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { createContext, useContext, useEffect, useState } from "react";
+
+interface AuthContextType {
+    user: User | null;
+    loading: boolean;
+}
+
+const Context = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuth = () => {
+    const context = useContext(Context);
+    if (!context) {
+        throw new Error("useAuth must be used within an AuthProvider");
+    }
+    return context;
+};
+
+type AuthProviderProps = {
+    children?: React.ReactNode;
+};
+
+export default function AuthProvider({ children }: AuthProviderProps) {
+    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<User | null>(null);
+
+    useEffect(() => {
+        let delayTimeout: NodeJS.Timeout | null = null;
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+            delayTimeout = setTimeout(() => setLoading(false), 500); // Added a slight delay for better UX
+            console.log("Auth state changed. Current user:", currentUser);
+        });
+
+        return () => {
+            unsubscribe();
+            if (delayTimeout) {
+                clearTimeout(delayTimeout);
+            }
+        };
+    }, []);
+
+    return (
+        <Context.Provider value={{ user, loading }}>
+            {loading ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+                    <CircularProgress />
+                    <Typography sx={{ mt: 2 }}>Loading...</Typography>
+                </Box>
+            ) : (
+                <Fade in={!loading}>
+                    <Box>
+                        {children}
+                    </Box>
+                </Fade>
+            )}
+        </Context.Provider>
+    );
+}

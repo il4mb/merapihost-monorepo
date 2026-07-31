@@ -1,3 +1,4 @@
+import 'server-only';
 import axios, { AxiosRequestConfig } from 'axios';
 import { cookies } from 'next/headers';
 
