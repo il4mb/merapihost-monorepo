@@ -1,3 +1,4 @@
+"use client";
 import CraftEditor from "@craft/CraftEditor";
 
 type PageProps = {

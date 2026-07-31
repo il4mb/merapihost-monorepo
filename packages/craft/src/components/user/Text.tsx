@@ -1,9 +1,9 @@
-import React from "react";
+interface TextProps {
+    text: string;
+}
 
-export const Text = ({text, fontSize}) => {
-  return (
-      <div>
-         <p style={{fontSize}}>{text}</p>
-      </div>
-  )
+export const Text = ({ text }: TextProps) => {
+    return (
+        <p>{text}</p>
+    );
 }

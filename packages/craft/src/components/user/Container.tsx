@@ -1,9 +1,14 @@
-export function Container() {
+import { SxProps, Container as MUIContainer } from "@mui/material";
+
+interface ContainerProps {
+    sx?: SxProps;
+    children?: React.ReactNode;
+}
+export function Container({ sx, children }: ContainerProps) {
 
     return (
-        <div>
-            <h3>Container</h3>
-            <p>This is a container component</p>
-        </div>
+        <MUIContainer sx={sx}>
+            {children}
+        </MUIContainer>
     )
 }

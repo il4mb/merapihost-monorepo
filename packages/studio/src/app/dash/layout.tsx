@@ -1,3 +1,4 @@
+import SidebarLayout from "@/components/SidebarLayout";
 import AuthProvider from "@/contexts/AuthProvider";
 import { ReactNode } from "react";
 
@@ -8,7 +9,9 @@ type LayoutProps = {
 export default function Layout({ children }: LayoutProps) {
     return (
         <AuthProvider>
-            {children}
+            <SidebarLayout>
+                {children}
+            </SidebarLayout>
         </AuthProvider>
     );
 }

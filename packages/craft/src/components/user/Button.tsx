@@ -1,9 +1,15 @@
-export function Button() {
+import { Button as MUIButton } from '@mui/material';
+
+interface ButtonProps {
+    size?: 'small' | 'medium' | 'large';
+    variant?: 'text' | 'outlined' | 'contained';
+    children?: React.ReactNode;
+}
+export function Button({ size, variant, children }: ButtonProps) {
 
     return (
-        <div>
-            <h3>Button</h3>
-            <p>This is a button component</p>
-        </div>
+        <MUIButton size={size} variant={variant}>
+            {children}
+        </MUIButton>
     )
 }
