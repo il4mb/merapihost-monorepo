@@ -1,4 +1,4 @@
-import { Service } from "@/entities/service";
+import { Service } from "@/utils/entities/service";
 
 declare module "express" {
     interface Request {

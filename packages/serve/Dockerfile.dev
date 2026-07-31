@@ -7,6 +7,6 @@ RUN bun install --frozen-lockfile --no-cache
 
 COPY . .
 
-EXPOSE 4000
+EXPOSE 4020
 
 CMD ["bun", "run", "dev"]

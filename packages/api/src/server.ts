@@ -1,4 +1,4 @@
-// import "reflect-metadata";
+import "reflect-metadata";
 import { createServer } from "http";
 import app from "@/app";
 import { env } from "@/config/env";

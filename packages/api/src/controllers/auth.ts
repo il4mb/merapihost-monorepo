@@ -1,4 +1,4 @@
-import { loginSchema, registerSchema } from "@/schemas/auth";
+import { loginSchema, registerSchema } from "@/utils/schemas/auth";
 import { Exception } from "@/utils/exception";
 import { auth } from "@/utils/firebase";
 import { Request, Response } from "express";

@@ -1,9 +1,9 @@
 import { env } from "@/config/env";
-import { getConnection } from "@/connection";
-import { WhatsappAccount } from "@/entities/whatsapp-account";
-import { WhatsappContact } from "@/entities/whatsapp-contact";
-import { WhatsappConversation } from "@/entities/whatsapp-conversation";
-import { MessageMedia, MessageStatus, MessageType, WhatsappMessage } from "@/entities/whatsapp-message";
+import { getConnection } from "@/utils/connection";
+import { WhatsappAccount } from "@/utils/entities/whatsapp-account";
+import { WhatsappContact } from "@/utils/entities/whatsapp-contact";
+import { WhatsappConversation } from "@/utils/entities/whatsapp-conversation";
+import { MessageMedia, MessageStatus, MessageType, WhatsappMessage } from "@/utils/entities/whatsapp-message";
 import { InputBody } from "@/types/whatsapp";
 import { LOGGER } from "@/utils/logger";
 import { s3Client } from "@/utils/s3-client";

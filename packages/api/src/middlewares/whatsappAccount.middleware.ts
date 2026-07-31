@@ -1,5 +1,5 @@
-import { getConnection } from '@/connection';
-import { WhatsappAccount } from '@/entities/whatsapp-account';
+import { getConnection } from '@/utils/connection';
+import { WhatsappAccount } from '@/utils/entities/whatsapp-account';
 import { Exception } from '@/utils/exception';
 import { NextFunction, Request, Response } from 'express';
 

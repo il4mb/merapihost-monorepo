@@ -6,7 +6,7 @@ import { domainVerifyMiddleware } from './middleware/domainVerify';
 import clientRoutes from './routes/client';
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { env } from './config/env';
-import { Service } from './entities/service';
+import { Service } from './utils/entities/service';
 
 const startTime = Date.now();
 

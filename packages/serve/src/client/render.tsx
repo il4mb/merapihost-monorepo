@@ -3,7 +3,7 @@ import App from "@/client/App";
 import createEmotionCache from "./createEmotionCache";
 import { CacheProvider } from "@emotion/react";
 import createEmotionServer from "@emotion/server/create-instance";
-import { Webpage } from "@/entities/webpage";
+import { Webpage } from "@/utils/entities/webpage";
 import { BlockNode } from "@/types/client";
 
 interface RenderOptions {

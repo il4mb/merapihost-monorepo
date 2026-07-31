@@ -1,5 +1,5 @@
-import { getConnection } from '@/connection';
-import { Service } from '@/entities/service';
+import { getConnection } from '@/utils/connection';
+import { Service } from '@/utils/entities/service';
 import { Exception } from '@/utils/exception';
 import { NextFunction, Request, Response } from 'express';
 

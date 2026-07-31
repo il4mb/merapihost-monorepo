@@ -4,7 +4,7 @@ import "./styles/index.scss";
 import { StrictMode } from "react";
 import createEmotionCache from "./createEmotionCache";
 import { CacheProvider } from "@emotion/react";
-import { Webpage } from "@/entities/webpage";
+import { Webpage } from "@/utils/entities/webpage";
 import { BlockNode } from "@/types/client";
 
 declare global {

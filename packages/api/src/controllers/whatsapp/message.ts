@@ -1,9 +1,9 @@
-import { getConnection } from "@/connection";
-import { WhatsappAccount } from "@/entities/whatsapp-account";
-import { WhatsappContact } from "@/entities/whatsapp-contact";
-import { WhatsappConversation } from "@/entities/whatsapp-conversation";
-import { MessageMedia, WhatsappMessage } from "@/entities/whatsapp-message";
-import { sendMessageSchema } from "@/schemas/whatsapp";
+import { getConnection } from "@/utils/connection";
+import { WhatsappAccount } from "@/utils/entities/whatsapp-account";
+import { WhatsappContact } from "@/utils/entities/whatsapp-contact";
+import { WhatsappConversation } from "@/utils/entities/whatsapp-conversation";
+import { MessageMedia, WhatsappMessage } from "@/utils/entities/whatsapp-message";
+import { sendMessageSchema } from "@/utils/schemas/whatsapp";
 import { Exception } from "@/utils/exception";
 import { LOGGER } from "@/utils/logger";
 import { Request, Response } from "express";

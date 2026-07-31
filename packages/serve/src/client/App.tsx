@@ -2,7 +2,7 @@ import { BlockNode } from "@/types/client";
 import BlockElement from "./components/BlockElement";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { useEffect } from "react";
-import { Webpage } from "@/entities/webpage";
+import { Webpage } from "@/utils/entities/webpage";
 
 interface AppProps {
     page: Webpage;

@@ -16,7 +16,7 @@ RUN bun run build
 
 COPY . .
 
-EXPOSE 4000
+EXPOSE 4020
 
 # Run pm2-runtime directly in the CMD to keep the container alive
 CMD ["pm2-runtime", "start", "src/server.ts", "--interpreter", "bun", "-i", "max"]

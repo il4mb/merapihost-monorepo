@@ -6,7 +6,10 @@ module.exports = {
     devtool: false,
     target: "web",
     entry: "./src/client/index.tsx",
-
+    stats: 'none',
+    infrastructureLogging: {
+        level: 'none',
+    },
     output: {
         path: path.resolve(__dirname, "dist"),
         filename: "client.js",

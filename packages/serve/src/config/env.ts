@@ -12,9 +12,9 @@ const REQUIRED_ENV = [
     "MYSQL_USER",
     "MYSQL_PASSWORD",
     "MYSQL_DATABASE",
-    "FIREBASE_PROJECT_ID",
-    "FIREBASE_CLIENT_EMAIL",
-    "FIREBASE_PRIVATE_KEY",
+    // "FIREBASE_PROJECT_ID",
+    // "FIREBASE_CLIENT_EMAIL",
+    // "FIREBASE_PRIVATE_KEY",
     "S3_ACCESS_KEY_ID",
     "S3_SECRET_ACCESS_KEY",
     "S3_BUCKET_NAME",
@@ -30,14 +30,14 @@ REQUIRED_ENV.forEach((key) => {
 
 export const env = {
     NODE_ENV: process.env.NODE_ENV || "development",
-    PORT: process.env.PORT || 4000,
+    PORT: process.env.PORT || 4020,
     SERVER_NAME: String(process.env.SERVER_NAME),
 
     JWT_SECRET: String(process.env.JWT_SECRET),
 
-    FIREBASE_PROJECT_ID: String(process.env.FIREBASE_PROJECT_ID),
-    FIREBASE_CLIENT_EMAIL: String(process.env.FIREBASE_CLIENT_EMAIL),
-    FIREBASE_PRIVATE_KEY: String(process.env.FIREBASE_PRIVATE_KEY).replace(/\\n/g, '\n'),
+    // FIREBASE_PROJECT_ID: String(process.env.FIREBASE_PROJECT_ID),
+    // FIREBASE_CLIENT_EMAIL: String(process.env.FIREBASE_CLIENT_EMAIL),
+    // FIREBASE_PRIVATE_KEY: String(process.env.FIREBASE_PRIVATE_KEY).replace(/\\n/g, '\n'),
     
     REDIS_HOST: String(process.env.REDIS_HOST),
     REDIS_PORT: Number(process.env.REDIS_PORT),

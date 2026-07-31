@@ -1,5 +1,5 @@
-import type { Service } from "@/entities/service";
-import type { WhatsappAccount } from "@/entities/whatsapp-account";
+import type { Service } from "@/utils/entities/service";
+import type { WhatsappAccount } from "@/utils/entities/whatsapp-account";
 
 declare module "express-serve-static-core" {
     interface Request {

@@ -1,6 +1,6 @@
-import { env } from "./config/env";
+import { env } from "../config/env";
 import { DataSource } from "typeorm";
-import { LOGGER } from "./utils/logger";
+import { LOGGER } from "./logger";
 import path from "path";
 
 try {
