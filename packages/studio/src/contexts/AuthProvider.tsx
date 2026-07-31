@@ -31,8 +31,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
         let delayTimeout: NodeJS.Timeout | null = null;
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
-            delayTimeout = setTimeout(() => setLoading(false), 500); // Added a slight delay for better UX
-            console.log("Auth state changed. Current user:", currentUser);
+            delayTimeout = setTimeout(() => setLoading(false), 0); // Added a slight delay for better UX
         });
 
         return () => {

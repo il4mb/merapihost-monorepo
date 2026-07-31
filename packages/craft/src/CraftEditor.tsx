@@ -5,18 +5,30 @@ import { SettingsPanel } from './components/SettingsPanel';
 
 import { Container } from './components/user/Container';
 import { Button } from './components/user/Button';
-import { Card } from './components/user/Card';
+import { Card, CardContent } from './components/user/Card';
 import { Text } from './components/user/Text';
+// @ts-ignore
+import "./styles.scss";
 
-import { Editor, Frame } from "@craftjs/core";
+import { Editor, Frame, Canvas, Element } from "@craftjs/core";
 
-export default function CraftEditor() {
+interface CraftEditorProps {
+
+}
+export default function CraftEditor({ }: CraftEditorProps) {
     return (
-        <Editor resolver={{ Card, Button, Text, Container }}>
+        <Editor
+            resolver={{ Card, CardContent, Button, Text, Container }}
+            indicator={{
+                success: '#4caf50',
+                error: '#f44336',
+                className: 'craftjs-drag-indicator',
+            }}>
             <Grid container spacing={3}>
                 <Grid size={{ xs: 9 }}>
+                    {/* <Canvas> */}
                     <Frame>
-                        <Container sx={{ padding: 2, background: '#eee' }}>
+                        <Element is={Container} sx={{ border: '1px solid #ccc', padding: 2, minHeight: 400 }} canvas>
                             <Card title="Hello world!">
                                 <Button size="small" variant="contained">
                                     Click
@@ -29,8 +41,9 @@ export default function CraftEditor() {
                             <Container sx={{ padding: 6, background: '#999' }}>
                                 <Text text="It's me again!" />
                             </Container>
-                        </Container>
+                        </Element>
                     </Frame>
+                    {/* </Canvas> */}
                 </Grid>
                 <Grid size={{ xs: 3 }}>
                     <Paper>

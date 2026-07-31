@@ -21,7 +21,7 @@
   "include": [
     "**/*.ts",
     "**/*.tsx"
-  ],
+, "../studio/src/components/editor/Toolbar.tsx"  ],
   "exclude": [
     "node_modules"
   ]

@@ -153,7 +153,7 @@ export const inputsCustomizations: Components<Theme> = {
         styleOverrides: {
             root: ({ theme }) => ({
                 boxShadow: "none",
-                borderRadius: theme.shape.borderRadius,
+                borderRadius: 8,
                 textTransform: "none",
                 fontWeight: theme.typography.fontWeightMedium,
                 letterSpacing: 0,

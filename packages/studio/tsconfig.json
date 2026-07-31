@@ -26,8 +26,8 @@
       "@/*": [
         "./src/*"
       ],
-      "@craft/*": [
-        "../craft/src/*"
+      "@editor/*": [
+        "../editor/src/*"
       ]
     }
   },
