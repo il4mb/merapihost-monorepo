@@ -1,6 +1,6 @@
 import express from 'express';
 import routers from './routes';
-import { errorJson, notFoundJson } from './middlewares/error.middleware';
+import { errorJson, notFoundJson } from './middlewares/error.middle';
 import { LOGGER } from './utils/logger';
 
 const app = express();

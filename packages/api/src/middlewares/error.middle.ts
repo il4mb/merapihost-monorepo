@@ -4,54 +4,60 @@ import { Exception } from "@/utils/exception";
 import { LOGGER } from "@/utils/logger";
 
 export async function errorJson(err: any, _: Request, res: Response, next: NextFunction) {
-
     LOGGER.error(err);
+
     // Default values
     let status = 500;
     let message = "Internal Server Error";
-    let details: any = undefined;
 
     /**
      * Zod validation error
      */
     if (err instanceof ZodError) {
         status = 400;
-        message = "Validation error";
 
-        details = err.issues.map(issue => {
-            const field = issue.path.join(".");
-            const data = {
-                message: issue.message,
-            };
-            if (field) {
-                Object.assign(data, { field });
-            }
-            return data;
-        });
+        // Get the first error and count the rest
+        const firstIssue = err.issues[0];
+        const leftCount = err.issues.length - 1;
+
+        const field = firstIssue.path.join(".");
+
+        // Format the message with the first error
+        message = field
+            ? `${field}: ${firstIssue.message}`
+            : firstIssue.message;
+
+        // Append the remaining count if there are multiple errors
+        if (leftCount > 0) {
+            message += ` (and ${leftCount} more error${leftCount > 1 ? 's' : ''})`;
+        }
 
         return res.status(status).json({
             success: false,
-            message,
             status,
-            details,
+            message,
+            type: "VALIDATION_ERROR",
         });
     }
 
+    /**
+     * Custom Exception
+     */
     if (err instanceof Exception) {
-        return res.status(err.status).json({
+        const response: Record<string, any> = {
             success: false,
             message: err.message,
             status: err.status || status,
-            details: err.details,
             ...(err.type ? { type: err.type } : {})
-        });
+        };
+
+        return res.status(err.status || status).json(response);
     }
 
     if (err instanceof Error && err.name === "AbortError") {
         status = 499;
         message = "Client Closed Request";
-    }
-    if (err instanceof Error) {
+    } else if (err instanceof Error) {
         const match = err.message.match(/^(\d+):\s*(.*)$/);
 
         if (match) {
@@ -63,7 +69,6 @@ export async function errorJson(err: any, _: Request, res: Response, next: NextF
         } else {
             message = err.message;
         }
-
     }
 
     /**
@@ -79,12 +84,11 @@ export async function errorJson(err: any, _: Request, res: Response, next: NextF
         success: false,
         status,
         message,
-        ...(details ? { details } : {}),
     });
 }
 
 export async function notFoundJson(req: Request, res: Response, next: NextFunction) {
-    res.status(404).json({ 
+    res.status(404).json({
         success: false,
         message: "Resource not found",
         status: 404,
