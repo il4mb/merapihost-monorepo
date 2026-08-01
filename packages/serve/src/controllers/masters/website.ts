@@ -1,8 +1,8 @@
-import { getConnection } from "@/utils/connection";
-import { Service } from "@/utils/entities/service";
+import { getConnection } from "@/sources/connection";
+import { Service } from "@/sources/entities/service";
 import { Exception } from "@/utils/exception";
 import { Request, Response } from "express";
-import { createWebsiteSchema, updateWebsiteSchema } from "@/utils/schemas/website";
+import { createWebsiteSchema, updateWebsiteSchema } from "@/sources/schemas/website";
 import { randomUUIDv7 } from "bun";
 import { getUpdate } from "@/utils/tools";
 

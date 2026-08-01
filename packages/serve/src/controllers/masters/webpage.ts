@@ -1,9 +1,9 @@
-import { getConnection } from "@/utils/connection";
+import { getConnection } from "@/sources/connection";
 import { Exception } from "@/utils/exception";
 import { Request, Response } from "express";
 import { getUpdate } from "@/utils/tools";
-import { Webpage } from "@/utils/entities/webpage";
-import { createWebpageSchema, updateWebpageSchema } from "@/utils/schemas/webpage";
+import { Webpage } from "@/sources/entities/webpage";
+import { createWebpageSchema, updateWebpageSchema } from "@/sources/schemas/webpage";
 import { validateRoute } from "@/utils/route";
 import { Not } from "typeorm";
 import { s3Client } from "@/utils/s3-client";

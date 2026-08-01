@@ -2,11 +2,20 @@ import { env } from "@/config/env";
 import { formatUptime, formatBytes } from "@/utils/formatter";
 import { Request, Response } from "express";
 import os from "os";
+import fs from "fs/promises"; // Import the file system promises module
 
 export const getInfo = async (req: Request, res: Response) => {
 
     const cpus = os.cpus();
     const memoryUsage = process.memoryUsage();
+    
+    // Get disk stats for the partition where the app is running
+    const stat = await fs.statfs(process.cwd());
+    
+    // Calculate storage in bytes (bsize = block size)
+    const totalStorage = stat.blocks * stat.bsize;
+    const freeStorage = stat.bfree * stat.bsize;
+    const usedStorage = totalStorage - freeStorage;
 
     const stats = {
         status: "online",
@@ -20,14 +29,20 @@ export const getInfo = async (req: Request, res: Response) => {
             formattedServerUptime: formatUptime(os.uptime()),
         },
         process: {
-            // In PM2 cluster mode, this shows the specific worker's PID
             pid: process.pid,
             workerUptime: process.uptime(),
             formattedWorkerUptime: formatUptime(process.uptime()),
             nodeVersion: process.version,
         },
+        storage: {
+            totalStorage: totalStorage,
+            formattedTotalStorage: formatBytes(totalStorage),
+            freeStorage: freeStorage,
+            formattedFreeStorage: formatBytes(freeStorage),
+            usedStorage: usedStorage,
+            formattedUsedStorage: formatBytes(usedStorage),
+        },
         memory: {
-            // Physical server/container memory
             totalSystem: os.totalmem(),
             formattedTotalSystem: formatBytes(os.totalmem()),
 
@@ -36,7 +51,7 @@ export const getInfo = async (req: Request, res: Response) => {
 
             usedSystem: os.totalmem() - os.freemem(),
             formattedUsedSystem: formatBytes(os.totalmem() - os.freemem()),
-            // Specific memory used by this Bun/Node process
+            
             processRss: memoryUsage.rss,
             formattedProcessRss: formatBytes(memoryUsage.rss),
 
@@ -46,7 +61,6 @@ export const getInfo = async (req: Request, res: Response) => {
         cpu: {
             cores: cpus.length,
             model: cpus[0]?.model,
-            // Load average over 1, 5, and 15 minutes
             loadAverage: {
                 "1m": os.loadavg()[0].toFixed(2),
                 "5m": os.loadavg()[1].toFixed(2),

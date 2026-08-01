@@ -1,11 +1,45 @@
 import { getConnection } from '@/sources/connection';
-import { Server } from '@/sources/entities/server';
-import { createServerSchema, updateServerSchema } from '@/sources/schemas/server';
+import { Server, ServerMetadata } from '@/sources/entities/server';
+import { createServerSchema, serverInfoData, updateServerSchema } from '@/sources/schemas/server';
 import { api } from '@/utils/api';
 import { Exception } from '@/utils/exception';
 import { getUpdate } from '@/utils/tools';
 import { Request, Response } from 'express';
 import { Like, Not } from 'typeorm';
+
+const getServerInfo = async (hostname: string, masterKey: string): Promise<ServerMetadata> => {
+    const infoPath = `http://${hostname}/__master/system/info`;
+
+    const { data: response } = await api.get(infoPath, {
+        headers: {
+            "X-Master-Key": masterKey
+        }
+    });
+    if (!response.success) {
+        throw new Exception({
+            status: 500,
+            message: "Failed to fetch server metadata.",
+            type: "METADATA_FETCH_FAILED"
+        });
+    }
+
+    const parsedMetadata = serverInfoData.parse(response.data);
+
+    return {
+        name: parsedMetadata.name,
+        timestamp: parsedMetadata.timestamp,
+        system: {
+            platform: parsedMetadata.system.platform,
+            architecture: parsedMetadata.system.architecture
+        },
+        totalStorage: parsedMetadata.storage.totalStorage,
+        totalMemory: parsedMetadata.memory.totalSystem,
+        cpu: {
+            cores: parsedMetadata.cpu.cores,
+            model: parsedMetadata.cpu.model
+        }
+    };
+}
 
 export const listServers = async (req: Request, res: Response) => {
     const db = await getConnection();
@@ -55,24 +89,21 @@ export const createServer = async (req: Request, res: Response) => {
         });
     }
 
-    const infoPath = `http://${patch.hostname}/__master/server/info`;
+    const metadata = await getServerInfo(patch.hostname, patch.masterKey);
 
-    const { data: response } = await api.get(infoPath, {
-        headers: {
-            "X-Master-Key": patch.masterKey
-        }
+    const server = repository.create({
+        hostname: patch.hostname,
+        description: patch.description,
+        masterKey: patch.masterKey,
+        isActive: true,
+        metadata: metadata
     });
-
-    console.log("Server info response:", response);
-
-
-    // const server = repository.create(patch);
-    // await repository.save(server);
+    await repository.save(server);
 
     res.status(201).json({
         success: true,
         message: "Server created successfully.",
-        // data: server
+        data: server
     });
 }
 
@@ -106,6 +137,7 @@ export const updateServer = async (req: Request, res: Response) => {
     const db = await getConnection();
     const repository = db.getRepository(Server);
 
+    let metadata: Server["metadata"] | null = server.metadata;
     // If the hostname is being updated, check for conflicts
     if (patch.hostname && patch.hostname !== server.hostname) {
         const [newHost, newPort] = patch.hostname.split(":");
@@ -134,6 +166,9 @@ export const updateServer = async (req: Request, res: Response) => {
                 type: "CONFLICT"
             });
         }
+
+        // If the hostname is updated, fetch new metadata
+        metadata = await getServerInfo(patch.hostname, patch.masterKey || server.masterKey);
     }
 
     const updated = getUpdate(patch, server);
@@ -145,11 +180,14 @@ export const updateServer = async (req: Request, res: Response) => {
         });
     }
 
-    await repository.update(server.id, updated);
+    await repository.update(server.id, {
+        ...updated,
+        metadata: metadata
+    });
 
     res.json({
         success: true,
-        data: { ...server, ...updated }
+        data: { ...server, ...updated, metadata }
     });
 }
 
