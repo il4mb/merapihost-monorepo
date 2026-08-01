@@ -1,5 +1,6 @@
 import { getConnection } from '@/sources/connection';
-import { Server, ServerMetadata } from '@/sources/entities/server';
+import { Server } from '@/sources/entities/server';
+import { IServerMetadata } from "@/sources/models/server";
 import { createServerSchema, serverInfoData, updateServerSchema } from '@/sources/schemas/server';
 import { api } from '@/utils/api';
 import { Exception } from '@/utils/exception';
@@ -7,7 +8,7 @@ import { getUpdate } from '@/utils/tools';
 import { Request, Response } from 'express';
 import { Like, Not } from 'typeorm';
 
-const getServerInfo = async (hostname: string, masterKey: string): Promise<ServerMetadata> => {
+const getServerInfo = async (hostname: string, masterKey: string): Promise<IServerMetadata> => {
     const infoPath = `http://${hostname}/__master/system/info`;
 
     const { data: response } = await api.get(infoPath, {

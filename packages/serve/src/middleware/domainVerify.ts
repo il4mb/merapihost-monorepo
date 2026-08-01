@@ -1,7 +1,7 @@
 import dns from "node:dns/promises";
 import { Request, Response, NextFunction } from "express";
-import { getConnection } from "@/utils/connection";
-import { Service } from "@/utils/entities/service";
+import { getConnection } from "@/sources/connection";
+import { Service } from "@/sources/entities/service";
 
 const TXT_PREFIX = "merapihost-verification";
 

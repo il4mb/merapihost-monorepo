@@ -7,6 +7,7 @@ const REQUIRED_ENV = [
     "WHATSAPP_API_TOKEN",
     "REDIS_HOST",
     "REDIS_PORT",
+    "MONGODB_URI",
     "MYSQL_HOST",
     "MYSQL_PORT",
     "MYSQL_USER",
@@ -47,6 +48,7 @@ export const env = {
     REDIS_PORT: Number(process.env.REDIS_PORT),
     REDIS_PASSWORD: process.env.REDIS_PASSWORD ? String(process.env.REDIS_PASSWORD) : undefined,
 
+    MONGODB_URI: String(process.env.MONGODB_URI),
     MYSQL_HOST: String(process.env.MYSQL_HOST),
     MYSQL_PORT: Number(process.env.MYSQL_PORT),
     MYSQL_USER: String(process.env.MYSQL_USER),

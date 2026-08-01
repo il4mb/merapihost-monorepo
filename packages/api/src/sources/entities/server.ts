@@ -1,19 +1,5 @@
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
-
-export interface ServerMetadata {
-    name: string;
-    timestamp: string;
-    system: {
-        platform: string;
-        architecture: string;
-    };
-    totalStorage: number;
-    totalMemory: number;
-    cpu: {
-        cores: number;
-        model: string;
-    };
-}
+import { IServerMetadata } from "../models/server";
 
 @Entity("servers")
 export class Server {
@@ -34,7 +20,7 @@ export class Server {
     isActive: boolean = true;
 
     @Column({ type: "json", nullable: true })
-    metadata: ServerMetadata | null;
+    metadata: IServerMetadata | null;
 
     @CreateDateColumn({ name: "created_at" })
     createdAt: Date;

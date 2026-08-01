@@ -2,6 +2,7 @@ import express from 'express';
 import routers from './routes';
 import { errorJson, notFoundJson } from './middlewares/error.middle';
 import { LOGGER } from './utils/logger';
+import { graphqlHandler } from './sources/graphql';
 
 const app = express();
 
@@ -17,6 +18,8 @@ app.use((req, res, next) => {
     LOGGER.info(`Incoming request: ${req.method} ${req.url}`);
     next();
 });
+
+app.use("/graphql", graphqlHandler);
 app.use("/", routers);
 
 app.use(errorJson);

@@ -1,9 +1,8 @@
 import { render } from "@/client/render";
 import { getRedis } from "@/config/redis";
-import { getConnection } from "@/utils/connection";
-import { Webpage } from "@/utils/entities/webpage";
+import { getConnection } from "@/sources/connection";
+import { Webpage } from "@/sources/entities/webpage";
 import { BlockNode } from "@/types/client";
-import { s3Client } from "@/utils/s3-client";
 import { Request, Response } from "express";
 import syspath from "path";
 
