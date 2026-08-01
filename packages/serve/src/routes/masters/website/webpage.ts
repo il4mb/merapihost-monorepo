@@ -1,11 +1,16 @@
 import { Router } from "express";
 import * as controller from "@/controllers/masters/webpage";
+import { webpageMiddleware } from "@/middleware/masters/webpageMiddle";
 
 const router = Router();
 router.get("/", controller.queryWebpage);
 router.post("/", controller.createWebpage);
-router.put("/:id", controller.updateWebpage);
-router.delete("/:id", controller.deleteWebpage);
-router.get("/:id", controller.getWebpage);
+
+const webpageRouter = Router();
+webpageRouter.put("/", controller.updateWebpage);
+webpageRouter.delete("/", controller.deleteWebpage);
+webpageRouter.get("/", controller.getWebpage);
+
+router.use("/:id", webpageMiddleware, webpageRouter);
 
 export default router;

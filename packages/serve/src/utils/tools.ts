@@ -9,7 +9,6 @@ export const getUpdate = (jsonData: Record<string, any>, objectSource: Record<st
     const exactlyUpdated: Record<string, any> = {};
 
     for (const key in jsonData) {
-        // Use Object.prototype to prevent prototype pollution vulnerabilities
         if (Object.prototype.hasOwnProperty.call(jsonData, key)) {
             const value = jsonData[key];
             const sourceValue = objectSource[key];
@@ -17,18 +16,24 @@ export const getUpdate = (jsonData: Record<string, any>, objectSource: Record<st
             // 1. Ignore undefined values
             if (value !== undefined) {
                 
-                // 2. Handle nested objects
-                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                // 2. Handle Arrays
+                if (Array.isArray(value)) {
+                    // Compare arrays deeply using JSON.stringify
+                    // If sourceValue is not an array, or if their stringified contents differ, it's a change
+                    if (!Array.isArray(sourceValue) || JSON.stringify(value) !== JSON.stringify(sourceValue)) {
+                        exactlyUpdated[key] = value;
+                    }
+                }
+                // 3. Handle nested objects (excluding arrays and null)
+                else if (typeof value === 'object' && value !== null) {
                     const nestedUpdate = getUpdate(value, sourceValue || {});
                     
-                    // Only assign the nested object if it actually contains changes
                     if (Object.keys(nestedUpdate).length > 0) {
                         exactlyUpdated[key] = nestedUpdate;
                     }
                 } 
-                // 3. Handle primitives and arrays
+                // 4. Handle primitives (strings, numbers, booleans, null)
                 else {
-                    // Only assign if the value is genuinely different from the database
                     if (value !== sourceValue) {
                         exactlyUpdated[key] = value;
                     }

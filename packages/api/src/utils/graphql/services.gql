@@ -1,6 +1,0 @@
-type ServiceQuery {
-    type: ""
-    name: String
-    description: String
-    
-}

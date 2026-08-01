@@ -7,12 +7,7 @@ export const createWebsiteSchema = z.strictObject({
     isActive: z.boolean().optional(),
 });
 
-export const updateWebsiteSchema = z.strictObject({
-    name: z.string().min(1, "Name is required").optional(),
-    domain: z.string().min(1, "Domain is required").optional(),
-    isActive: z.boolean().optional(),
-});
-
+export const updateWebsiteSchema = createWebsiteSchema.partial();
 export const paramWebsiteSchema = z.object({
     id: z.uuid("Invalid website ID"),
 });

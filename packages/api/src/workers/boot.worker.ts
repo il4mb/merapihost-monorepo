@@ -2,13 +2,13 @@ import { Worker, Job } from 'bullmq';
 import { BOOT_QUEUE_NAME, BootQueueJobData } from './boot.queue';
 import { config } from '@/config/redis';
 import { LOGGER } from '@/utils/logger';
-import { getConnection } from '@/utils/connection';
-import { MessageType, WhatsappMessage } from '@/utils/entities/whatsapp-message';
+import { getConnection } from '@/sources/connection';
+import { MessageType, WhatsappMessage } from '@/sources/entities/whatsapp-message';
 import { genkit } from 'genkit/beta';
 import { env } from '@/config/env';
 import { deepSeek } from '@genkit-ai/compat-oai/deepseek';
 import { Not } from 'typeorm';
-import { WhatsappAccount } from '@/utils/entities/whatsapp-account';
+import { WhatsappAccount } from '@/sources/entities/whatsapp-account';
 
 const ENDPOINT = 'https://graph.facebook.com/v25.0';
 
