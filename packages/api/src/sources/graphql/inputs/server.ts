@@ -1,6 +1,7 @@
-import { Field } from "type-graphql";
+import { ArgsType, Field } from "type-graphql";
 import { Length } from "class-validator";
 
+@ArgsType()
 export class CreateServerInput {
     @Field()
     @Length(3, 64)

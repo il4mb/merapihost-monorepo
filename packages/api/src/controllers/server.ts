@@ -1,6 +1,6 @@
 import { getConnection } from '@/sources/connection';
 import { Server } from '@/sources/entities/server';
-import { IServerMetadata } from "@/sources/models/server";
+import type { IServerMetadata } from "@/sources/models/server";
 import { createServerSchema, serverInfoData, updateServerSchema } from '@/sources/schemas/server';
 import { api } from '@/utils/api';
 import { Exception } from '@/utils/exception';

@@ -1,6 +1,7 @@
 
 import type { IServerMetadata } from "@/sources/models/server";
 import { ID, Field, ObjectType } from "type-graphql";
+import GraphQLJSON from "graphql-type-json";
 
 @ObjectType()
 export class TypeServer {
@@ -20,8 +21,8 @@ export class TypeServer {
     @Field()
     isActive: boolean;
 
-    @Field()
-    metadata: IServerMetadata;
+    @Field(() => GraphQLJSON, { nullable: true })
+    metadata: IServerMetadata | null;
 
     @Field(() => Date)
     createdAt: Date;

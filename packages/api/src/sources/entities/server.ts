@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
-import { IServerMetadata } from "../models/server";
+import type { IServerMetadata } from "../models/server";
 
 @Entity("servers")
 export class Server {

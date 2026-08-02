@@ -1,6 +1,6 @@
-import bootWorker from "@/workers/boot.worker";
+// import bootWorker from "@/workers/boot.worker";
 
-const WORKERS = [bootWorker];
+const WORKERS = [] as any[];
 
 const shutdown = async () => {
     console.log("Shutting down workers...");
