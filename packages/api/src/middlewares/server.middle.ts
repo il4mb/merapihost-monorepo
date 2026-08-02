@@ -1,7 +1,7 @@
-import { getConnection } from "@/sources/connection";
-import { Server } from "@/sources/entities/server";
+import ServerModel from "@/sources/models/server";
 import { Exception } from "@/utils/exception";
 import { Request, Response, NextFunction } from "express";
+import { ObjectId } from "mongodb";
 
 export const serverMiddleware = async (req: Request, res: Response, next: NextFunction) => {
     const serverId = req.params.id;
@@ -13,9 +13,7 @@ export const serverMiddleware = async (req: Request, res: Response, next: NextFu
         });
     }
 
-    const db = await getConnection();
-    const repository = db.getRepository(Server);
-    const server = await repository.findOne({ where: { id: serverId } });
+    const server = await ServerModel.findById(new ObjectId(serverId));
     if (!server) {
         throw new Exception({
             status: 404,

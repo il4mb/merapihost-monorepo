@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as controller from "@/controllers/server";
-import { serverMiddleware } from "@/middlewares/server.middle";
+import { serverMiddleware } from "@/middlewares";
 
 const router = Router();
 router.get("/", controller.listServers);

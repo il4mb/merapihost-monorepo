@@ -49,7 +49,6 @@ for (const key in snapshoots) {
         LOGGER.info(`Database connection '${key}' initialized.`);
     }).catch((error) => {
         LOGGER.error(`Failed to initialize database connection '${key}':`, error);
-        process.exit(1);
     });
 }
 

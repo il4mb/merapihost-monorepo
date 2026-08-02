@@ -1,35 +1,12 @@
-import { Schema, model } from "mongoose";
+import { InferSchemaType, Schema, model } from "mongoose";
+import { primaryDb } from "@/sources";
 
-export interface IServerMetadata {
-    name: string;
-    timestamp: string;
-    system: {
-        platform: string;
-        architecture: string;
-    };
-    totalStorage: number;
-    totalMemory: number;
-    cpu: {
-        cores: number;
-        model: string;
-    };
-}
-
-export type IServer = {
-    hostname: string;
-    description?: string;
-    masterKey: string;
-    isActive: boolean;
-    metadata?: IServerMetadata;
-    createdAt: Date;
-    updatedAt: Date;
-};
-
-const serverSchema = new Schema<IServer>({
+const serverSchema = new Schema({
     hostname: { type: String, required: true, unique: true },
     description: { type: String, default: null },
     masterKey: { type: String, required: true },
     isActive: { type: Boolean, default: true },
+    websiteCount: { type: Number, default: 0 },
     metadata: {
         name: { type: String },
         timestamp: { type: String },
@@ -48,5 +25,10 @@ const serverSchema = new Schema<IServer>({
     timestamps: true
 });
 
-export const ServerModel = model<IServer>("Server", serverSchema);
+export type IServer = InferSchemaType<typeof serverSchema>;
+export type IServerMetadata = IServer["metadata"];
+
+const ServerModel = primaryDb.model<IServer>("Server", serverSchema);
+
+export default ServerModel;
 

@@ -1,72 +1,71 @@
-import { getConnection } from '@/sources/connection';
-import { Server } from '@/sources/entities/server';
-import type { IServerMetadata } from "@/sources/models/server";
+import ServerModel, { type IServerMetadata } from "@/sources/models/server";
 import { createServerSchema, serverInfoData, updateServerSchema } from '@/sources/schemas/server';
-import { api } from '@/utils/api';
 import { Exception } from '@/utils/exception';
 import { getUpdate } from '@/utils/tools';
 import { Request, Response } from 'express';
-import { Like, Not } from 'typeorm';
+import { ObjectId } from "mongodb";
+import { api } from '@/utils/api';
 
+/**
+ * 
+ * @param hostname the target server hostname
+ * @param masterKey the server master key
+ * @returns 
+ */
 const getServerInfo = async (hostname: string, masterKey: string): Promise<IServerMetadata> => {
     const infoPath = `http://${hostname}/__master/system/info`;
-
-    const { data: response } = await api.get(infoPath, {
-        headers: {
-            "X-Master-Key": masterKey
+    try {
+        const { data: response } = await api.get(infoPath, {
+            headers: {
+                "X-Master-Key": masterKey
+            }
+        });
+        if (!response.success) {
+            throw new Exception({
+                status: 500,
+                message: "Failed to fetch server metadata.",
+                type: "METADATA_FETCH_FAILED"
+            });
         }
-    });
-    if (!response.success) {
+
+        const parsedMetadata = serverInfoData.parse(response.data);
+
+        return {
+            name: parsedMetadata.name,
+            timestamp: parsedMetadata.timestamp,
+            system: {
+                platform: parsedMetadata.system.platform,
+                architecture: parsedMetadata.system.architecture
+            },
+            totalStorage: parsedMetadata.storage.totalStorage,
+            totalMemory: parsedMetadata.memory.totalSystem,
+            cpu: {
+                cores: parsedMetadata.cpu.cores,
+                model: parsedMetadata.cpu.model
+            }
+        };
+    } catch (error: any) {
         throw new Exception({
-            status: 500,
-            message: "Failed to fetch server metadata.",
+            status: 400,
+            message: `Failed to fetch server metadata from ${hostname}: ${error.message}`,
             type: "METADATA_FETCH_FAILED"
         });
     }
-
-    const parsedMetadata = serverInfoData.parse(response.data);
-
-    return {
-        name: parsedMetadata.name,
-        timestamp: parsedMetadata.timestamp,
-        system: {
-            platform: parsedMetadata.system.platform,
-            architecture: parsedMetadata.system.architecture
-        },
-        totalStorage: parsedMetadata.storage.totalStorage,
-        totalMemory: parsedMetadata.memory.totalSystem,
-        cpu: {
-            cores: parsedMetadata.cpu.cores,
-            model: parsedMetadata.cpu.model
-        }
-    };
 }
 
-export const listServers = async (req: Request, res: Response) => {
-    const db = await getConnection();
-    const repository = db.getRepository(Server);
-    const servers = await repository.find();
-    res.json({
-        success: true,
-        data: servers
-    });
-}
+/**
+ * 
+ * @param hostname the target to check
+ * @param id the id to excluded
+ */
+const checkExistingServer = async (hostname: string, id?: string) => {
+    const [host, port] = hostname.split(":");
 
-export const createServer = async (req: Request, res: Response) => {
-    const patch = createServerSchema.parse(req.body);
-    const db = await getConnection();
-    const repository = db.getRepository(Server);
-
-    // 1. Extract the host and port BEFORE querying
-    const [newHost, newPort] = patch.hostname.split(":");
-
-    // 2. Query precisely using TypeORM's OR array syntax.
-    // This finds exact matches ("domain.com") OR anchored matches ("domain.com:8080")
-    // This strictly prevents "node1" from matching "supernode1" or "node10".
-    const existingServer = await repository.findOne({
-        where: [
-            { hostname: newHost },
-            { hostname: Like(`${newHost}:%`) }
+    const existingServer = await ServerModel.findOne({
+        ...(id ? { _id: { $ne: new ObjectId(id) } } : {}),
+        $or: [
+            { hostname: { $eq: host } },
+            { hostname: { $regex: `^${host}:`, $options: 'i' } }
         ]
     });
 
@@ -75,38 +74,57 @@ export const createServer = async (req: Request, res: Response) => {
         // so we only need to check if the port is the same.
         const [, existPort] = existingServer.hostname.split(":");
 
-        if (existPort === newPort) {
+        if (existPort === port) {
             throw new Exception({
                 status: 409,
-                message: `Server with hostname ${patch.hostname} (exact same port) already exists.`,
+                message: `Server with hostname ${hostname} (exact same port) already exists.`,
                 type: "CONFLICT"
             });
         }
 
         throw new Exception({
             status: 409,
-            message: `Server with hostname ${newHost} already exists on a different port.`,
+            message: `Server with hostname ${hostname} already exists on a different port.`,
             type: "CONFLICT"
         });
     }
+}
 
+
+export const listServers = async (req: Request, res: Response) => {
+
+    const servers = await ServerModel.find();
+    res.json({
+        success: true,
+        data: servers
+    });
+}
+
+
+export const createServer = async (req: Request, res: Response) => {
+    const patch = createServerSchema.parse(req.body);
+
+
+    // This finds exact matches ("domain.com") OR anchored matches ("domain.com:8080")
+    // This strictly prevents "node1" from matching "supernode1" or "node10".
+    await checkExistingServer(patch.hostname);
     const metadata = await getServerInfo(patch.hostname, patch.masterKey);
 
-    const server = repository.create({
+    const serverDoc = await ServerModel.create({
         hostname: patch.hostname,
         description: patch.description,
         masterKey: patch.masterKey,
         isActive: true,
         metadata: metadata
     });
-    await repository.save(server);
 
     res.status(201).json({
         success: true,
         message: "Server created successfully.",
-        data: server
+        data: serverDoc
     });
 }
+
 
 export const getServer = async (req: Request, res: Response) => {
     const server = req.server;
@@ -133,41 +151,11 @@ export const updateServer = async (req: Request, res: Response) => {
             type: "NOT_FOUND"
         });
     }
-
     const patch = updateServerSchema.parse(req.body);
-    const db = await getConnection();
-    const repository = db.getRepository(Server);
-
-    let metadata: Server["metadata"] | null = server.metadata;
+    let metadata: IServerMetadata = server.metadata;
     // If the hostname is being updated, check for conflicts
     if (patch.hostname && patch.hostname !== server.hostname) {
-        const [newHost, newPort] = patch.hostname.split(":");
-
-        const existingServer = await repository.findOne({
-            where: [
-                { id: Not(server.id), hostname: newHost },
-                { id: Not(server.id), hostname: Like(`${newHost}:%`) }
-            ]
-        });
-
-        if (existingServer) {
-            const [, existPort] = existingServer.hostname.split(":");
-
-            if (existPort === newPort) {
-                throw new Exception({
-                    status: 409,
-                    message: `Server with hostname ${patch.hostname} (exact same port) already exists.`,
-                    type: "CONFLICT"
-                });
-            }
-
-            throw new Exception({
-                status: 409,
-                message: `Server with hostname ${newHost} already exists on a different port.`,
-                type: "CONFLICT"
-            });
-        }
-
+        await checkExistingServer(patch.hostname, server._id.toString());
         // If the hostname is updated, fetch new metadata
         metadata = await getServerInfo(patch.hostname, patch.masterKey || server.masterKey);
     }
@@ -180,17 +168,20 @@ export const updateServer = async (req: Request, res: Response) => {
             type: "BAD_REQUEST"
         });
     }
-
-    await repository.update(server.id, {
-        ...updated,
-        metadata: metadata
-    });
+    for (const key in updated) {
+        if (Object.prototype.hasOwnProperty.call(updated, key)) {
+            server[key] = updated[key];
+        }
+    }
+    server.metadata = metadata;
+    await server.save();
 
     res.json({
         success: true,
         data: { ...server, ...updated, metadata }
     });
 }
+
 
 export const deleteServer = async (req: Request, res: Response) => {
     const server = req.server;
@@ -202,9 +193,7 @@ export const deleteServer = async (req: Request, res: Response) => {
         });
     }
 
-    const db = await getConnection();
-    const repository = db.getRepository(Server);
-    await repository.softDelete(server.id);
+    await ServerModel.deleteOne({ _id: server._id });
 
     res.json({
         success: true,

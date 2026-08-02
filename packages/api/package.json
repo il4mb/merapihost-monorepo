@@ -27,6 +27,7 @@
         "mongodb": "4.17.2",
         "mongoose": "^9.9.1",
         "reflect-metadata": "^0.2.2",
+        "tldts": "^7.4.10",
         "type-graphql": "^2.0.0-rc.3",
         "typeorm": "^1.1.0",
         "zod": "^4.4.3"

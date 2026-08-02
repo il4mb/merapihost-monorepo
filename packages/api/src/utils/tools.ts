@@ -1,3 +1,5 @@
+import { parse, getDomain } from 'tldts';
+
 /**
  * Recursively extracts only the fields from jsonData that differ from objectSource.
  * 
@@ -15,7 +17,7 @@ export const getUpdate = (jsonData: Record<string, any>, objectSource: Record<st
 
             // 1. Ignore undefined values
             if (value !== undefined) {
-                
+
                 // 2. Handle Arrays
                 if (Array.isArray(value)) {
                     // Compare arrays deeply using JSON.stringify
@@ -27,11 +29,11 @@ export const getUpdate = (jsonData: Record<string, any>, objectSource: Record<st
                 // 3. Handle nested objects (excluding arrays and null)
                 else if (typeof value === 'object' && value !== null) {
                     const nestedUpdate = getUpdate(value, sourceValue || {});
-                    
+
                     if (Object.keys(nestedUpdate).length > 0) {
                         exactlyUpdated[key] = nestedUpdate;
                     }
-                } 
+                }
                 // 4. Handle primitives (strings, numbers, booleans, null)
                 else {
                     if (value !== sourceValue) {
@@ -41,6 +43,18 @@ export const getUpdate = (jsonData: Record<string, any>, objectSource: Record<st
             }
         }
     }
-    
+
     return exactlyUpdated;
+};
+
+
+export const isValidDomain = (input: string): boolean => {
+    const portRegex = /:\d+$/; // Matches a colon followed by one or more digits at the end of the string
+    const isPortPresent = portRegex.test(input);
+    if (isPortPresent) {
+        throw new Error("Domain should not contain a port number.");
+    }
+
+    const result = parse(input);
+    return result.isIp === false && !!result.domain && !!result.publicSuffix;
 };

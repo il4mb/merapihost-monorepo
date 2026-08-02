@@ -3,7 +3,6 @@ import { ObjectId } from "mongodb";
 import { Service } from "./service";
 
 @Entity("whatsapp_accounts")
-@Index(["service", "phoneNumberId"], { unique: true })
 export class WhatsappAccount {
 
     @ObjectIdColumn()

@@ -3,6 +3,8 @@ import routers from './routes';
 import { errorJson, notFoundJson } from './middlewares/error.middle';
 import { LOGGER } from './utils/logger';
 import { graphqlHandler } from '@/sources/graphql';
+import mongoose from 'mongoose';
+import { env } from './config/env';
 
 const app = express();
 
