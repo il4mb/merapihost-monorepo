@@ -1,4 +1,5 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { ObjectId } from "mongodb";
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, ObjectIdColumn, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 export interface DriveFileMetadata {
     mimeType: string;
@@ -9,8 +10,8 @@ export interface DriveFileMetadata {
 @Entity("drive_files")
 export class DriveFile {
 
-    @PrimaryGeneratedColumn("uuid")
-    id: string;
+    @ObjectIdColumn()
+    _id: ObjectId;
 
     @Column({ type: "char", length: 64 })
     uid: string; // user id of the owner of the file/folder
@@ -21,10 +22,10 @@ export class DriveFile {
     @Column({ type: "varchar", length: 8, default: "file" })
     type: "file" | "folder";
 
-    // Many files/folders belong to ONE parent folder
-    @ManyToOne(() => DriveFile, (file) => file.id, { onDelete: "CASCADE" })
-    @JoinColumn({ name: "parent_id" })
-    parent: DriveFile | null; // null means root folder
+    // // Many files/folders belong to ONE parent folder
+    // @ManyToOne(() => DriveFile, (file) => file._id, { onDelete: "CASCADE" })
+    // @JoinColumn({ name: "parent_id" })
+    // parent: DriveFile | null; // null means root folder
 
     @Column({ type: "json", nullable: true })
     metadata: DriveFileMetadata | null; // null means folder

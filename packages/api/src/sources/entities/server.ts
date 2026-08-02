@@ -1,11 +1,12 @@
-import { Column, CreateDateColumn, DeleteDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, DeleteDateColumn, Entity, ObjectIdColumn, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import type { IServerMetadata } from "../models/server";
+import { ObjectId } from "mongodb";
 
 @Entity("servers")
 export class Server {
 
-    @PrimaryGeneratedColumn("uuid")
-    id: string;
+    @ObjectIdColumn()
+    _id: ObjectId;
 
     @Column({ type: "varchar", length: 64 })
     hostname: string;

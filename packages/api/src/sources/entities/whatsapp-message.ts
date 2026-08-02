@@ -1,5 +1,6 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, ObjectIdColumn } from "typeorm";
 import { WhatsappConversation } from "./whatsapp-conversation";
+import { ObjectId } from "mongodb";
 
 export enum MessageType {
     TEXT = "text",
@@ -34,12 +35,12 @@ export interface MessageMedia {
 @Entity("whatsapp_messages")
 export class WhatsappMessage {
 
-    @PrimaryGeneratedColumn("uuid")
-    id!: string;
+    @ObjectIdColumn()
+    _id: ObjectId;
 
-    @ManyToOne(() => WhatsappConversation, c => c.id, { onDelete: "CASCADE" })
-    @JoinColumn({ name: "conversation_id" })
-    conversation!: WhatsappConversation;
+    // @ManyToOne(() => WhatsappConversation, c => c._id, { onDelete: "CASCADE" })
+    // @JoinColumn({ name: "conversation_id" })
+    // conversation!: WhatsappConversation;
 
     @Column({ name: "whatsapp_message_id", unique: true })
     whatsappMessageId!: string;

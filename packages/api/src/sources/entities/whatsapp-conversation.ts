@@ -1,18 +1,19 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, ManyToOne, JoinColumn, ObjectIdColumn } from "typeorm";
 import { WhatsappAccount } from "./whatsapp-account";
 import { WhatsappContact } from "./whatsapp-contact";
+import { ObjectId } from "mongodb";
 
 @Entity("whatsapp_conversations")
 export class WhatsappConversation {
 
-    @PrimaryGeneratedColumn("uuid")
-    id!: string;
+    @ObjectIdColumn()
+    _id: ObjectId;
 
-    @ManyToOne(() => WhatsappAccount, a => a.id, { onDelete: "CASCADE" })
-    @JoinColumn({ name: "account_id" })
-    account!: WhatsappAccount;
+    // @ManyToOne(() => WhatsappAccount, a => a._id, { onDelete: "CASCADE" })
+    // @JoinColumn({ name: "account_id" })
+    // account!: WhatsappAccount;
 
-    @ManyToOne(() => WhatsappContact, c => c.id, { onDelete: "CASCADE" })
-    @JoinColumn({ name: "contact_id" })
-    contact!: WhatsappContact;
+    // @ManyToOne(() => WhatsappContact, c => c._id, { onDelete: "CASCADE" })
+    // @JoinColumn({ name: "contact_id" })
+    // contact!: WhatsappContact;
 }

@@ -1,15 +1,17 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, Index, JoinColumn, ManyToOne, ObjectIdColumn } from "typeorm";
+import { ObjectId } from "mongodb";
 import { Service } from "./service";
 
 @Entity("whatsapp_accounts")
 @Index(["service", "phoneNumberId"], { unique: true })
 export class WhatsappAccount {
-    @PrimaryGeneratedColumn("uuid")
-    id!: string;
 
-    @ManyToOne(() => Service, e => e.id, { onDelete: "CASCADE" })
-    @JoinColumn({ name: "service_id" })
-    service!: Service;
+    @ObjectIdColumn()
+    _id: ObjectId;
+
+    // @ManyToOne(() => Service, e => e._id, { onDelete: "CASCADE" })
+    // @JoinColumn({ name: "service_id" })
+    // service!: Service;
 
     @Column({ name: "phone_number_id", unique: true })
     phoneNumberId!: string;

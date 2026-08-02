@@ -24,7 +24,7 @@
         "graphql-scalars": "^1.25.0",
         "graphql-type-json": "^0.3.2",
         "ioredis": "^5.11.1",
-        "mongodb": "^7.5.0",
+        "mongodb": "4.17.2",
         "mongoose": "^9.9.1",
         "reflect-metadata": "^0.2.2",
         "type-graphql": "^2.0.0-rc.3",

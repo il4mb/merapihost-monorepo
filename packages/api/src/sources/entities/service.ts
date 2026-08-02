@@ -1,4 +1,5 @@
-import { Column, CreateDateColumn, DeleteDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { ObjectId } from "mongodb";
+import { Column, CreateDateColumn, DeleteDateColumn, Entity, ObjectIdColumn, UpdateDateColumn } from "typeorm";
 
 export interface ServiceMetadata {
     wabaId?: string;
@@ -9,8 +10,8 @@ export interface ServiceMetadata {
 @Entity("services")
 export class Service {
 
-    @PrimaryGeneratedColumn("uuid")
-    id: string;
+    @ObjectIdColumn()
+    _id: ObjectId;
 
     @Column({ type: "char", length: 64 })
     uid: string;
