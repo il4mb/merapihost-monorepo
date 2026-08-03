@@ -26,11 +26,11 @@ websiteSchema.post('save', async function (doc) {
 
     try {
 
-        // $addToSet safely pushes the item without duplicates and avoids TypeScript subdocument errors
         await DomainModel.findByIdAndUpdate(doc.domainId, {
-            $addToSet: {
-                linked: { type: "website", refId: doc._id.toString() }
-            }
+            $pull: { linked: { type: "website" } }
+        });
+        await DomainModel.findByIdAndUpdate(doc.domainId, {
+            $push: { linked: { type: "website", refId: doc._id.toString() } }
         });
 
     } catch (error) {
@@ -42,12 +42,11 @@ websiteSchema.post('save', async function (doc) {
 websiteSchema.post('findOneAndDelete', async function (doc) {
     if (doc) {
         try {
-            await ServerModel.findByIdAndUpdate(doc.server, {
+            await ServerModel.findByIdAndUpdate(doc.serverId, {
                 $inc: { websiteCount: -1 }
             });
-            
-            // Pro-tip: Clean up the domain's linked array when the website is deleted using $pull!
-            await DomainModel.findByIdAndUpdate(doc.domain, {
+
+            await DomainModel.findByIdAndUpdate(doc.domainId, {
                 $pull: {
                     linked: { type: "website", refId: doc._id.toString() }
                 }

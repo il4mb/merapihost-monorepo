@@ -19,6 +19,6 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
             type: "INVALID_TOKEN"
         });
     }
-    req.user = { ...decodedToken };
+    req.local.user = { ...decodedToken };
     next();
 }

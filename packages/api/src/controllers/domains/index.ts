@@ -13,7 +13,7 @@ export const listDomains = async (req: Request, res: Response) => {
 
 
 export const createDomain = async (req: Request, res: Response) => {
-    const user = req.user;
+    const user = req.local.user;
     const patch = createDomainSchema.parse(req.body);
 
     if (!user) {

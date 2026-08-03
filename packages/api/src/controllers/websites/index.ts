@@ -22,7 +22,7 @@ export const listWebsites = async (req: Request, res: Response) => {
 
 export const createWebsite = async (req: Request, res: Response) => {
 
-    const user = req.user;
+    const user = req.local.user;
     const patch = createWebsiteSchema.parse(req.body);
 
     if (!user) {
@@ -72,7 +72,7 @@ export const createWebsite = async (req: Request, res: Response) => {
             return leastLoadedServer;
         }
     })();
-    
+
     if (!server) {
         throw new Exception({
             status: 400,
@@ -97,3 +97,96 @@ export const createWebsite = async (req: Request, res: Response) => {
     });
 }
 
+
+export const getWebsite = async (req: Request, res: Response) => {
+    const website = req.local.website;
+    if (!website) {
+        throw new Exception({
+            status: 404,
+            message: "Cannot retrieve website because it was not found.",
+            type: "WEBSITE_NOT_FOUND"
+        });
+    }
+
+    res.json({
+        success: true,
+        data: website
+    });
+}
+
+export const updateWebsite = async (req: Request, res: Response) => {
+    const website = req.local?.website;
+    if (!website) {
+        throw new Exception({
+            status: 404,
+            message: "Cannot update website because it was not found.",
+            type: "WEBSITE_NOT_FOUND"
+        });
+    }
+
+    const patch = createWebsiteSchema.partial().parse(req.body);
+
+    if (patch.domain) {
+        const domain = await DomainModel.findOne({ name: patch.domain });
+        if (!domain) {
+            throw new Exception({
+                status: 400,
+                message: "Domain not found, please add it first.",
+                type: "DOMAIN_NOT_FOUND"
+            });
+        }
+        website.domainId = domain._id;
+    }
+
+    if (patch.serverId) {
+        const server = await ServerModel.findById(patch.serverId);
+        if (!server) {
+            throw new Exception({
+                status: 400,
+                message: "Server not found",
+                type: "SERVER_NOT_FOUND"
+            });
+        }
+        if (!server.isActive) {
+            throw new Exception({
+                status: 400,
+                message: "Server is inactive",
+                type: "SERVER_INACTIVE"
+            });
+        }
+        website.serverId = server._id;
+    }
+
+    if (patch.name) {
+        website.name = patch.name;
+    }
+
+    if (patch.description) {
+        website.description = patch.description;
+    }
+
+    const updatedWebsite = await website.save();
+
+    res.json({
+        success: true,
+        message: "Website updated successfully.",
+        data: updatedWebsite
+    });
+}
+
+export const deleteWebsite = async (req: Request, res: Response) => {
+    const website = req.local.website;
+    if (!website) {
+        throw new Exception({
+            status: 404,
+            message: "Cannot delete website because it was not found.",
+            type: "WEBSITE_NOT_FOUND"
+        });
+    }
+    await WebsiteModel.findByIdAndDelete(website._id);
+
+    res.json({
+        success: true,
+        message: "Website deleted successfully."
+    });
+}

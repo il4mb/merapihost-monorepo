@@ -18,6 +18,7 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('X-Powered-By', 'Merapihost');
     LOGGER.info(`Incoming request: ${req.method} ${req.url}`);
+    req.local = {}; // Initialize the local object for storing request-specific data
     next();
 });
 

@@ -1,12 +1,12 @@
 import WebsiteModel from "@/sources/models/website";
 import { Exception } from "@/utils/exception";
 import { Request, Response, NextFunction } from "express";
-import { Types } from "mongoose";
+import { ObjectId } from "mongodb";
 
-export const websiteOwnerMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const websiteOwnerMiddleware = async (req: Request, res: Response, next: NextFunction) => {
     const id = req.params.id;
 
-    if (!req.user || !req.user.id) {
+    if (!req.local.user || !req.local.user.uid) {
         throw new Exception({
             status: 403,
             message: "User not authenticated.",
@@ -21,11 +21,20 @@ export const websiteOwnerMiddleware = (req: Request, res: Response, next: NextFu
             type: "INVALID_WEBSITE_ID"
         });
     }
-    const website = WebsiteModel.findById({
-        _id: new Types.ObjectId(id),
-        userId: req.user?.id
+    const website = await WebsiteModel.findById({
+        _id: new ObjectId(id),
+        userId: req.local.user?.uid
     });
 
+    if (!website) {
+        throw new Exception({
+            status: 404,
+            message: "Website not found or you do not have permission to access it.",
+            type: "WEBSITE_NOT_FOUND"
+        });
+    }
+
+    req.local.website = website;
 
     next();
 }

@@ -22,6 +22,6 @@ export const serverMiddleware = async (req: Request, res: Response, next: NextFu
         });
     }
 
-    req.server = server;
+    req.local.server = server;
     next();
 };

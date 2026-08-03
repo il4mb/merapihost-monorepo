@@ -67,7 +67,7 @@ export const register = async (req: Request, res: Response) => {
 }
 
 export const logout = async (req: Request, res: Response) => {
-    const user = req.user;
+    const user = req.local.user;
     if (!user) {
         throw new Exception({
             message: "User not authenticated",
@@ -83,7 +83,7 @@ export const logout = async (req: Request, res: Response) => {
 }
 
 export const getMe = async (req: Request, res: Response) => {
-    const user = req.user;
+    const user = req.local.user;
     if (!user) {
         throw new Exception({
             message: "User not authenticated",

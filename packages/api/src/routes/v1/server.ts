@@ -10,6 +10,7 @@ const serverRouter = Router();
 serverRouter.get("/", controller.getServer);
 serverRouter.put("/", controller.updateServer);
 serverRouter.delete("/", controller.deleteServer);
+
 router.use("/:id", serverMiddleware, serverRouter);
 
 export default router;
