@@ -1,6 +1,7 @@
-import { InferSchemaType, Schema } from "mongoose";
+import { InferSchemaType, Schema, Types } from "mongoose";
 import { primaryDb } from "@/sources";
 import { isValidDomain } from "@/utils/tools";
+import { CacheClearPlugin } from "@/utils/cache";
 
 const linkedSchema = new Schema({
     type: { type: String, enum: ["website", "email"], required: true },
@@ -8,7 +9,7 @@ const linkedSchema = new Schema({
 });
 
 const domainSchema = new Schema({
-    userId: { type: String, required: true }, // Reference to the user who owns this domain
+    userId: { type: Types.ObjectId, required: true }, // Reference to the user who owns this domain
     name: { type: String, required: true, unique: true },
     verificationToken: { type: String, required: true },
     status: { type: String, enum: ["pending", "verified", "failed"], default: "pending" },
@@ -19,6 +20,7 @@ const domainSchema = new Schema({
     timestamps: true
 });
 
+domainSchema.plugin(CacheClearPlugin); // Apply the cache clearing plugin to the domain schema
 domainSchema.index({ userId: 1, name: 1 }, { unique: true }); // Ensure a user cannot have duplicate domain names
 domainSchema.pre("save", async function () {
     if (this.isModified("name")) {

@@ -5,8 +5,8 @@ import { ObjectId } from "mongodb";
 
 export const websiteOwnerMiddleware = async (req: Request, res: Response, next: NextFunction) => {
     const id = req.params.id;
-
-    if (!req.local.user || !req.local.user.uid) {
+    const user = req.local.session?.user;
+    if (!user) {
         throw new Exception({
             status: 403,
             message: "User not authenticated.",
@@ -23,8 +23,8 @@ export const websiteOwnerMiddleware = async (req: Request, res: Response, next: 
     }
     const website = await WebsiteModel.findById({
         _id: new ObjectId(id),
-        userId: req.local.user?.uid
-    });
+        userId: user._id
+    }).cache();
 
     if (!website) {
         throw new Exception({

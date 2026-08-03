@@ -1,15 +1,15 @@
 import { Router } from "express";
 import * as controller from "@/controllers/server";
-import { serverMiddleware } from "@/middlewares";
+import { serverMiddleware, adminMiddleware } from "@/middlewares";
 
 const router = Router();
 router.get("/", controller.listServers);
-router.post("/", controller.createServer);
+router.post("/", adminMiddleware, controller.createServer);
 
 const serverRouter = Router();
 serverRouter.get("/", controller.getServer);
-serverRouter.put("/", controller.updateServer);
-serverRouter.delete("/", controller.deleteServer);
+serverRouter.put("/", adminMiddleware, controller.updateServer);
+serverRouter.delete("/", adminMiddleware, controller.deleteServer);
 
 router.use("/:id", serverMiddleware, serverRouter);
 

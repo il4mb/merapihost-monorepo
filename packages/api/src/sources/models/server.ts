@@ -1,5 +1,6 @@
 import { InferSchemaType, Schema, model } from "mongoose";
 import { primaryDb } from "@/sources";
+import { CacheClearPlugin } from "@/utils/cache";
 
 const serverSchema = new Schema({
     hostname: { type: String, required: true, unique: true },
@@ -24,6 +25,8 @@ const serverSchema = new Schema({
 }, {
     timestamps: true
 });
+
+serverSchema.plugin(CacheClearPlugin); // Apply the cache clearing plugin to the server schema
 
 export type IServer = InferSchemaType<typeof serverSchema>;
 export type IServerMetadata = IServer["metadata"];

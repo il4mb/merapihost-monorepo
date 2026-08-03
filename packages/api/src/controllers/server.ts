@@ -67,7 +67,7 @@ const checkExistingServer = async (hostname: string, id?: string) => {
             { hostname: { $eq: host } },
             { hostname: { $regex: `^${host}:`, $options: 'i' } }
         ]
-    });
+    }).cache();
 
     if (existingServer) {
         // We already know the host matches because of our precise query above,
@@ -93,7 +93,7 @@ const checkExistingServer = async (hostname: string, id?: string) => {
 
 export const listServers = async (req: Request, res: Response) => {
 
-    const servers = await ServerModel.find();
+    const servers = await ServerModel.find().cache();
     res.json({
         success: true,
         data: servers
@@ -127,7 +127,7 @@ export const createServer = async (req: Request, res: Response) => {
 
 
 export const getServer = async (req: Request, res: Response) => {
-    const server = req.server;
+    const server = req.local.server;
     if (!server) {
         throw new Exception({
             status: 404,
@@ -143,7 +143,7 @@ export const getServer = async (req: Request, res: Response) => {
 }
 
 export const updateServer = async (req: Request, res: Response) => {
-    const server = req.server;
+    const server = req.local.server;
     if (!server) {
         throw new Exception({
             status: 404,
@@ -184,7 +184,7 @@ export const updateServer = async (req: Request, res: Response) => {
 
 
 export const deleteServer = async (req: Request, res: Response) => {
-    const server = req.server;
+    const server = req.local.server;
     if (!server) {
         throw new Exception({
             status: 404,

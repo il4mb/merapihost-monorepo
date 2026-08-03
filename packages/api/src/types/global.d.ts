@@ -1,21 +1,22 @@
-import type { HydratedDocument } from "mongoose";
+import type { Types, HydratedDocument } from "mongoose";
 import type { Service } from "@/sources/entities/service";
 import type { WhatsappAccount } from "@/sources/entities/whatsapp-account";
-import type { IWebsite, IServer } from "@/sources/models";
+import type { IWebsite, IServer, IUser } from "@/sources/models";
 import type { DecodedIdToken } from "firebase-admin/auth";
+import type { AuthTokenPayload } from "@/types/user";
+
+
+// Helper type to enforce a plain object with the Mongoose _id included
+type PlainDocument<T> = T & { _id: Types.ObjectId };
 
 declare module "express-serve-static-core" {
     interface Request {
-        // service?: Service;
-        // server?: HydratedDocument<IServer>;
-        // whatsappAccount?: WhatsappAccount;
-
         local: {
-            user?: DecodedIdToken;
+            session?: AuthTokenPayload & {
+                user: HydratedDocument<IUser>;
+            };
             website?: HydratedDocument<IWebsite>;
             server?: HydratedDocument<IServer>;
         }
     }
 }
-
-export { };

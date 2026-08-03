@@ -1,7 +1,7 @@
 import { isValidDomain } from "@/utils/tools";
 import { z } from "zod";
 
-export const createWebsiteSchema = z.object({
+const baseWebsiteSchema = z.object({
     domain: z.string()
         .min(1, "Domain is required")
         .max(120, "Domain cannot exceed 120 characters"),
@@ -15,18 +15,36 @@ export const createWebsiteSchema = z.object({
     description: z.string()
         .max(500, "Description cannot exceed 500 characters")
         .optional()
-}).superRefine((data, ctx) => {
-    if (data.domain) {
-        const isValid = isValidDomain(data.domain);
-        if (!isValid) {
-            ctx.addIssue({
-                code: "custom",
-                message: "Invalid domain format",
-                path: ["domain"]
-            });
-        }
-    }
-})
+});
 
+export const createWebsiteSchema = baseWebsiteSchema
+    .superRefine((data, ctx) => {
+        if (data.domain) {
+            const isValid = isValidDomain(data.domain);
+            if (!isValid) {
+                ctx.addIssue({
+                    code: "custom",
+                    message: "Invalid domain format",
+                    path: ["domain"]
+                });
+            }
+        }
+    });
+
+export const updateWebsiteSchema = baseWebsiteSchema
+    .partial()
+    .superRefine((data, ctx) => {
+        if (data.domain) {
+            const isValid = isValidDomain(data.domain);
+            if (!isValid) {
+                ctx.addIssue({
+                    code: "custom",
+                    message: "Invalid domain format",
+                    path: ["domain"]
+                });
+            }
+        }
+    });
 
 export type CreateWebsiteInput = z.infer<typeof createWebsiteSchema>;
+export type UpdateWebsiteInput = z.infer<typeof updateWebsiteSchema>;

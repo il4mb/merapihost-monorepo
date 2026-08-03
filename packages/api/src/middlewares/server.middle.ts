@@ -13,7 +13,7 @@ export const serverMiddleware = async (req: Request, res: Response, next: NextFu
         });
     }
 
-    const server = await ServerModel.findById(new ObjectId(serverId));
+    const server = await ServerModel.findById(new ObjectId(serverId)).cache();
     if (!server) {
         throw new Exception({
             status: 404,

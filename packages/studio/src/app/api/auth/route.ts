@@ -17,7 +17,7 @@ export const POST = async (request: NextRequest) => {
             }, { status: 400 });
         }
         // Validate the token with the server API
-        const response = await serverApi.post(`/v1/auth/login`, { token }, {
+        const response = await serverApi.post(`/v1/auth/login/google`, { token }, {
             headers: {
                 'Content-Type': 'application/json',
             },
