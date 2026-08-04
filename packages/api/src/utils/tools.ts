@@ -1,4 +1,4 @@
-import { parse, getDomain } from 'tldts';
+import { parse } from 'tldts';
 
 /**
  * Recursively extracts only the fields from jsonData that differ from objectSource.
@@ -46,35 +46,6 @@ export const getUpdate = (jsonData: Record<string, any>, objectSource: Record<st
 
     return exactlyUpdated;
 };
-
-
-export const isDiff = (input: any, source: any, nullable = false): boolean => {
-    if (nullable && (input === null || source === null)) {
-        return false;
-    }
-
-    if (typeof input !== typeof source) {
-        return true;
-    }
-
-    if (typeof input === 'object' && input !== null && source !== null) {
-        const inputKeys = Object.keys(input);
-        const sourceKeys = Object.keys(source);
-
-        if (inputKeys.length !== sourceKeys.length) {
-            return true;
-        }
-
-        for (const key of inputKeys) {
-            if (!source.hasOwnProperty(key) || isDiff(input[key], source[key], nullable)) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-    return input !== source;
- }
 
 export const isValidDomain = (input: string): boolean => {
     const portRegex = /:\d+$/; // Matches a colon followed by one or more digits at the end of the string

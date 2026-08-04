@@ -235,15 +235,11 @@ export const getMe = async (req: Request, res: Response) => {
             type: "USER_NOT_AUTHENTICATED"
         });
     }
-    const user = session.user.toObject() as any; // Convert Mongoose document to plain object
-    delete user.password; // Remove sensitive information
-    delete user.role; // Optionally remove role if you don't want to expose it
-    delete user.__v; // Remove Mongoose version key
 
     res.status(200).json({
         success: true,
         message: "User retrieved successfully",
-        user
+        user: session.user.toJSON() // Return the user as JSON
     });
 }
 
@@ -267,14 +263,9 @@ export const updateMe = async (req: Request, res: Response) => {
         });
     }
 
-    const user = updatedUser.toObject() as any; // Convert Mongoose document to plain object
-    delete user.password; // Remove sensitive information
-    delete user.role; // Optionally remove role if you don't want to expose it
-    delete user.__v; // Remove Mongoose version key
-
     res.status(200).json({
         success: true,
         message: "User updated successfully",
-        user
+        user: updatedUser.toJSON() // Return the updated user as JSON
     });
 }

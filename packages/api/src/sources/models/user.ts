@@ -16,10 +16,21 @@ const userSchema = new Schema({
 
 userSchema.plugin(CacheClearPlugin);
 
+userSchema.options.toJSON = {
+    transform: function (doc, ret) {
+        // @ts-ignore
+        delete ret.password; // Remove the password field from the JSON representation
+        // @ts-ignore
+        delete ret.__v; // Remove the Mongoose version key
+        return ret;
+    }
+};
+
+
+
+
 export type IUser = InferSchemaType<typeof userSchema> & {
     _id: Types.ObjectId;
-    createdAt: Date;
-    updatedAt: Date;
 }
 
 const UserModel = primaryDb.model<IUser>("User", userSchema);
