@@ -2,8 +2,7 @@ import type { Types, HydratedDocument } from "mongoose";
 import type { Service } from "@/sources/entities/service";
 import type { WhatsappAccount } from "@/sources/entities/whatsapp-account";
 
-import type { IWebsite, IServer, IUser, IDrive } from "@/sources/models";
-// import type { DecodedIdToken } from "firebase-admin/auth";
+import type { IWebsite, IServer, IUser, IDrive, IDriveNode } from "@/sources/models";
 import type { AuthTokenPayload } from "@/types/user";
 
 
@@ -19,6 +18,7 @@ declare module "express-serve-static-core" {
             website?: HydratedDocument<IWebsite>;
             server?: HydratedDocument<IServer>;
             drive?: HydratedDocument<IDrive>;
+            driveNode?: HydratedDocument<IDriveNode>;
         }
     }
 }

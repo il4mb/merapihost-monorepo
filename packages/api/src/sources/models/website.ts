@@ -5,15 +5,18 @@ import DomainModel from "./domain";
 import { CacheClearPlugin } from "@/utils/cache";
 
 const websiteSchema = new Schema({
-    userId: { type: Types.ObjectId, ref: "User", required: true, index: true },
-    domainId: { type: Types.ObjectId, ref: "Domain", required: true, unique: true, index: true },
-    serverId: { type: Types.ObjectId, ref: "Server", required: true, index: true },
+    userId: { type: Types.ObjectId, ref: "User", required: true },
+    domainId: { type: Types.ObjectId, ref: "Domain", required: true },
+    serverId: { type: Types.ObjectId, ref: "Server", required: true },
+    driveId: { type: Types.ObjectId, ref: "Drive", required: true, index: true },
     name: { type: String, required: true },
     description: { type: String, default: null },
-    status: { type: String, enum: ["active", "inactive"], default: "inactive" },
+    status: { type: String, enum: ["active", "inactive"], default: "inactive" }
 }, {
     timestamps: true
 });
+
+websiteSchema.index({ userId: 1, domainId: 1, serverId: 1 }, { unique: true });
 
 websiteSchema.plugin(CacheClearPlugin);
 
@@ -24,7 +27,7 @@ websiteSchema.pre('save', function () {
 });
 
 websiteSchema.post('save', async function (doc) {
-    if (!this.$locals.wasNew) return; 
+    if (!this.$locals.wasNew) return;
 
     try {
         await ServerModel.findByIdAndUpdate(doc.serverId, { $inc: { websiteCount: 1 } });
@@ -48,7 +51,6 @@ websiteSchema.post('save', async function (doc) {
 
 websiteSchema.pre('findOneAndUpdate', async function () {
     const update = this.getUpdate() as any;
-    console.log("Update operation detected:", update);
 
     const newDomainId = update.domainId || update.$set?.domainId;
     const newServerId = update.serverId || update.$set?.serverId;
@@ -59,12 +61,12 @@ websiteSchema.pre('findOneAndUpdate', async function () {
             // Check if Domain is changing
             if (newDomainId && currentDoc.domainId?.toString() !== newDomainId.toString()) {
                 (this as any)._oldDomainId = currentDoc.domainId; // Could be undefined/null, which is fine
-                (this as any)._newDomainId = newDomainId; 
+                (this as any)._newDomainId = newDomainId;
             }
             // Check if Server is changing
             if (newServerId && currentDoc.serverId?.toString() !== newServerId.toString()) {
                 (this as any)._oldServerId = currentDoc.serverId; // Could be undefined/null, which is fine
-                (this as any)._newServerId = newServerId; 
+                (this as any)._newServerId = newServerId;
             }
         }
     }
@@ -77,7 +79,7 @@ websiteSchema.post('findOneAndUpdate', async function (doc) {
     const newDomainId = (this as any)._newDomainId;
 
     console.log("New Domain ID:", newDomainId);
-    
+
     const oldServerId = (this as any)._oldServerId;
     const newServerId = (this as any)._newServerId;
 

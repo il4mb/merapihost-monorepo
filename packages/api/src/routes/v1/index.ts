@@ -11,11 +11,13 @@ const router = Router();
 router.use("/auth", authRouter);
 
 const authenticatedRouter = Router();
+authenticatedRouter.use("/services", serviceRouter);
+
 authenticatedRouter.use("/servers", serverRouter);
 authenticatedRouter.use("/websites", websiteRouter);
 authenticatedRouter.use("/domains", domainRouter);
 authenticatedRouter.use("/drives", driveRouter);
-authenticatedRouter.use("/:serviceId", serviceMiddleware, serviceRouter);
+
 
 router.use(authMiddleware, authenticatedRouter);
 

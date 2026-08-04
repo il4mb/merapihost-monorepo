@@ -8,9 +8,9 @@ const objectIdSchema = z.string().refine((val) => Types.ObjectId.isValid(val), {
 
 // Reusable name validator to enforce safe file/folder names
 const nameSchema = z.string()
-    .regex(/^[^<>:;,?"*|/]+$/, "Name cannot contain invalid characters (<> : ; , ? \" * | /).")
     .min(1, "Name cannot be empty.")
     .max(255, "Name cannot exceed 255 characters.")
+    .regex(/^[^<>:;,?"*|/]+$/, "Name cannot contain invalid characters (<> : ; , ? \" * | /).")
     .trim();
 
 export const driveQuerySchema = z.object({
@@ -19,7 +19,7 @@ export const driveQuerySchema = z.object({
 
 export const driveCreateFolderSchema = z.object({
     name: nameSchema,
-    folderId: objectIdSchema.optional().nullable().default(null),
+    folderId: objectIdSchema.nullable(),
 });
 
 export const driveRenameSchema = z.object({
@@ -27,5 +27,5 @@ export const driveRenameSchema = z.object({
 });
 
 export const driveMoveCopySchema = z.object({
-    newParentId: objectIdSchema.optional().nullable().default(null),
+    newParentId: objectIdSchema.nullable(),
 });

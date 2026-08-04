@@ -5,11 +5,20 @@ import { Exception } from "@/utils/exception";
 import DomainModel from "@/sources/models/domain";
 import ServerModel from "@/sources/models/server";
 import { getUpdate } from "@/utils/tools";
+import DriveModel from "@/sources/models/drive";
+import BucketModel from "@/sources/models/bucket";
 
 const getServerWithLeastWebsites = async () => {
     // Finds active servers, sorts by count (ascending), and grabs the first one
     return await ServerModel.findOne({ isActive: true })
         .sort({ websiteCount: 1, createdAt: 1 })
+        .lean();
+};
+
+const getBucketWithLeastDrives = async () => {
+    // Finds buckets, sorts by count (ascending), and grabs the first one
+    return await BucketModel.findOne()
+        .sort({ driveCount: 1, createdAt: 1 })
         .lean();
 };
 
@@ -118,7 +127,6 @@ export const createWebsite = async (req: Request, res: Response) => {
     });
 }
 
-
 export const getWebsite = async (req: Request, res: Response) => {
     const website = req.local.website;
     if (!website) {
@@ -127,6 +135,21 @@ export const getWebsite = async (req: Request, res: Response) => {
             message: "Cannot retrieve website because it was not found.",
             type: "WEBSITE_NOT_FOUND"
         });
+    }
+
+    if (!website.driveId) {
+        const bucket = await getBucketWithLeastDrives();
+        if (bucket) {
+            const drive = await DriveModel.create({
+                bucketId: bucket._id,
+                reference: {
+                    type: "website",
+                    refId: website._id.toString()
+                }
+            });
+            website.driveId = drive._id;
+            await website.save();
+        }
     }
 
     res.json({

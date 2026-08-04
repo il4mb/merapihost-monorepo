@@ -1,44 +1,127 @@
-import { CreateMultipartUploadCommand, UploadPartCommand } from "@aws-sdk/client-s3";
-import { s3Client, awS3Client } from "@/utils/s3-client";
+import { CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { awS3Client } from "@/utils/s3-client";
 import { Request, Response } from "express";
 import { z } from "zod";
+import crypto from "crypto"; // Native Node.js crypto for generating unique IDs
 
-const createUploadUrlSchema = z.object({
-    contentType: z.string().min(1, "Content type is required")
+// Ideally, this should come from your env config
+const BUCKET_NAME = process.env.S3_BUCKET_NAME || "test";
+
+const initUploadSchema = z.object({
+    fileName: z.string().min(1, "File name is required"),
+    mimeType: z.string().min(1, "MIME type is required")
 });
 
-export const createUploadUrl = async (req: Request, res: Response) => {
+export const initUpload = async (req: Request, res: Response) => {
+    const session = req.local.session; // Assuming authMiddleware is used
+    const { fileName, mimeType } = initUploadSchema.parse(req.body);
 
-    const service = req.service!;
-    const bucketName = service.bucket;
-    const { contentType } = createUploadUrlSchema.parse(req.body);
-    const fileId = Bun.randomUUIDv7();
-
+    // Generate a unique Object Key to prevent overwriting files with the same name
+    // e.g., "6a706bb6124ee488753e661f/b4d4-4f4d...-document.pdf"
+    const uniqueId = crypto.randomUUID();
+    const objectKey = `${session?.user?._id || 'anonymous'}/${uniqueId}-${fileName}`;
     const initResponse = await awS3Client.send(new CreateMultipartUploadCommand({
-        Bucket: bucketName,
-        Key: fileName
+        ACL: "private",
+        Bucket: BUCKET_NAME,
+        Key: objectKey,
+        ContentType: mimeType
     }));
-}
 
-const completeUploadSchema = z.object({
-    uploadId: z.uuid("Upload ID is required"),
-    etag: z.string().min(1, "ETag is required")
-
-});
-
-export const completeUpload = async (req: Request, res: Response) => {
-    const { filename } = req.body;
-    if (!filename || typeof filename !== "string") {
-        return res.status(400).json({
+    const uploadId = initResponse.UploadId;
+    if (!uploadId) {
+        return res.status(500).json({
             success: false,
-            message: "Filename is required"
+            message: "Failed to initiate multipart upload"
         });
     }
 
-    // Here you can implement any logic to mark the upload as complete, e.g., updating a database record.
+    res.json({
+        success: true,
+        data: {
+            uploadId,
+            objectKey,
+            fileName
+        }
+    });
+}
+
+const getUploadPartUrlSchema = z.object({
+    uploadId: z.string().min(1, "Upload ID is required"),
+    partNumber: z.number().int().min(1, "Part number must be a positive integer"),
+    objectKey: z.string().min(1, "Object key is required")
+});
+
+export const getUploadPartUrl = async (req: Request, res: Response) => {
+    const { uploadId, partNumber, objectKey } = getUploadPartUrlSchema.parse(req.body);
+
+    const uploadPartCommand = new UploadPartCommand({
+        Bucket: BUCKET_NAME,
+        Key: objectKey,
+        PartNumber: partNumber,
+        UploadId: uploadId
+    });
+
+    // Fix: getSignedUrl requires the S3 client as the first argument
+    const presignedUrl = await getSignedUrl(awS3Client, uploadPartCommand, { expiresIn: 3600 });
+
+    res.json({
+        success: true,
+        data: {
+            presignedUrl
+        }
+    });
+}
+
+const completeUploadSchema = z.object({
+    uploadId: z.string().min(1, "Upload ID is required"), // AWS UploadIds are NOT standard UUIDs
+    objectKey: z.string().min(1, "Object key is required"),
+    // S3 requires an array of PartNumbers and ETags to stitch the file back together
+    parts: z.array(z.object({
+        PartNumber: z.number().int().min(1),
+        ETag: z.string().min(1)
+    })).min(1, "At least one part is required")
+});
+
+export const completeUpload = async (req: Request, res: Response) => {
+    const { uploadId, objectKey, parts } = completeUploadSchema.parse(req.body);
+
+    // 1. Tell S3 to stitch the parts together
+    const completeCommand = new CompleteMultipartUploadCommand({
+        Bucket: BUCKET_NAME,
+        Key: objectKey,
+        UploadId: uploadId,
+        MultipartUpload: {
+            // S3 requires the parts array to be sorted by PartNumber ascending
+            Parts: parts.sort((a, b) => a.PartNumber - b.PartNumber)
+        }
+    });
+
+    await awS3Client.send(completeCommand);
+
+    // 2. (Optional but recommended) Here is where you would save the DriveModel to the database
+    /*
+    const session = req.local.session;
+    const newFile = new DriveModel({
+        userId: session.user._id,
+        name: req.body.fileName, 
+        type: "file",
+        parentId: req.body.folderId || null,
+        metadata: {
+            size: req.body.totalSize, // You should pass this from the frontend
+            mimeType: req.body.mimeType,
+            bucket: BUCKET_NAME,
+            objKey: objectKey
+        }
+    });
+    await newFile.save();
+    */
 
     res.status(200).json({
         success: true,
-        message: "Upload completed successfully"
+        message: "Upload completed successfully",
+        data: {
+            objectKey
+        }
     });
 }

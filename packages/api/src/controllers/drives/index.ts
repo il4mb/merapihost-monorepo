@@ -1,12 +1,8 @@
-import { Request, Response } from "express";
-import DriveModel, { IDrive } from "@/sources/models/drive";
+import { driveCreateFolderSchema, driveQuerySchema, driveRenameSchema, driveMoveCopySchema } from "@/sources/schemas/drive";
+import { isDescendant, copyRecursively } from "@/sources/tools/drive";
+import DriveNodeModel from "@/sources/models/drive-node";
 import { Exception } from "@/utils/exception";
-import {
-    driveCreateFolderSchema,
-    driveQuerySchema,
-    driveRenameSchema,
-    driveMoveCopySchema
-} from "@/sources/schemas/drive";
+import { Request, Response } from "express";
 import { Types } from "mongoose";
 
 // Helper to catch E11000 globally
@@ -21,41 +17,91 @@ const handleDuplicateError = (error: any) => {
     throw error;
 };
 
-export const listDrives = async (req: Request, res: Response) => {
-    const session = req.local.session;
-    if (!session) {
-        throw new Exception({ status: 401, message: "Unauthorized", type: "UNAUTHORIZED" });
+export const getListFilesAndFolders = async (req: Request, res: Response) => {
+    const drive = req.local.drive;
+    if (!drive) {
+        throw new Exception({
+            status: 404,
+            message: "Drive not found.",
+            type: "DRIVE_NOT_FOUND"
+        });
     }
 
     const query = driveQuerySchema.parse(req.query);
+    const filter: any = { driveId: drive._id };
 
-    // .lean() is used for massive performance gains on read-only lists
-    const drives = await DriveModel.find({
-        userId: session.user._id,
-        parentId: query.folderId ? new Types.ObjectId(query.folderId) : null
-    }).lean().cache();
+    if (query.folderId) {
+        filter.parentId = new Types.ObjectId(query.folderId);
+    } else {
+        filter.parentId = null; // Root level
+    }
+
+    const items = await DriveNodeModel.find(filter)
+        .sort({ type: 1, name: 1 }) // Folders first, then files, both sorted by name
+        .lean()
+        .cache(); // Recommend adding .cache() here if you are using your caching plugin
 
     res.json({
         success: true,
-        data: drives
+        data: items.map(item => ({
+            id: item._id,
+            name: item.name,
+            type: item.type,
+            metadata: item.metadata || {},
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt
+        }))
     });
-};
+}
 
-export const createDriveFolder = async (req: Request, res: Response) => {
+export const createNodeFolder = async (req: Request, res: Response) => {
     try {
-        const session = req.local.session!;
+        const drive = req.local.drive;
+        const session = req.local.session; // Removed trailing '!' as we check it below
+
+        if (!session) {
+            throw new Exception({
+                status: 401,
+                message: "Unauthorized",
+                type: "UNAUTHORIZED"
+            });
+        }
+        if (!session.user.isVerified) {
+            throw new Exception({
+                status: 403,
+                message: "Cannot create folder, user is not verified.",
+                type: "USER_NOT_VERIFIED"
+            });
+        }
+        if (!drive) {
+            throw new Exception({
+                status: 404,
+                message: "Drive not found.",
+                type: "DRIVE_NOT_FOUND"
+            });
+        }
+
         const body = driveCreateFolderSchema.parse(req.body);
 
         if (body.folderId) {
             // Verify parent folder exists and is actually a folder
-            const parent = await DriveModel.findOne({ _id: body.folderId, userId: session.user._id }).cache();
-            if (!parent || parent.type !== "folder") {
-                throw new Exception({ status: 404, message: "Parent folder not found or is invalid.", type: "INVALID_PARENT" });
+            const parent = await DriveNodeModel.findOne({
+                _id: body.folderId,
+                driveId: drive._id,
+                type: "folder"
+            }).cache();
+
+            if (!parent) {
+                throw new Exception({
+                    status: 404,
+                    message: "Parent folder not found or is invalid.",
+                    type: "INVALID_PARENT"
+                });
             }
         }
 
-        const newFolder = new DriveModel({
-            userId: session.user._id,
+        const newFolder = new DriveNodeModel({
+            driveId: drive._id,
             name: body.name,
             type: "folder",
             parentId: body.folderId ? new Types.ObjectId(body.folderId) : null
@@ -66,33 +112,55 @@ export const createDriveFolder = async (req: Request, res: Response) => {
         res.status(201).json({
             success: true,
             message: "Folder created successfully.",
-            data: newFolder
+            data: {
+                id: newFolder._id,
+                name: newFolder.name,
+                type: newFolder.type,
+                metadata: newFolder.metadata || {},
+                createdAt: newFolder.createdAt,
+                updatedAt: newFolder.updatedAt
+            }
         });
     } catch (error) {
         handleDuplicateError(error);
     }
 };
 
-export const getDriveById = async (req: Request, res: Response) => {
-    const drive = req.local.drive; // Assuming this is populated by a middleware
-    if (!drive) {
-        throw new Exception({ status: 404, message: "Drive not found.", type: "DRIVE_NOT_FOUND" });
+export const getNodeById = async (req: Request, res: Response) => {
+    const node = req.local.driveNode;
+    if (!node) {
+        throw new Exception({
+            status: 404,
+            message: "Node not found.",
+            type: "NODE_NOT_FOUND"
+        });
     }
 
     res.json({
         success: true,
-        data: drive.toJSON() // Convert Mongoose document to plain object
+        data: {
+            id: node._id,
+            name: node.name,
+            type: node.type,
+            metadata: node.metadata || {},
+            createdAt: node.createdAt,
+            updatedAt: node.updatedAt
+        }
     });
 };
 
-export const deleteDrive = async (req: Request, res: Response) => {
-    const drive = req.local.drive;
-    if (!drive) {
-        throw new Exception({ status: 404, message: "Drive not found.", type: "DRIVE_NOT_FOUND" });
+export const deleteNode = async (req: Request, res: Response) => {
+    const node = req.local.driveNode;
+    if (!node) {
+        throw new Exception({
+            status: 404,
+            message: "Node not found.",
+            type: "NODE_NOT_FOUND"
+        });
     }
 
     // This safely triggers the cascade delete hook we built earlier
-    await DriveModel.findByIdAndDelete(drive._id);
+    await DriveNodeModel.findByIdAndDelete(node._id);
 
     res.json({
         success: true,
@@ -100,114 +168,162 @@ export const deleteDrive = async (req: Request, res: Response) => {
     });
 };
 
-export const renameDrive = async (req: Request, res: Response) => {
+export const renameNode = async (req: Request, res: Response) => {
     try {
-        const session = req.local.session!;
-        const { driveId } = req.params;
-        const { newName } = driveRenameSchema.parse(req.body);
-
-        const drive = await DriveModel.findOne({ _id: driveId, userId: session.user._id });
-        if (!drive) {
-            throw new Exception({ status: 404, message: "Drive not found.", type: "DRIVE_NOT_FOUND" });
+        const node = req.local.driveNode;
+        if (!node) {
+            throw new Exception({
+                status: 404,
+                message: "Node not found.",
+                type: "NODE_NOT_FOUND"
+            });
         }
 
-        drive.name = newName;
-        await drive.save(); // Will throw E11000 if name exists in the same folder
+        const { newName } = driveRenameSchema.parse(req.body);
+
+        node.name = newName;
+        await node.save(); // Will throw E11000 if name exists in the same folder
 
         res.json({
             success: true,
             message: "Item renamed successfully.",
-            data: drive.toJSON() // Convert Mongoose document to plain object
+            data: {
+                id: node._id,
+                name: node.name,
+                type: node.type,
+                metadata: node.metadata || {},
+                createdAt: node.createdAt,
+                updatedAt: node.updatedAt
+            }
         });
     } catch (error) {
         handleDuplicateError(error);
     }
 };
 
-export const moveDrive = async (req: Request, res: Response) => {
+export const moveNode = async (req: Request, res: Response) => {
     try {
-        const session = req.local.session!;
         const drive = req.local.drive;
+        const node = req.local.driveNode;
+
+        // FIX: Corrected OR logic to prevent undefined crashes
+        if (!node || !drive) {
+            throw new Exception({
+                status: 404,
+                message: "Drive or node not found.",
+                type: "DRIVE_NOT_FOUND"
+            });
+        }
+
         const { newParentId } = driveMoveCopySchema.parse(req.body);
 
-        if (!drive) {
-            throw new Exception({ status: 404, message: "Drive not found.", type: "DRIVE_NOT_FOUND" });
-        }
-
         if (newParentId) {
-            // 1. Check if moving into itself
-            if (drive._id.toString() === newParentId) {
-                throw new Exception({ status: 400, message: "Cannot move a folder into itself.", type: "CYCLIC_MOVE" });
+            // FIX: Explicitly check for moving into itself to provide a clear 400 error
+            if (node._id.toString() === newParentId) {
+                throw new Exception({
+                    status: 400,
+                    message: "Cannot move a folder into itself.",
+                    type: "CYCLIC_MOVE"
+                });
             }
 
-            // 2. Validate new parent exists and is a folder
-            const newParentDrive = await DriveModel.findOne({ _id: newParentId, userId: session.user._id, type: "folder" }).cache();
+            // 1. Validate new parent exists and is a folder
+            const newParentDrive = await DriveNodeModel.findOne({
+                _id: newParentId,
+                driveId: drive._id,
+                type: "folder"
+            }).cache();
+
             if (!newParentDrive) {
-                throw new Exception({ status: 404, message: "Target folder not found.", type: "NEW_PARENT_NOT_FOUND" });
+                throw new Exception({
+                    status: 404,
+                    message: "Target folder not found.",
+                    type: "NEW_PARENT_NOT_FOUND"
+                });
             }
 
-            // 3. Prevent moving a folder into its own descendants (Cyclic Move Check)
-            if (drive.type === "folder") {
-                let currentAncestor: IDrive | null = newParentDrive;
-                while (currentAncestor && currentAncestor.parentId) {
-                    if (currentAncestor.parentId.toString() === drive._id.toString()) {
-                        throw new Exception({ status: 400, message: "Cannot move a folder into its own subfolder.", type: "CYCLIC_MOVE" });
-                    }
-                    // Fetch the next ancestor up the chain
-                    currentAncestor = await DriveModel.findById(currentAncestor.parentId).lean();
-                }
+            // 2. Prevent cyclic moves (moving a folder into its own subfolder)
+            const isInside = await isDescendant(node._id, new Types.ObjectId(newParentId));
+            if (isInside) {
+                throw new Exception({
+                    status: 400,
+                    message: "Cannot move a folder into its own subfolder.",
+                    type: "CYCLIC_MOVE"
+                });
             }
 
-            drive.parentId = new Types.ObjectId(newParentId);
+            node.parentId = newParentDrive._id;
         } else {
-            drive.parentId = null; // Move to root
+            node.parentId = null; // Move to root
         }
 
-        await drive.save();
+        await node.save();
 
         res.json({
             success: true,
             message: "Item moved successfully.",
-            data: drive.toJSON() // Convert Mongoose document to plain object
+            data: {
+                id: node._id,
+                name: node.name,
+                type: node.type,
+                metadata: node.metadata || {},
+                createdAt: node.createdAt,
+                updatedAt: node.updatedAt
+            }
         });
     } catch (error) {
         handleDuplicateError(error);
     }
 };
 
-export const copyDrive = async (req: Request, res: Response) => {
+export const copyNode = async (req: Request, res: Response) => {
     try {
-        const session = req.local.session!;
-        const driveToCopy = req.local.drive;
-        const { newParentId } = driveMoveCopySchema.parse(req.body);
+        const drive = req.local.drive;
+        const nodeToCopy = req.local.driveNode;
 
-        if (!driveToCopy) {
-            throw new Exception({ status: 404, message: "Item to copy not found.", type: "DRIVE_NOT_FOUND" });
+        if (!drive || !nodeToCopy) {
+            throw new Exception({
+                status: 404,
+                message: "Drive or item to copy not found.",
+                type: "DRIVE_NOT_FOUND"
+            });
         }
 
+        const { newParentId } = driveMoveCopySchema.parse(req.body);
+
         if (newParentId) {
-            const newParentDrive = await DriveModel.findOne({ _id: newParentId, userId: session.user._id, type: "folder" }).cache();
+            const newParentDrive = await DriveNodeModel.findOne({
+                _id: newParentId,
+                driveId: drive._id,
+                type: "folder"
+            }).cache();
+
             if (!newParentDrive) {
-                throw new Exception({ status: 404, message: "Target folder not found.", type: "NEW_PARENT_NOT_FOUND" });
+                throw new Exception({
+                    status: 404,
+                    message: "Target folder not found.",
+                    type: "NEW_PARENT_NOT_FOUND"
+                });
             }
         }
 
-        // Note: This only copies the top-level folder/file. 
-        // If it's a folder, it will create an empty folder. Deep copying requires recursive duplication.
-        const copiedDrive = new DriveModel({
-            userId: session.user._id,
-            name: driveToCopy.name + " - Copy",
-            type: driveToCopy.type,
-            metadata: driveToCopy.metadata,
-            parentId: newParentId ? new Types.ObjectId(newParentId) : null
-        });
-
-        await copiedDrive.save();
+        const copiedDrive = await copyRecursively(
+            nodeToCopy._id,
+            newParentId ? new Types.ObjectId(newParentId) : null,
+            drive._id
+        );
 
         res.status(201).json({
             success: true,
             message: "Item copied successfully.",
-            data: copiedDrive.toJSON() // Convert Mongoose document to plain object
+            data: {
+                id: copiedDrive._id,
+                name: copiedDrive.name,
+                type: copiedDrive.type,
+                metadata: copiedDrive.metadata || {},
+                createdAt: copiedDrive.createdAt,
+                updatedAt: copiedDrive.updatedAt
+            }
         });
     } catch (error) {
         handleDuplicateError(error);
