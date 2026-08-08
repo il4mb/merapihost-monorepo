@@ -26,7 +26,17 @@ export const listWebsites = async (req: Request, res: Response) => {
     const websites = await WebsiteModel.find();
     res.json({
         success: true,
-        data: websites
+        data: websites.map(website => ({
+            id: website._id,
+            name: website.name,
+            description: website.description,
+            domainId: website.domainId,
+            serverId: website.serverId,
+            driveId: website.driveId,
+            status: website.status,
+            createdAt: website.createdAt,
+            updatedAt: website.updatedAt
+        }))
     });
 }
 
@@ -123,7 +133,17 @@ export const createWebsite = async (req: Request, res: Response) => {
     res.status(201).json({
         success: true,
         message: "Website created successfully.",
-        data: websiteDoc
+        data: {
+            id: websiteDoc._id,
+            name: websiteDoc.name,
+            description: websiteDoc.description,
+            domainId: websiteDoc.domainId,
+            serverId: websiteDoc.serverId,
+            driveId: websiteDoc.driveId,
+            status: websiteDoc.status,
+            createdAt: websiteDoc.createdAt,
+            updatedAt: websiteDoc.updatedAt
+        }
     });
 }
 
@@ -152,9 +172,22 @@ export const getWebsite = async (req: Request, res: Response) => {
         }
     }
 
+    const populated = await WebsiteModel.findById(website._id)
+        .populate("domainId", "name")
+        .populate("serverId", "name")
+        .lean().cache();
+
+    if (!populated) {
+        throw new Exception({
+            status: 404,
+            message: "Cannot retrieve website because it was not found.",
+            type: "WEBSITE_NOT_FOUND"
+        });
+    }
+
     res.json({
         success: true,
-        data: website
+        data: populated
     });
 }
 
@@ -231,15 +264,23 @@ export const updateWebsite = async (req: Request, res: Response) => {
 
     const updated = getUpdate(updatedCollector, website);
     if (Object.keys(updated).length === 0) {
+        const populated = await WebsiteModel.findById(website._id)
+            .populate("domainId", "name")
+            .populate("serverId", "name")
+            .lean().cache();
+
         res.json({
             success: true,
             message: "No changes detected, website remains unchanged.",
-            data: website
+            data: populated
         });
         return;
     }
 
-    const updatedWebsite = await WebsiteModel.findByIdAndUpdate(website._id, { $set: updated }, { returnDocument: "after" });
+    const updatedWebsite = await WebsiteModel.findByIdAndUpdate(website._id, { $set: updated }, { returnDocument: "after" })
+        .populate("domainId", "name")
+        .populate("serverId", "name")
+        .lean().cache();
 
     res.json({
         success: true,

@@ -35,3 +35,12 @@ export const createAwS3Client = (options: { endpoint: string, accessKey: string,
         },
     });
 }
+
+export const createS3Client = (options: { endpoint: string, accessKey: string, secretKey: string, bucketName: string }) => {
+    return new BunS3Client({
+        bucket: options.bucketName,
+        accessKeyId: options.accessKey,
+        secretAccessKey: options.secretKey,
+        endpoint: options.endpoint.startsWith("http") ? options.endpoint : `https://${options.endpoint}`,
+    });
+}
