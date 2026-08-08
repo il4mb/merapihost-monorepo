@@ -133,7 +133,10 @@ export default function AssetsManager() {
             component={motion.div}
             layout
             direction="column"
-            sx={{ height: "100%", width: "100%" }}>
+            sx={{
+                overflow: "hidden",
+                flex: 1
+            }}>
             <Box sx={{ position: 'relative' }}>
                 <Typography variant="overline" sx={{ px: 1, display: "block", fontWeight: 600 }}>
                     Assets
@@ -156,7 +159,7 @@ export default function AssetsManager() {
                     <Box
                         component={motion.div}
                         layoutId={`asset-${openedFolder.id}`}
-                        sx={{ width: "100%" }}>
+                        sx={{ }}>
                         <Box onDoubleClick={handleBackToParentFolder}
                             sx={{
                                 fontSize: 10,
@@ -165,12 +168,15 @@ export default function AssetsManager() {
                                 mb: .25,
                                 cursor: "pointer",
                                 userSelect: "none",
+                                overflow: "hidden",
                                 "&:hover": {
                                     backgroundColor: "action.hover"
                                 }
                             }}>
                             <LucideFolderOutput size={16} style={{ marginRight: 4 }} />
-                            {"... / "}{openedLabelPath}
+                            <Typography variant="body2" sx={{ fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {"... / "}{openedLabelPath}
+                            </Typography>
                         </Box>
                         <Divider />
                     </Box>

@@ -88,7 +88,7 @@ const Sidebar = memo(({ selected, onClick }: { selected: MenuType; onClick: (id:
 ))
 
 const ContentArea = memo(({ selected }: { selected: MenuType }) => (
-    <Stack sx={{ flex: 1 }} direction="column" spacing={0}>
+    <Stack sx={{ flex: 1, overflow: "hidden" }} direction="column" spacing={0}>
         {getComponent(selected)}
     </Stack>
 ))

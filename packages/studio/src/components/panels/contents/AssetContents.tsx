@@ -44,7 +44,12 @@ export default function AssetContents({ loading }: AssetContentsProps) {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 20 }}
-                    sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: .5, px: 1 }}>
+                    sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        flexWrap: "wrap",
+                        gap: .5, px: 1
+                    }}>
                     {assets.map(asset => (
                         <AssetItem key={asset.id} asset={asset} />
                     ))}
@@ -74,9 +79,7 @@ const AssetItem = ({ asset }: { asset: AssetObject }) => {
             onDoubleClick={() => handleDoubleClick(asset)}
             onClick={() => handleClick(asset)}
             sx={{
-                // Conditionally span 3 columns if the asset is a folder
-                gridColumn: asset.type === "folder" ? "span 3" : "auto",
-
+                flex: asset.type === "folder" ? "1 0 140px" : "0 0 auto",
                 fontSize: 10,
                 padding: 1,
                 border: "1px solid",
