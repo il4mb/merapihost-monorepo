@@ -1,4 +1,6 @@
-import { Stack } from "@mui/material";
+import { Stack, Tooltip } from "@mui/material";
+import DeviceSwitch from "./actions/DeviceSwitch";
+import DarkModeToggle from "@/theme/DarkModeToggle";
 
 export default function Toolbar() {
 
@@ -14,14 +16,36 @@ export default function Toolbar() {
                 boxShadow: 0
             }}>
 
-            <Stack direction="row" sx={{ alignItems: 'center', gap: 1, paddingLeft: 2 }}>
+            <Stack
+                direction="row"
+                sx={{
+                    alignItems: 'center',
+                    gap: 1,
+                    paddingLeft: 2
+                }}>
+                <DeviceSwitch />
 
             </Stack>
 
-            <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
+            <Stack
+                direction="row"
+                sx={{
+                    alignItems: 'center',
+                    gap: 1, flex: 1
+                }}>
+
             </Stack>
 
-            <Stack direction="row" sx={{ alignItems: 'center', gap: 1, paddingRight: 2 }}>
+            <Stack
+                direction="row"
+                sx={{
+                    alignItems: 'center',
+                    gap: 1,
+                    paddingRight: 2
+                }}>
+                <Tooltip title="Toggle dark mode">
+                    <DarkModeToggle />
+                </Tooltip>
             </Stack>
         </Stack>
     );

@@ -56,7 +56,7 @@ const Sidebar = memo(({ selected, onClick }: { selected: MenuType; onClick: (id:
         justifyContent: "flex-start",
         borderRight: "1px solid rgba(0, 0, 0, 0.1)",
         zIndex: 10, // Ensure the sidebar stays above the absolute content
-        backgroundColor: "background.paper", // Prevent transparent overlaps
+        // backgroundColor: "background.paper", // Prevent transparent overlaps
     }}>
         {MENU.map((item, index) => (
             <Tooltip key={index} title={item.label} placement="right" arrow>

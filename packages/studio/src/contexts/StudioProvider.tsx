@@ -2,6 +2,8 @@
 import { studioReducer, initialState } from "@/libs/reducer";
 import { createContext, useContext, ReactNode, useReducer } from "react";
 import type { EditorAction, EditorState } from "@/types";
+import AssetsProvider from "./AssetsProvider";
+import PagesProvider from "./PagesProvider";
 
 interface StudioProviderProps {
     children: ReactNode;
@@ -12,7 +14,11 @@ export default function StudioProvider({ children }: StudioProviderProps) {
 
     return (
         <StudioContext.Provider value={value}>
-            {children}
+            <AssetsProvider>
+                <PagesProvider>
+                    {children}
+                </PagesProvider>
+            </AssetsProvider>
         </StudioContext.Provider>
     );
 }

@@ -96,7 +96,7 @@ export default function Panel(props: PanelProps) {
                         height: '100%',
                         cursor: 'col-resize',
                         position: 'absolute',
-                        top: 0,
+                        top: 0, borderRadius: .25,
                         left: isLeftToRight ? 'auto' : -4,
                         right: isLeftToRight ? -4 : 'auto',
                         zIndex: 1000,

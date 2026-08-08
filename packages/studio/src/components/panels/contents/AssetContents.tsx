@@ -1,6 +1,6 @@
 import { useStudio } from "@/contexts/StudioProvider";
 import { AssetObject } from "@/types";
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { FolderIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useMemo } from "react";
@@ -80,18 +80,11 @@ const AssetItem = ({ asset }: { asset: AssetObject }) => {
             onClick={() => handleClick(asset)}
             sx={{
                 flex: asset.type === "folder" ? "1 0 140px" : "0 0 auto",
-                fontSize: 10,
+                overflow: "hidden",
                 padding: 1,
                 border: "1px solid",
                 borderColor: "divider",
                 borderRadius: .25,
-
-                // Prevents long text from breaking the grid column width
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-
-                // Added flex for better vertical alignment with the icon
                 display: "flex",
                 alignItems: "center",
                 userSelect: "none", // Prevents text selection on click
@@ -103,9 +96,21 @@ const AssetItem = ({ asset }: { asset: AssetObject }) => {
                 }
             }}>
             {asset.type === "folder" && (
-                <FolderIcon size={16} style={{ marginRight: 6 }} />
+                <FolderIcon
+                    size={16}
+                    style={{
+                        marginRight: 6,
+                        minWidth: 16, minHeight: 16
+                    }} />
             )}
-            {asset.name}
+            <Typography sx={{
+                fontSize: 10,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+            }}>
+                {asset.name}
+            </Typography>
         </Box>
     );
 }

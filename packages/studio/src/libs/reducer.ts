@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { AssetObject, EditorAction, EditorState, NodeObject, Variable } from "@editor/types";
+import { AssetObject, EditorAction, EditorState, NodeObject, Variable, PageObject } from "@/types";
 
 export const initialState: EditorState = {
     viewport: {
@@ -23,6 +23,11 @@ export const initialState: EditorState = {
     device: "mobile",
     assets: {
         collection: new Map<string, AssetObject>(),
+        selected: null,
+        opened: null
+    },
+    pages: {
+        collection: new Map<string, PageObject>(),
         selected: null,
         opened: null
     }
@@ -373,6 +378,39 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
             }
         }
         // END OF ASSET MANAGEMENT
+
+        // START OF PAGE MANAGEMENT
+        case "SET_PAGES": {
+            return {
+                ...state,
+                pages: {
+                    ...state.pages,
+                    collection: new Map(action.payload)
+                }
+            }
+        }
+
+        case "SET_SELECTED_PAGE": {
+            return {
+                ...state,
+                pages: {
+                    ...state.pages,
+                    selected: action.payload
+                }
+            }
+        }
+
+        case "SET_OPENED_PAGE": {
+            return {
+                ...state,
+                pages: {
+                    ...state.pages,
+                    opened: action.payload,
+                    selected: null // Clear selected page when opening a new one
+                }
+            }
+        }
+        // END OF PAGE MANAGEMENT
 
         case "BULK": {
             return action.payload.reduce((currentState, bulkAction) => {
