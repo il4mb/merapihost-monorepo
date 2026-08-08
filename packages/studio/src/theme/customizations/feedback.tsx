@@ -176,9 +176,17 @@ export const feedbackCustomizations: Components<Theme> = {
 			tooltip: ({ theme }) => ({
 				borderRadius: 7,
 				backgroundColor: alpha(theme.palette.common.black, 0.75),
+				color: theme.palette.common.white,
+				...theme.applyStyles('dark', {
+					backgroundColor: alpha(theme.palette.common.white, 0.75),
+					color: theme.palette.common.black,
+				})
 			}),
 			arrow: ({ theme }) => ({
 				color: alpha(theme.palette.common.black, 0.75),
+				...theme.applyStyles('dark', {
+					color: alpha(theme.palette.common.white, 0.75),
+				}),
 			}),
 			popper: ({ theme }) => ({
 				pointerEvents: 'none',

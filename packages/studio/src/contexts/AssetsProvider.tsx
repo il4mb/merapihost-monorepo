@@ -85,6 +85,7 @@ export default function AssetsProvider({ children }: AssetsProviderProps) {
             setError(error.message || "An error occurred while fetching assets.");
         } finally {
             delayUXLoading.current = setTimeout(() => setLoading(false), 300); // Add a slight delay for better UX
+            isFetchingRef.current = false;
         }
     }, [openedFolder, dispatch]);
 

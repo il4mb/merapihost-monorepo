@@ -1,0 +1,79 @@
+"use client";
+import { useStudio } from "@/contexts/StudioProvider";
+import { useMemo, useRef, useState } from "react";
+import { useScreenContainer } from "./ScreenContainer";
+import { styled } from "@mui/material/styles";
+
+const FrameOfScreen = styled("div")({
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transformOrigin: "center center",
+    margin: "auto",
+    border: "none",
+    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    userSelect: "none",
+    borderRadius: 8,
+    "&:hover": {
+        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)"
+    },
+    msOverflowStyle: "none", // IE and Edge
+    scrollbarWidth: "none", // Firefox
+    "&::-webkit-scrollbar": {
+        display: "none" // Chrome, Safari, Opera
+    }
+});
+
+type ScreenFrameProps = {
+    children?: React.ReactNode;
+};
+
+export default function ScreenFrame({ children }: ScreenFrameProps) {
+
+    const { rect } = useScreenContainer();
+    const { state } = useStudio();
+    const device = useMemo(() => state.devices.find(d => d.id === state.device), [state.devices, state.device]);
+
+    const { width, height, scale } = useMemo(() => {
+        if (!rect) {
+            return { width: "calc(100% - 20px)", height: "calc(100% - 20px)", scale: 1 }
+        }
+
+        if (!device || device.width === "100%") {
+            return { width: "calc(100% - 20px)", height: "calc(100% - 20px)", scale: 1 }
+        }
+
+        const targetWidth = Number(device.width)
+        const targetHeight = device.height ? Number(device.height) : rect.height
+
+        const PADDING = 40
+        const availableWidth = rect.width - PADDING
+        const availableHeight = rect.height - PADDING
+
+        const scaleX = availableWidth / targetWidth
+        const scaleY = availableHeight / targetHeight
+
+        const calculatedScale = Math.min(1, Math.min(scaleX, scaleY))
+
+        return {
+            width: targetWidth,
+            height: targetHeight,
+            scale: calculatedScale
+        }
+    }, [device, rect]);
+
+    return (
+        <FrameOfScreen
+            sx={{
+                width, height,
+                transform: `translate(-50%, -50%) scale(${scale})`,
+                transition: "opacity 0.3s ease, transform 0.3s ease",
+                backgroundColor: "background.paper",
+            }}>
+            {children}
+        </FrameOfScreen>
+    );
+}

@@ -20,7 +20,7 @@ export const initialState: EditorState = {
         { id: "tablet", name: "Tablet", width: 768, height: 1024 },
         { id: "mobile", name: "Mobile", width: 420, height: 916 }
     ],
-    device: "mobile",
+    device: "desktop",
     assets: {
         collection: new Map<string, AssetObject>(),
         selected: null,

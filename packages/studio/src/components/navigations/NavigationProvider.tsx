@@ -60,7 +60,7 @@ export default function NavigationProvider({ children }: NavigationProviderProps
                 loading
             }));
         }
-    }), []);
+    }), [state.loading, state.open]);
 
     return (
         <Context.Provider value={value}>
