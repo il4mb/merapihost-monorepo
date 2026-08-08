@@ -2,7 +2,7 @@
 import Editor from "@editor/Editor";
 import { useMemo } from "react";
 import { colorSchemes, typography, shadows, shape, inputsCustomizations, dataDisplayCustomizations, feedbackCustomizations, navigationCustomizations, surfacesCustomizations } from "@/theme";
-import { createTheme } from "@mui/material";
+import { Box, createTheme, Paper } from "@mui/material";
 
 const themeOptions = {
     palette: {
@@ -40,14 +40,12 @@ export default function Page({ }: PageProps) {
     const theme = useMemo(() => createTheme(themeOptions), []);
 
     return (
-        <div>
-            <Editor
-                theme={theme as any}
-                options={{
-                    assets: {
-                        endpoint: "/api/assets",
-                    }
-                }} />
-        </div>
+        <Box
+            component={Paper}
+            elevation={0}
+            sx={{
+                flex: 1
+            }}
+        />
     );
 }

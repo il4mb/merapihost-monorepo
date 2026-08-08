@@ -250,7 +250,6 @@ export const getMe = async (req: Request, res: Response) => {
     });
 }
 
-
 export const updateMe = async (req: Request, res: Response) => {
     const session = req.local.session;
     if (!session) {

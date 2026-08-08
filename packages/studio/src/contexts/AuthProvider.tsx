@@ -3,6 +3,7 @@ import { auth } from "@/libs/firebase";
 import { Box, CircularProgress, Fade, Typography } from "@mui/material";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { createContext, useContext, useEffect, useState } from "react";
+import CenteredFlexboxItem from "@/components/ui/CenteredFlexboxItem";
 
 interface AuthContextType {
     user: User | null;
@@ -45,17 +46,11 @@ export default function AuthProvider({ children }: AuthProviderProps) {
     return (
         <Context.Provider value={{ user, loading }}>
             {loading ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+                <CenteredFlexboxItem>
                     <CircularProgress />
                     <Typography sx={{ mt: 2 }}>Loading...</Typography>
-                </Box>
-            ) : (
-                <Fade in={!loading}>
-                    <Box>
-                        {children}
-                    </Box>
-                </Fade>
-            )}
+                </CenteredFlexboxItem>
+            ) : children}
         </Context.Provider>
     );
 }

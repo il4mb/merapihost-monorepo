@@ -11,12 +11,18 @@
 
 body {
     font-family: Figtree, Arial, Helvetica, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
 }
 
 [data-color-scheme="light"] body {
     background-color: #ffffff;
     color: #000000;
 }
+
 [data-color-scheme="dark"] body {
     background-color: #000000;
     color: #ffffff;
@@ -40,4 +46,3 @@ input:-internal-autofill-selected {
     -ms-overflow-style: none;
     /* hides scrollbar in IE and Edge Legacy */
 }
-
