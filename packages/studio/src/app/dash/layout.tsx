@@ -1,5 +1,5 @@
 import AuthProvider from "@/contexts/AuthProvider";
-import StudioLayout from "@/contexts/StudioLayout";
+import StudioLayout from "@/components/StudioLayout";
 import { ReactNode } from "react";
 
 type LayoutProps = {

@@ -5,7 +5,7 @@ import Panel from "@/components/ui/Panel";
 export default function RightPanel() {
 
     return (
-        <Panel>
+        <Panel position={"right"}>
 
         </Panel>
     );

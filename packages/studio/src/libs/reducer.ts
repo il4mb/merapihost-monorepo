@@ -43,13 +43,10 @@ const updateParentChildren = (nodes: Map<string, NodeObject>, parentId: string |
 }
 
 // ==========================================
-// 3. EDITOR REDUCER
+// 3. STUDIO REDUCER
 // ==========================================
 
-export const editorReducer = (
-    state: EditorState,
-    action: EditorAction
-): EditorState => {
+export const studioReducer = (state: EditorState, action: EditorAction): EditorState => {
     switch (action.type) {
         case "UPDATE_VIEWPORT": {
             return {
@@ -370,7 +367,8 @@ export const editorReducer = (
                 ...state,
                 assets: {
                     ...state.assets,
-                    opened: action.payload
+                    opened: action.payload,
+                    selected: null // Clear selected asset when opening a new one
                 }
             }
         }
@@ -387,7 +385,7 @@ export const editorReducer = (
 
                 // Just pass the entire action object directly. 
                 // It is already a valid EditorAction!
-                return editorReducer(currentState, bulkAction as EditorAction);
+                return studioReducer(currentState, bulkAction as EditorAction);
 
             }, state);
         }

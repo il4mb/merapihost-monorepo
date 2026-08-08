@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useMemo, useReducer, Reducer, useEffect, useRef } from "react";
 import { NodeObject } from "@/types/node";
 import { EditorAction, EditorState } from "@/types";
-import { editorReducer, initialState } from "@/libs/reducer";
+import { studioReducer, initialState } from "@/libs/reducer";
 import { isEqual } from "lodash";
 
 interface EditorProviderProps {
@@ -13,7 +13,7 @@ interface EditorProviderProps {
 export default function EditorProvider({ children, onChange, nodes }: EditorProviderProps) {
 
     const [state, dispatch] = useReducer(
-        editorReducer as Reducer<EditorState, EditorAction>,
+        studioReducer as Reducer<EditorState, EditorAction>,
         initialState
     );
 
