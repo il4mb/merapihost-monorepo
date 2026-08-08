@@ -74,7 +74,7 @@ export default function AssetsProvider({ children }: AssetsProviderProps) {
     return (
         <Context.Provider value={{ isDragging }}>
             {children}
-            {isDragging && (
+            {/* {isDragging && (
                 <Box sx={{
                     position: "fixed",
                     top: 0,
@@ -95,7 +95,7 @@ export default function AssetsProvider({ children }: AssetsProviderProps) {
                         Drop files here
                     </Typography>
                 </Box>
-            )}
+            )} */}
         </Context.Provider>
     );
 }

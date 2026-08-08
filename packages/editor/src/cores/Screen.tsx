@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { useEditor } from "../providers/EditorProvider";
 import debounce from "lodash/debounce";
 import { Root } from "../components/types";
+import DragAndDropZone from "@editor/components/DragAndDropZone";
 
 const Container = styled("div")({
     width: "100%",
@@ -59,7 +60,6 @@ export default function Screen({ screenRef, iframeRef, theme }: ScreenProps) {
     const rootNode = useMemo(() => state.nodes.get("root"), [state.nodes]);
     const domsRef = useRef<Map<string, HTMLElement>>(new Map());
     const arrayNodeRef = useRef<NodeObject[]>([]);
-
 
     // Viewport calculation refs to prevent stale closures in event listeners
     const scaleRef = useRef<number>(1)
@@ -122,7 +122,6 @@ export default function Screen({ screenRef, iframeRef, theme }: ScreenProps) {
         arrayNodeRef.current = Array.from(state.nodes.values());
     }, [state.nodes]);
 
-    // const theme = useMemo(() => createTheme(themeOptions), [])
     const cache = useMemo(() => {
         if (!headNode) return null
         return createCache({
@@ -309,7 +308,7 @@ export default function Screen({ screenRef, iframeRef, theme }: ScreenProps) {
 
     useEffect(() => {
         if (!bodyNode) return;
-        if (rootNode?.props.style) {
+        if (rootNode?.props?.style) {
             Object.entries(rootNode.props.style).forEach(([key, value]) => {
                 bodyNode.style.setProperty(key, String(value), "important");
             });

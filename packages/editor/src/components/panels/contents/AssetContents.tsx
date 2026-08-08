@@ -32,7 +32,7 @@ export default function AssetContents({ loading }: AssetContentsProps) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 20 }}
                     key="empty-state"
-                    sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "text.secondary", fontSize: 12, textAlign: "center", userSelect: "none", p: 2 }}>
+                    sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "text.secondary", fontSize: 12, textAlign: "center", userSelect: "none", p: 2 }}>
                     <FolderIcon size={32} style={{ marginBottom: 8 }} />
                     No assets found in this folder.
                 </Box>
@@ -40,6 +40,7 @@ export default function AssetContents({ loading }: AssetContentsProps) {
                 <Box
                     key="asset-grid"
                     component={motion.div}
+                    layout
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 20 }}
@@ -64,6 +65,8 @@ const AssetItem = ({ asset }: { asset: AssetObject }) => {
 
     return (
         <Box
+            component={motion.div}
+            layoutId={`asset-${asset.id}`}
             onDoubleClick={() => handleDoubleClick(asset)}
             sx={{
                 // Conditionally span 3 columns if the asset is a folder

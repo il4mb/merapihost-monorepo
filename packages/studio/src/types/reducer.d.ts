@@ -63,7 +63,7 @@ export interface EditorState {
         collection: Map<string, AssetObject>;
         selected: AssetObject | null;
         opened: AssetObject | null;
-    };
+    }
 }
 
 // 1. Define all of your actions EXCEPT BULK here
@@ -119,6 +119,7 @@ export type CoreActionMap = {
 
     SET_ASSETS: Map<string, AssetObject>;
     SET_SELECTED_ASSET: AssetObject | null;
+    SET_OPENED_ASSET: AssetObject | null;
 
     SET_OPTIONS: DeepPartial<EditorState["options"]>;
 }

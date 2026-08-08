@@ -1,8 +1,10 @@
-import { styled, Typography, Divider, Box, LinearProgress } from "@mui/material";
+import { styled, Typography, Divider, Box, LinearProgress, Stack } from "@mui/material";
 import { useEditor } from "@editor/providers/EditorProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AssetContents from "./AssetContents";
 import { LucideFolderOutput } from "lucide-react";
+import DragAndDropZone from "@editor/components/DragAndDropZone";
+import { AnimatePresence, motion } from "motion/react";
 
 const ScrollContainer = styled("div")({
     width: "100%",
@@ -143,12 +145,16 @@ export default function AssetsManager() {
     }, [fetchAssets]);
 
     return (
-        <Box>
+        <Stack
+            component={motion.div}
+            layout
+            direction="column"
+            sx={{ height: "100%", width: "100%" }}>
             <Box sx={{ position: 'relative' }}>
                 <Typography variant="overline" sx={{ px: 1, display: "block", fontWeight: 600 }}>
                     Assets
                 </Typography>
-                <Divider sx={{ mb: 1 }} />
+                <Divider />
                 <LinearProgress
                     sx={{
                         height: 2,
@@ -161,40 +167,46 @@ export default function AssetsManager() {
                     }}
                 />
             </Box>
-            {selectedFolder && (
-                <Box>
+            <AnimatePresence>
+                {selectedFolder && (
                     <Box
-                        onDoubleClick={handleBackToParentFolder}
-                        sx={{
-                            fontSize: 10,
-                            p: 1, display: "flex", alignItems: "center", gap: .5,
-                            mx: 1,
-                            mb: .25,
-                            cursor: "pointer",
-                            userSelect: "none",
-                            "&:hover": {
-                                backgroundColor: "action.hover"
-                            }
-                        }}>
-                        <LucideFolderOutput size={16} style={{ marginRight: 4 }} />
-                        {"... / "}{selectedLabelPath}
+                        component={motion.div}
+                        layoutId={`asset-${selectedFolder.id}`}
+                        sx={{ width: "100%" }}>
+                        <Box onDoubleClick={handleBackToParentFolder}
+                            sx={{
+                                fontSize: 10,
+                                p: 1, display: "flex", alignItems: "center", gap: .5,
+                                mx: 1,
+                                mb: .25,
+                                cursor: "pointer",
+                                userSelect: "none",
+                                "&:hover": {
+                                    backgroundColor: "action.hover"
+                                }
+                            }}>
+                            <LucideFolderOutput size={16} style={{ marginRight: 4 }} />
+                            {"... / "}{selectedLabelPath}
+                        </Box>
+                        <Divider />
                     </Box>
-                    <Divider sx={{ mb: 1 }} />
-                </Box>
-            )}
-            <ScrollContainer>
-                {error && (
-                    <Typography variant="body2" color="error" sx={{
-                        fontSize: 12,
-                        mb: 1,
-                        bgcolor: "rgba(255, 0, 0, 0.1)",
-                        borderRadius: .5, p: 1, mx: 1
-                    }}>
-                        {error}
-                    </Typography>
                 )}
-                <AssetContents loading={loading} />
-            </ScrollContainer>
-        </Box>
+            </AnimatePresence>
+            <DragAndDropZone>
+                <ScrollContainer sx={{ pt: 1 }}>
+                    {error && (
+                        <Typography variant="body2" color="error" sx={{
+                            fontSize: 12,
+                            mb: 1,
+                            bgcolor: "rgba(255, 0, 0, 0.1)",
+                            borderRadius: .5, p: 1, mx: 1
+                        }}>
+                            {error}
+                        </Typography>
+                    )}
+                    <AssetContents loading={loading} />
+                </ScrollContainer>
+            </DragAndDropZone>
+        </Stack>
     );
 }

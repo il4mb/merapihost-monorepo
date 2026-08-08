@@ -109,6 +109,8 @@ export default function LeftPanel(props: LeftPanelProps) {
 
             {/* Content Area - All components stay mounted */}
             <Box sx={{
+                display: "flex",
+                flexDirection: "column",
                 flex: 1,
                 height: "100%",
                 position: "relative",
