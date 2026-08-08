@@ -1,7 +1,7 @@
 import { Box, Typography } from "@mui/material"
 import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { NodeObject } from "../types/node"
-import { useEditor } from "./EditorProvider"
+import { useEditor } from "../providers/EditorProvider"
 import ModifiersProvider from "./ModifiersProvider"
 
 type ToolboxProps = {

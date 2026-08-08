@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { TypeContext } from "../type";
 import { NodeObject, Variable } from "../types/node";
 import { useTypeRegistry } from "../cores/TypeRegistry";
-import { useEditor } from "../cores/EditorProvider";
+import { useEditor } from "../providers/EditorProvider";
 import { isEqual } from "lodash";
 
 export const useTypeContext = <T = any>(nodeId: string): TypeContext<T> => {

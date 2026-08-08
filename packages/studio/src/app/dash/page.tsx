@@ -41,7 +41,13 @@ export default function Page({ }: PageProps) {
 
     return (
         <div>
-            <Editor theme={theme as any} />
+            <Editor
+                theme={theme as any}
+                options={{
+                    assets: {
+                        endpoint: "/api/assets",
+                    }
+                }} />
         </div>
     );
 }

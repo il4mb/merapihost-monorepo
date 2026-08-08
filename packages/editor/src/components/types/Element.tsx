@@ -1,5 +1,5 @@
 import { useMemo, useRef, useEffect, useState } from "react";
-import { useEditor } from "@editor/cores/EditorProvider";
+import { useEditor } from "@editor/providers/EditorProvider";
 import { NodeObject } from "@editor/types";
 import { useTypeRegistry } from "@editor/cores/TypeRegistry";
 import { Box } from "@mui/material";

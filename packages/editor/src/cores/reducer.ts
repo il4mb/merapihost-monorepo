@@ -1,6 +1,5 @@
 import { nanoid } from "nanoid";
-import { EditorAction, EditorState } from "../type"
-import { NodeObject, Variable } from "../types/node";
+import { AssetObject, EditorAction, EditorState, NodeObject, Variable } from "@editor/types";
 
 export const initialState: EditorState = {
     viewport: {
@@ -21,7 +20,12 @@ export const initialState: EditorState = {
         { id: "tablet", name: "Tablet", width: 768, height: 1024 },
         { id: "mobile", name: "Mobile", width: 420, height: 916 }
     ],
-    device: "mobile"
+    device: "mobile",
+    options: {
+        assets: {}
+    },
+    assets: new Map<string, AssetObject>(),
+    selectedAsset: null
 }
 
 const updateParentChildren = (nodes: Map<string, NodeObject>, parentId: string | null) => {
@@ -336,6 +340,27 @@ export const editorReducer = (
             }
             return { ...state, device: action.payload }
         }
+
+        case "SET_ASSETS": {
+            // combined assets keep existing assets and add new ones, overwriting any with the same ID
+            const combinedAssets = new Map(state.assets);
+            action.payload.forEach((asset, id) => {
+                combinedAssets.set(id, asset);
+            });
+            return {
+                ...state,
+                assets: combinedAssets
+            }
+        }
+
+        case "SET_SELECTED_ASSET": {
+            return {
+                ...state,
+                selectedAsset: action.payload
+            }
+        }
+
+
         case "BULK": {
             return action.payload.reduce((currentState, bulkAction) => {
                 // @ts-ignore - TS might still complain about accessing type on a generic union, 
@@ -350,6 +375,16 @@ export const editorReducer = (
                 return editorReducer(currentState, bulkAction as EditorAction);
 
             }, state);
+        }
+
+        case "SET_OPTIONS": {
+            return {
+                ...state,
+                options: {
+                    ...state.options,
+                    ...action.payload
+                }
+            }
         }
 
         default:

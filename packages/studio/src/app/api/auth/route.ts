@@ -24,7 +24,7 @@ export const POST = async (request: NextRequest) => {
         });
 
 
-        if (!response.data.success) {
+        if (!response.data.success || !response.data.token) {
             return NextResponse.json({
                 success: false,
                 message: response.data.message || "Failed to authenticate with server"
@@ -32,7 +32,7 @@ export const POST = async (request: NextRequest) => {
         }
 
         const cookieJar = await cookies();
-        cookieJar.set("token", token, {
+        cookieJar.set("token", response.data.token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             maxAge: 60 * 60 * 24 * 7, // 1 week
@@ -43,8 +43,7 @@ export const POST = async (request: NextRequest) => {
 
         return NextResponse.json({
             success: true,
-            message: "Token received successfully",
-            token
+            message: "Token received successfully"
         });
     } catch (error: any) {
         console.error("Error in /api/auth:", error);

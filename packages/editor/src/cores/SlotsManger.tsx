@@ -1,5 +1,5 @@
 import { styled } from "@mui/material";
-import { useEditor } from "./EditorProvider";
+import { useEditor } from "../providers/EditorProvider";
 import { useEffect, useState, useCallback } from "react";
 
 const Container = styled("div")({

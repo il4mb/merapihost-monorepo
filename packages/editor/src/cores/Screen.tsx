@@ -4,7 +4,7 @@ import { CssBaseline, ThemeProvider, styled, Typography, Theme } from "@mui/mate
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
 import { createPortal } from "react-dom";
-import { useEditor } from "./EditorProvider";
+import { useEditor } from "../providers/EditorProvider";
 import debounce from "lodash/debounce";
 import { Root } from "../components/types";
 

@@ -1,10 +1,16 @@
 import { z } from "zod";
 import { Types } from "mongoose";
 
-// Helper to prevent server crashes from invalid ObjectIds
-const objectIdSchema = z.string().refine((val) => Types.ObjectId.isValid(val), {
+// 1. Define the base string validator for ObjectId
+const objectIdStringSchema = z.string().refine((val) => Types.ObjectId.isValid(val), {
     message: "Invalid ObjectId format.",
 });
+
+// 2. Preprocess AND make the inner schema nullable
+const objectIdSchema = z.preprocess(
+    (val) => (val === "null" || val === "undefined" || val === "" ? null : val),
+    objectIdStringSchema.nullable() // <--- FIX: .nullable() goes inside here
+);
 
 // Reusable name validator to enforce safe file/folder names
 const nameSchema = z.string()
@@ -13,13 +19,14 @@ const nameSchema = z.string()
     .regex(/^[^<>:;,?"*|/]+$/, "Name cannot contain invalid characters (<> : ; , ? \" * | /).")
     .trim();
 
+// 3. Use objectIdSchema directly (no need to chain .nullable() again)
 export const driveQuerySchema = z.object({
-    folderId: objectIdSchema.optional().nullable().default(null),
+    folderId: objectIdSchema.optional().default(null),
 });
 
 export const driveCreateFolderSchema = z.object({
     name: nameSchema,
-    folderId: objectIdSchema.nullable(),
+    folderId: objectIdSchema,
 });
 
 export const driveRenameSchema = z.object({
@@ -27,5 +34,5 @@ export const driveRenameSchema = z.object({
 });
 
 export const driveMoveCopySchema = z.object({
-    newParentId: objectIdSchema.nullable(),
+    newParentId: objectIdSchema,
 });

@@ -1,12 +1,11 @@
 import { CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { awS3Client } from "@/utils/s3-client";
+import { awS3Client, createAwS3Client } from "@/utils/s3-client";
 import { Request, Response } from "express";
 import { z } from "zod";
-import crypto from "crypto"; // Native Node.js crypto for generating unique IDs
-
-// Ideally, this should come from your env config
-const BUCKET_NAME = process.env.S3_BUCKET_NAME || "test";
+import crypto from "crypto";
+import BucketModel from "@/sources/models/bucket";
+import { Exception } from "@/utils/exception";
 
 const initUploadSchema = z.object({
     fileName: z.string().min(1, "File name is required"),
@@ -14,16 +13,41 @@ const initUploadSchema = z.object({
 });
 
 export const initUpload = async (req: Request, res: Response) => {
+    const drive = req.local.drive;
     const session = req.local.session; // Assuming authMiddleware is used
     const { fileName, mimeType } = initUploadSchema.parse(req.body);
 
+    if (!drive) {
+        throw new Exception({
+            status: 404,
+            message: "Drive not found",
+            type: "DRIVE_NOT_FOUND"
+        });
+    }
+
+    const bucket = await BucketModel.findById(drive.bucketId);
+    if (!bucket) {
+        throw new Exception({
+            status: 404,
+            message: "Bucket not found",
+            type: "BUCKET_NOT_FOUND"
+        });
+    }
+
+    const s3Client = createAwS3Client({
+        endpoint: bucket.endpoint,
+        accessKey: bucket.accessKey,
+        secretKey: bucket.secretKey
+    });
+
+    // 
     // Generate a unique Object Key to prevent overwriting files with the same name
     // e.g., "6a706bb6124ee488753e661f/b4d4-4f4d...-document.pdf"
     const uniqueId = crypto.randomUUID();
-    const objectKey = `${session?.user?._id || 'anonymous'}/${uniqueId}-${fileName}`;
-    const initResponse = await awS3Client.send(new CreateMultipartUploadCommand({
+    const objectKey = `${uniqueId}-${fileName}`;
+    const initResponse = await s3Client.send(new CreateMultipartUploadCommand({
         ACL: "private",
-        Bucket: BUCKET_NAME,
+        Bucket: bucket.name,
         Key: objectKey,
         ContentType: mimeType
     }));

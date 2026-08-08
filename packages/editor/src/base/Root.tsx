@@ -1,5 +1,5 @@
 import { Fragment, useEffect } from "react";
-import { useEditor } from "../cores/EditorProvider";
+import { useEditor } from "../providers/EditorProvider";
 import { Element } from "../components/Element";
 
 type RootProps = {

@@ -45,6 +45,7 @@ export const getListFilesAndFolders = async (req: Request, res: Response) => {
         success: true,
         data: items.map(item => ({
             id: item._id,
+            parentId: item.parentId,
             name: item.name,
             type: item.type,
             metadata: item.metadata || {},
@@ -114,6 +115,7 @@ export const createNodeFolder = async (req: Request, res: Response) => {
             message: "Folder created successfully.",
             data: {
                 id: newFolder._id,
+                parentId: newFolder.parentId,
                 name: newFolder.name,
                 type: newFolder.type,
                 metadata: newFolder.metadata || {},
@@ -140,6 +142,7 @@ export const getNodeById = async (req: Request, res: Response) => {
         success: true,
         data: {
             id: node._id,
+            parentId: node.parentId,
             name: node.name,
             type: node.type,
             metadata: node.metadata || {},
@@ -189,6 +192,7 @@ export const renameNode = async (req: Request, res: Response) => {
             message: "Item renamed successfully.",
             data: {
                 id: node._id,
+                parentId: node.parentId,
                 name: node.name,
                 type: node.type,
                 metadata: node.metadata || {},
@@ -264,6 +268,7 @@ export const moveNode = async (req: Request, res: Response) => {
             message: "Item moved successfully.",
             data: {
                 id: node._id,
+                parentId: node.parentId,
                 name: node.name,
                 type: node.type,
                 metadata: node.metadata || {},
@@ -318,6 +323,7 @@ export const copyNode = async (req: Request, res: Response) => {
             message: "Item copied successfully.",
             data: {
                 id: copiedDrive._id,
+                parentId: copiedDrive.parentId,
                 name: copiedDrive.name,
                 type: copiedDrive.type,
                 metadata: copiedDrive.metadata || {},

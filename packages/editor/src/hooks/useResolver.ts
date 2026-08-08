@@ -1,5 +1,5 @@
 import { ElementType, useMemo } from "react"
-import { useEditor } from "../cores/EditorProvider"
+import { useEditor } from "../providers/EditorProvider"
 import { Component } from "../type"
 import { NodeObject } from "../types/node"
 import { useNode } from "../cores/Element"

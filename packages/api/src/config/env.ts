@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { LOGGER } from "@/utils/logger";
 
 const REQUIRED_ENV = [
+    "ENCRYPTION_KEY",
     "JWT_SECRET",
     "WHATSAPP_CALLBACK_VERIFY_CODE",
     "WHATSAPP_API_TOKEN",
@@ -28,7 +29,7 @@ REQUIRED_ENV.forEach((key) => {
 });
 
 export const env = {
-
+    ENCRYPTION_KEY: String(process.env.ENCRYPTION_KEY),
     JWT_SECRET: String(process.env.JWT_SECRET),
     WHATSAPP_CALLBACK_VERIFY_CODE: String(process.env.WHATSAPP_CALLBACK_VERIFY_CODE),
     WHATSAPP_API_TOKEN: String(process.env.WHATSAPP_API_TOKEN),
@@ -39,7 +40,7 @@ export const env = {
 
     NODE_ENV: process.env.NODE_ENV || "development",
     PORT: process.env.PORT || 4000,
-    
+
     REDIS_URL: String(process.env.REDIS_URL),
     REDIS_HOST: String(process.env.REDIS_HOST),
     REDIS_PORT: Number(process.env.REDIS_PORT),
@@ -59,4 +60,10 @@ export const env = {
 
     GEMINI_API_KEY: String(process.env.GEMINI_API_KEY),
     DEEPSEEK_API_KEY: String(process.env.DEEPSEEK_API_KEY)
+}
+
+// env.ENCRYPTION_KEY must be exactly 32 bytes (256 bits) for AES-256-GCM
+if (Buffer.from(env.ENCRYPTION_KEY, 'hex').length !== 32) {
+    LOGGER.error("ENCRYPTION_KEY must be exactly 32 bytes (256 bits) in length.");
+    process.exit(1);
 }

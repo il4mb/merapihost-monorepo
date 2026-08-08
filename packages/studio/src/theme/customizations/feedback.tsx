@@ -170,6 +170,20 @@ export const feedbackCustomizations: Components<Theme> = {
 				};
 			},
 		}
+	},
+	MuiTooltip: {
+		styleOverrides: {
+			tooltip: ({ theme }) => ({
+				borderRadius: 7,
+				backgroundColor: alpha(theme.palette.common.black, 0.75),
+			}),
+			arrow: ({ theme }) => ({
+				color: alpha(theme.palette.common.black, 0.75),
+			}),
+			popper: ({ theme }) => ({
+				pointerEvents: 'none',
+			}),
+		}
 	}
 };
 

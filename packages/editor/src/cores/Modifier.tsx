@@ -1,7 +1,7 @@
 import { Box, styled, SxProps, Tooltip, Typography } from "@mui/material";
 import { ModifierComponent } from "../type";
 import { AlertTriangle, Diamond, DiamondPlus, XIcon } from "lucide-react";
-import { useEditor, useSelectedNodes } from "./EditorProvider";
+import { useEditor, useSelectedNodes } from "../providers/EditorProvider";
 import { AnimatePresence, motion } from "motion/react";
 import { useNodesBy } from "../hooks/useNodes";
 import { createContext, createRef, Fragment, memo, RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";

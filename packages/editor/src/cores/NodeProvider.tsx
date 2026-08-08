@@ -1,5 +1,5 @@
 import { createContext, createElement, ElementType, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
-import { useEditor } from "./EditorProvider"
+import { useEditor } from "../providers/EditorProvider"
 import { nanoid } from "nanoid"
 import { Component } from "../type"
 import { NodeObject } from "../types/node"

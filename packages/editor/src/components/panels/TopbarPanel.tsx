@@ -1,5 +1,5 @@
 import { Box, styled, TextField, MenuItem, IconButton, Tooltip } from "@mui/material";
-import { useEditor } from "../../cores/EditorProvider";
+import { useEditor } from "../../providers/EditorProvider";
 import { Eye, Moon } from "lucide-react";
 const Container = styled("div")({
     padding: "4px 8px",

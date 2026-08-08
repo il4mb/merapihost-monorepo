@@ -14,6 +14,7 @@ const authTokenSchema = z.strictObject({
     refId: z.string()
         .min(12, "refId is too short")
         .max(36, "refId is too long"),
+    firebaseUid: z.string().optional(), 
     iat: z.number().int().nonnegative(),
     exp: z.number().int().nonnegative()
 });

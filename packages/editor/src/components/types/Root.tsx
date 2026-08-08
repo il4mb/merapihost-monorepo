@@ -1,6 +1,6 @@
 import { createType } from "@editor/tools";
 import PageIcon from "@editor/icons/PageIcon";
-import { useEditor } from "@editor/cores/EditorProvider";
+import { useEditor } from "@editor/providers/EditorProvider";
 import { Fragment, useEffect } from "react";
 import { Element } from "./Element";
 

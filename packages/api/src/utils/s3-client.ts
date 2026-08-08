@@ -24,3 +24,14 @@ export const awS3Client = new S3Client({
         secretAccessKey: env.S3_SECRET_ACCESS_KEY,
     },
 });
+
+export const createAwS3Client = (options: { endpoint: string, accessKey: string, secretKey: string }) => {
+    return new S3Client({
+        region: "us-east-1",
+        endpoint: options.endpoint.startsWith("http") ? options.endpoint : `https://${options.endpoint}`,
+        credentials: {
+            accessKeyId: options.accessKey,
+            secretAccessKey: options.secretKey,
+        },
+    });
+}

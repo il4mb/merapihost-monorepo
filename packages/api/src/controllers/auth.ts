@@ -228,7 +228,7 @@ export const logout = async (req: Request, res: Response) => {
 
 export const getMe = async (req: Request, res: Response) => {
     const session = req.local.session;
-    if (!session) {
+    if (!session?.user) {
         throw new Exception({
             message: "User not authenticated",
             status: 401,
@@ -239,7 +239,14 @@ export const getMe = async (req: Request, res: Response) => {
     res.status(200).json({
         success: true,
         message: "User retrieved successfully",
-        user: session.user.toJSON() // Return the user as JSON
+        user: {
+            id: session.user._id,
+            email: session.user.email,
+            name: session.user.name,
+            status: session.user.status,
+            provider: session.user.provider,
+            isVerified: session.user.isVerified
+        }
     });
 }
 
@@ -266,6 +273,13 @@ export const updateMe = async (req: Request, res: Response) => {
     res.status(200).json({
         success: true,
         message: "User updated successfully",
-        user: updatedUser.toJSON() // Return the updated user as JSON
+        user: {
+            id: updatedUser._id,
+            email: updatedUser.email,
+            name: updatedUser.name,
+            status: updatedUser.status,
+            provider: updatedUser.provider,
+            isVerified: updatedUser.isVerified
+        }
     });
 }

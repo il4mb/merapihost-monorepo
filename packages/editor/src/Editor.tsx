@@ -1,5 +1,5 @@
 import { styled, Theme } from "@mui/material";
-import EditorProvider from "./cores/EditorProvider";
+import EditorProvider from "./providers/EditorProvider";
 import Screen from "./cores/Screen";
 import type { NodeObject } from "./types/node";
 import SlotsManager from "./cores/SlotsManger";
@@ -9,6 +9,7 @@ import TypeRegistry from "./cores/TypeRegistry";
 import { Block } from "./components/types";
 import LeftPanel from "./components/panels/LeftPanel";
 import RightPanel from "./components/panels/RightPanel";
+import { EditorState } from "./types";
 
 const EditorContainer = styled("div")({
     position: "fixed",
@@ -158,15 +159,16 @@ const nodes = [
 
 interface EditorProps {
     theme: Theme
+    options?: EditorState["options"]
 }
-export default function Editor({ theme }: EditorProps) {
+export default function Editor({ theme, options  }: EditorProps) {
     const iframeRef = useRef<HTMLIFrameElement | null>(null)
     const onChange = (nodes: NodeObject[]) => {
         console.log("Changes ", nodes)
     }
     return (
         <TypeRegistry resolver={{ Block }}>
-            <EditorProvider onChange={onChange} nodes={nodes}>
+            <EditorProvider onChange={onChange} nodes={nodes} options={options}>
                 <EditorContainer>
                     <TopbarPanel />
                     <Main>

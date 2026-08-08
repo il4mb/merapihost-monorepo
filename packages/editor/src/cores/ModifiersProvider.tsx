@@ -2,7 +2,7 @@ import { createContext, memo, useContext, useEffect, useMemo, useState } from "r
 import { ModifierComponent, ModifierSet } from "../type";
 import { useModelRegistry, useModelsFromArray } from "../hooks/useResolver";
 import ModifierStack from "./ModifierStack";
-import { useSelectedNodes } from "./EditorProvider";
+import { useSelectedNodes } from "../providers/EditorProvider";
 import { Box, Typography } from "@mui/material";
 import { useTypeRegistry } from "./TypeRegistry";
 

@@ -1,5 +1,5 @@
 import { Box, Divider, IconButton, styled, Typography } from "@mui/material"
-import { useEditor } from "../../../cores/EditorProvider"
+import { useEditor } from "../../../providers/EditorProvider"
 import { useCallback, useMemo, useRef, useState } from "react"
 import { NodeObject } from "../../../types/node"
 import { ChevronRight, CircleQuestionMark, Component, Eye, EyeOff } from "lucide-react"
@@ -294,7 +294,7 @@ export default function TreeManager({ }: TreeManagerProps) {
         <Box>
             <Typography
                 variant="overline"
-                sx={{ px: 1, display: "block", fontWeight: 600 }}>
+                sx={{ px: 1,display: "block", fontWeight: 600 }}>
                 Layers
             </Typography>
             <Divider sx={{ mb: 1 }} />
