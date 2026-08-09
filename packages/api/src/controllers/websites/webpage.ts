@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import WebpageModel from "@/sources/models/webpage";
 import DriveModel from "@/sources/models/drive";
 import BucketModel from "@/sources/models/bucket";
-import { createWebpageSchema, updateWebpageSchema } from "@/sources/schemas";
+import { createWebpageSchema, updateWebpageSchema, WEBPAGE_FIELDS, webpageQuerySchema } from "@/sources/schemas";
 import { Exception } from "@/utils/exception";
 import { createS3Client } from "@/utils/s3-client";
 import type { IWebsite } from "@/sources/models";
@@ -14,6 +14,8 @@ import { PlainDocument } from "@/types/global";
 
 const REDIS_TTL = 60 * 60; // 1 hour in seconds
 const REDIS_KEY_PREFIX = "webpage-nodes:";
+const REDIS_META_KEY_PREFIX = "webpage-meta:";
+const INITIAL_META_CONTENT = "<title>{{PAGE.TITLE}}</title>\n<meta name=\"description\" content=\"{{PAGE.DESCRIPTION}}\">\n\n<!-- Open Graph / Facebook -->\n<meta property=\"og:type\" content=\"website\">\n<meta property=\"og:title\" content=\"{{PAGE.TITLE}}\">\n<meta property=\"og:description\" content=\"{{PAGE.DESCRIPTION}}\">\n\n<!-- Twitter -->\n<meta property=\"twitter:card\" content=\"summary_large_image\">\n<meta property=\"twitter:title\" content=\"{{PAGE.TITLE}}\">\n<meta property=\"twitter:description\" content=\"{{PAGE.DESCRIPTION}}\">";
 
 const getS3ClientForWebsite = async (website: IWebsite) => {
     if (!website.driveId) {
@@ -83,6 +85,44 @@ const deleteWebpageNodes = async (website: PlainDocument<IWebsite>, webpageId: T
     await redis.del(redisKey);
 }
 
+const getWebpageMeta = async (website: PlainDocument<IWebsite>, webpageId: Types.ObjectId) => {
+    const redisKey = `${REDIS_META_KEY_PREFIX}${website._id}:${webpageId}`;
+    const cachedMeta = await redis.get(redisKey);
+    if (cachedMeta) {
+        return cachedMeta;
+    }
+    const s3Client = await getS3ClientForWebsite(website);
+    const s3File = s3Client.file(`websites/${website._id}/${webpageId}/meta.html`);
+    const exists = await s3File.exists();
+    if (!exists) {
+        return "";
+    }
+    const meta = await s3File.text();
+    await redis.set(redisKey, meta, "EX", REDIS_TTL);
+    return meta;
+}
+
+const setWebpageMeta = async (website: PlainDocument<IWebsite>, webpageId: Types.ObjectId, meta: string) => {
+    const s3Client = await getS3ClientForWebsite(website);
+    const s3File = s3Client.file(`websites/${website._id}/${webpageId}/meta.html`);
+    await s3File.write(meta, {
+        type: "text/html"
+    });
+    const redisKey = `${REDIS_META_KEY_PREFIX}${website._id}:${webpageId}`;
+    await redis.set(redisKey, meta, "EX", REDIS_TTL);
+}
+
+const deleteWebpageMeta = async (website: PlainDocument<IWebsite>, webpageId: Types.ObjectId) => {
+    const s3Client = await getS3ClientForWebsite(website);
+    const s3File = s3Client.file(`websites/${website._id}/${webpageId}/meta.html`);
+    const exists = await s3File.exists();
+    if (exists) {
+        await s3File.delete();
+    }
+    const redisKey = `${REDIS_META_KEY_PREFIX}${website._id}:${webpageId}`;
+    await redis.del(redisKey);
+}
+
 
 export const listWebpages = async (req: Request, res: Response) => {
     const website = req.local.website;
@@ -101,7 +141,6 @@ export const listWebpages = async (req: Request, res: Response) => {
             title: wp.title,
             description: wp.description,
             route: wp.route,
-            meta: wp.meta,
             createdAt: wp.createdAt,
             updatedAt: wp.updatedAt
         }))
@@ -118,7 +157,7 @@ export const createWebpage = async (req: Request, res: Response) => {
             type: "WEBSITE_NOT_FOUND"
         });
     }
-    const { nodes, ...patch } = createWebpageSchema.parse(req.body);
+    const { nodes, meta, ...patch } = createWebpageSchema.parse(req.body);
 
     const existingWebpages = await WebpageModel.find({ website: website._id }).lean().cache();
     const existingRoutes = existingWebpages.map(wp => wp.route);
@@ -137,6 +176,7 @@ export const createWebpage = async (req: Request, res: Response) => {
     });
     try {
         await setWebpageNodes(website, webpage._id, nodes);
+        await setWebpageMeta(website, webpage._id, meta || INITIAL_META_CONTENT);
     } catch (error) {
         await WebpageModel.deleteOne({ _id: webpage._id }).exec();
         throw new Exception({
@@ -145,6 +185,7 @@ export const createWebpage = async (req: Request, res: Response) => {
             type: "WEBPAGE_CREATION_ERROR"
         });
     }
+
     res.status(201).json({
         success: true,
         data: {
@@ -152,7 +193,6 @@ export const createWebpage = async (req: Request, res: Response) => {
             title: webpage.title,
             description: webpage.description,
             route: webpage.route,
-            meta: webpage.meta,
             createdAt: webpage.createdAt,
             updatedAt: webpage.updatedAt
         }
@@ -163,6 +203,7 @@ export const createWebpage = async (req: Request, res: Response) => {
 export const getWebpage = async (req: Request, res: Response) => {
     const webpage = req.local.webpage;
     const website = req.local.website;
+
     if (!website) {
         throw new Exception({
             status: 404,
@@ -170,6 +211,7 @@ export const getWebpage = async (req: Request, res: Response) => {
             type: "WEBSITE_NOT_FOUND"
         });
     }
+
     if (!webpage) {
         throw new Exception({
             status: 404,
@@ -178,20 +220,29 @@ export const getWebpage = async (req: Request, res: Response) => {
         });
     }
 
-    const nodes = await getWebpageNodes(website, webpage._id);
+    const { fields = [...WEBPAGE_FIELDS] } = webpageQuerySchema.pick({ fields: true }).parse(req.query);
+    const collector = {} as Record<string, any>;
+
+    for (const field of fields) {
+        // 1. Handle special overridden/computed fields first
+        if (field === "id") {
+            collector[field] = webpage._id;
+        } else if (field === "meta") {
+            const meta = await getWebpageMeta(website, webpage._id);
+            collector[field] = meta;
+        } else if (field === "nodes") {
+            const nodes = await getWebpageNodes(website, webpage._id);
+            collector[field] = nodes;
+        }
+        // 2. Fallback to standard database properties
+        else if (field in webpage) {
+            collector[field] = webpage[field as keyof typeof webpage];
+        }
+    }
 
     res.json({
         success: true,
-        data: {
-            id: webpage._id,
-            title: webpage.title,
-            description: webpage.description,
-            route: webpage.route,
-            meta: webpage.meta,
-            nodes,
-            createdAt: webpage.createdAt,
-            updatedAt: webpage.updatedAt
-        }
+        data: collector
     });
 }
 
@@ -215,7 +266,7 @@ export const updateWebpage = async (req: Request, res: Response) => {
         });
     }
 
-    const { nodes, ...patch } = updateWebpageSchema.parse(req.body);
+    const { nodes, meta, ...patch } = updateWebpageSchema.parse(req.body);
 
     const updated = getUpdate(patch, webpage);
     const hasChanges = Object.keys(updated).length > 0 || (nodes && nodes.length > 0);
@@ -265,6 +316,10 @@ export const updateWebpage = async (req: Request, res: Response) => {
         await setWebpageNodes(website, webpage._id, nodes);
     }
 
+    if (meta !== undefined) {
+        await setWebpageMeta(website, webpage._id, meta);
+    }
+
     res.json({
         success: true,
         data: {
@@ -272,7 +327,6 @@ export const updateWebpage = async (req: Request, res: Response) => {
             title: updatedWebpage.title,
             description: updatedWebpage.description,
             route: updatedWebpage.route,
-            meta: updatedWebpage.meta,
             createdAt: updatedWebpage.createdAt,
             updatedAt: updatedWebpage.updatedAt
         }
@@ -301,6 +355,7 @@ export const deleteWebpage = async (req: Request, res: Response) => {
 
     // Delete nodes from S3 and Redis
     await deleteWebpageNodes(website, webpage._id);
+    await deleteWebpageMeta(website, webpage._id);
 
     // Delete from MongoDB
     await WebpageModel.findByIdAndDelete(webpage._id);

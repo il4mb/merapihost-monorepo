@@ -1,10 +1,35 @@
 import { z } from "zod";
 
-export const webpageMetaSchema = z.strictObject({
-    name: z.string().min(1, "Name is required"),
-    type: z.string().min(1, "Type is required"),
-    content: z.string().min(1, "Content is required"),
+export const WEBPAGE_FIELDS = ["id", "title", "description", "route", "meta", "nodes", "createdAt", "updatedAt"] as const;
+
+// Internal schema to validate a single item against your allowed fields
+const singleFieldSchema = z.string().refine((v) => WEBPAGE_FIELDS.includes(v as any), {
+    message: `Invalid field. Valid fields are: ${WEBPAGE_FIELDS.join(", ")}`,
 });
+
+// The exported schema that handles the string-to-array transformation and validation
+export const fieldsWebpageSchema = z.preprocess(
+    (val) => {
+        // Handle "?fields=id,title"
+        if (typeof val === "string") {
+            return val.split(",").map((s) => s.trim());
+        }
+        // Handle "?fields=id&fields=title"
+        if (Array.isArray(val)) {
+            return val;
+        }
+        return val;
+    },
+    z.array(singleFieldSchema)
+);
+
+export const webpageQuerySchema = z.object({
+    fields: fieldsWebpageSchema.optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    offset: z.coerce.number().int().min(0).optional(),
+});
+
+
 
 export const nodeSchema = z.strictObject({
     id: z.coerce.string(),
@@ -27,7 +52,7 @@ export const createWebpageSchema = z.strictObject({
     title: z.string().min(1, "Title is required"),
     description: z.string(),
     route: z.string().min(1, "Route is required"),
-    meta: z.array(webpageMetaSchema),
+    meta: z.string().optional(),
     nodes: z.array(nodeSchema),
 });
 
@@ -36,3 +61,4 @@ export const updateWebpageSchema = createWebpageSchema.partial();
 export const paramWebpageSchema = z.object({
     id: z.uuid("Invalid webpage ID"),
 });
+

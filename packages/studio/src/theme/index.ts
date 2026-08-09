@@ -1,5 +1,5 @@
+export * from "./Theme";
 export { default as Theme } from "./Theme";
-export { default as useDarkMode } from "./useDarkMode";
 export { default as DarkModeToggle } from "./DarkModeToggle";
 export * from "./customizations/dataDisplay";
 export * from "./customizations/feedback";

@@ -20,8 +20,6 @@ export const GET = async (req: NextRequest) => {
         // 2. Parse the plain object
         const { folderId } = querySchema.parse(searchParams);
         
-        console.log("Fetching assets for folderId:", folderId);
-        
         const response = await serverApi.get(`/v1/drives/${TEST_DRIVE_ID}?folderId=${folderId}`);
         
         return NextResponse.json(response.data, {

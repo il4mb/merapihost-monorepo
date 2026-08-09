@@ -3,13 +3,14 @@ import ScrollContainer from "@/components/ui/ScrollContainer";
 import { usePages } from "@/contexts/PagesProvider";
 import { motion } from "motion/react";
 import { Typography, Divider, Box, LinearProgress, Stack, IconButton, Tooltip } from "@mui/material";
-import { memo, useCallback, useEffect } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { useStudio } from "@/contexts/StudioProvider";
 import type { PageObject } from "@/types";
 import { FileIcon, FilePenIcon, SettingsIcon } from "lucide-react";
 import { useNavigate } from "@/hooks/useNavigate";
 import { useParams } from "next/navigation";
 import { useNavigation } from "@/components/navigations/NavigationProvider";
+import PageSettingsDialog from "../dialogs/PageSettingsDialog";
 
 const ELLIPSIS_STYLE = {
     overflow: "hidden",
@@ -17,7 +18,12 @@ const ELLIPSIS_STYLE = {
     whiteSpace: "nowrap"
 }
 
-const PageItem = memo(({ page, onClick }: { page: PageObject, onClick: () => void }) => {
+type PageItemProps = {
+    page: PageObject;
+    onClick: () => void;
+    onSettingsClick: () => void;
+};
+const PageItem = memo(({ page, onClick, onSettingsClick }: PageItemProps) => {
 
     const { loading } = useNavigation();
     const navigate = useNavigate();
@@ -81,6 +87,10 @@ const PageItem = memo(({ page, onClick }: { page: PageObject, onClick: () => voi
                         ml: "auto", p: 0, transition: "none",
                         visibility: "var(--action-visibility)",
                         color: isOpened ? "primary.contrastText" : "text.secondary",
+                    }}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onSettingsClick();
                     }}>
                     <SettingsIcon size={16} />
                 </IconButton>
@@ -94,6 +104,7 @@ export default function PagesManager() {
     const { pageId } = useParams<{ pageId?: string }>();
     const { pages, loading, error } = usePages();
     const pagesArray = Array.from(pages.values());
+    const [editingPageSetting, setEditingPageSetting] = useState<PageObject | null>(null);
 
     const handleClick = useCallback((page: PageObject) => {
         dispatch({ type: "SET_SELECTED_PAGE", payload: page });
@@ -148,9 +159,16 @@ export default function PagesManager() {
                     <PageItem
                         key={page.id}
                         page={page}
-                        onClick={() => handleClick(page)} />
+                        onClick={() => handleClick(page)}
+                        onSettingsClick={() => setEditingPageSetting(page)}
+                    />
                 ))}
             </ScrollContainer>
+
+            <PageSettingsDialog
+                page={editingPageSetting!}
+                onClose={() => setEditingPageSetting(null)}
+            />
         </Stack>
     );
 }

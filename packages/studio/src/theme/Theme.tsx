@@ -80,3 +80,9 @@ function ThemeClient({ children, onResolvedMode }: ThemeClientProps) {
 
 	return <>{children}</>;
 }
+
+export function useIsDark() {
+
+	const { mode } = useColorScheme();
+	return mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+}

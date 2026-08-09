@@ -9,6 +9,13 @@
         "start": "NODE_ENV=production node next start"
     },
     "dependencies": {
+        "@codemirror/autocomplete": "^6.20.3",
+        "@codemirror/lang-css": "^6.3.1",
+        "@codemirror/lang-html": "^6.4.12",
+        "@codemirror/lang-javascript": "^6.2.5",
+        "@codemirror/lang-json": "^6.0.2",
+        "@codemirror/language": "^6.12.4",
+        "@codemirror/lint": "^6.9.7",
         "@craftjs/core": "^0.2.12",
         "@emotion/cache": "^11.14.0",
         "@emotion/react": "^11.14.0",
@@ -16,6 +23,7 @@
         "@mui/icons-material": "^9.2.0",
         "@mui/material": "^9.0.0",
         "@mui/x-date-pickers": "^9.10.1",
+        "@uiw/react-codemirror": "^4.25.11",
         "axios": "^1.19.0",
         "date-fns": "^4.4.0",
         "firebase": "^12.16.0",
