@@ -11,6 +11,7 @@ export const nodeSchema = z.strictObject({
     tagName: z.string().min(1).optional(),
     type: z.string().optional(),
     props: z.record(z.string(), z.any()).optional(),
+    content: z.string().optional(),
     parent: z.string().nullable(),
 }).superRefine((data, ctx) => {
     if (!data.tagName && !data.type) {

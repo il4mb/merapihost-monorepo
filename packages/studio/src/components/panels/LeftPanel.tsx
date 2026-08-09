@@ -95,7 +95,7 @@ const ContentArea = memo(({ selected }: { selected: MenuType }) => (
 
 export default function LeftPanel() {
 
-    const [selectedMenu, setSelectedMenu] = useState<MenuType>("assets");
+    const [selectedMenu, setSelectedMenu] = useState<MenuType>("pages");
     const handleMenuClick = (menuId: MenuType) => {
         setSelectedMenu(menuId);
     }

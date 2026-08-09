@@ -40,7 +40,8 @@ export default function ScreenContainer({ children }: ScreenContainerProps) {
                 sx={{
                     flex: 1,
                     position: "relative",
-                    overflow: "hidden",
+                    overflow: "visible",
+                    pointerEvents: "none",
                 }}>
                 {children}
             </Box>

@@ -3,6 +3,7 @@ import { useStudio } from "@/contexts/StudioProvider";
 import { useMemo, useRef, useState } from "react";
 import { useScreenContainer } from "./ScreenContainer";
 import { styled } from "@mui/material/styles";
+import Typography from "@mui/material/Typography";
 
 const FrameOfScreen = styled("div")({
     position: "absolute",
@@ -17,6 +18,8 @@ const FrameOfScreen = styled("div")({
     justifyContent: "center",
     userSelect: "none",
     borderRadius: 8,
+    overflow: "visible",
+    pointerEvents: "none",
     "&:hover": {
         boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)"
     },
@@ -36,7 +39,11 @@ export default function ScreenFrame({ children }: ScreenFrameProps) {
     const { rect } = useScreenContainer();
     const { state } = useStudio();
     const device = useMemo(() => state.devices.find(d => d.id === state.device), [state.devices, state.device]);
-
+    const mediaLabel = useMemo(() => {
+        if (!device) return "Unknown Device";
+        if (device.width === "100%") return "Responsive";
+        return `${device.name} (${device.width} x ${device.height || "auto"})`;
+    }, [device]);
     const { width, height, scale } = useMemo(() => {
         if (!rect) {
             return { width: "calc(100% - 20px)", height: "calc(100% - 20px)", scale: 1 }
@@ -73,6 +80,9 @@ export default function ScreenFrame({ children }: ScreenFrameProps) {
                 transition: "opacity 0.3s ease, transform 0.3s ease",
                 backgroundColor: "background.paper",
             }}>
+            <Typography variant="caption" sx={{ position: "absolute", top: -22, left: 0, color: "rgb(202, 164, 121)", zIndex: 10 }}>
+                {mediaLabel}
+            </Typography>
             {children}
         </FrameOfScreen>
     );

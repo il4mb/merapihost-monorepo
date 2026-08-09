@@ -1,13 +1,12 @@
-import { Box, Divider, IconButton, styled, Typography } from "@mui/material"
-// import { useEditor } from "../../../providers/EditorProvider"
-import { useCallback, useMemo, useRef, useState } from "react"
-import { NodeObject } from "../../../types/node"
-import { ChevronRight, CircleQuestionMark, Component, Eye, EyeOff } from "lucide-react"
-import { motion, AnimatePresence } from "motion/react"
-// import { useTypeRegistry } from "../../../cores/TypeRegistry"
-// import LabelField from "../../fields/LabelField"
-// import { useTypeContext } from "../../../hooks/useNodes"
-import { useStudio } from "@/contexts/StudioProvider"
+import { Box, Divider, IconButton, styled, Typography } from "@mui/material";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { NodeObject } from "@/types/node";
+import { ChevronRight, CircleQuestionMark, Eye, EyeOff } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { useStudio } from "@/contexts/StudioProvider";
+import { REGISTRY } from "@/libs/node";
+import { useTypeContext } from "@/hooks/useNodes";
+import LabelField from "@/components/ui/fields/LabelField";
 
 const ScrollContainer = styled("div")({
     width: "100%",
@@ -72,7 +71,6 @@ type TreeProps = {
 const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNodeVisible }: TreeProps) => {
 
     const ignoreInteractionRef = useRef(false);
-    const { registries } = useTypeRegistry();
     const { state, dispatch } = useStudio();
 
     const [collapsed, setCollapsed] = useState(!defaultOpen);
@@ -88,7 +86,7 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
         return typeContext.type.model.default.name.call(typeContext);
     }, [typeContext]);
 
-    const type = node.type ? registries[node.type] : undefined;
+    const type = node.type ? REGISTRY[node.type] : undefined;
     const name = (typeof node.name === "string" ? node.name : "") || getDefaultName();
     const color = extendedColor || type?.model?.color;
     const childrenColor = extendedColor || type?.model?.childrenColor;
@@ -97,7 +95,7 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
 
     const childNodes = useMemo(() => {
         return Array.from(state.nodes.values()).filter(n => {
-            const type = n.type ? registries[n.type] : undefined;
+            const type = n.type ? REGISTRY[n.type] : undefined;
             if (type?.model?.visibleOnTree === false) {
                 return false;
             }
@@ -295,7 +293,7 @@ export default function TreeManager({ }: TreeManagerProps) {
         <Box>
             <Typography
                 variant="overline"
-                sx={{ px: 1,display: "block", fontWeight: 600 }}>
+                sx={{ px: 1, display: "block", fontWeight: 600 }}>
                 Layers
             </Typography>
             <Divider sx={{ mb: 1 }} />

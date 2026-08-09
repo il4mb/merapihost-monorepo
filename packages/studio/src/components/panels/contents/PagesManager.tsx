@@ -89,8 +89,6 @@ const PageItem = memo(({ page, onClick }: { page: PageObject, onClick: () => voi
     );
 });
 
-PageItem.displayName = "PageItem";
-
 export default function PagesManager() {
     const { dispatch } = useStudio();
     const { pageId } = useParams<{ pageId?: string }>();
@@ -108,7 +106,7 @@ export default function PagesManager() {
                 dispatch({ type: "SET_OPENED_PAGE", payload: page });
             }
         }
-    }, [pageId]);
+    }, [pageId, pages, dispatch]);
 
     if (error) {
         return (

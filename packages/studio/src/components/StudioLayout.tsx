@@ -21,7 +21,7 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
                     </Stack>
                     <RightPanel />
                 </Stack>
-            </Fragment> 
+            </Fragment>
         </StudioProvider>
     );
 }

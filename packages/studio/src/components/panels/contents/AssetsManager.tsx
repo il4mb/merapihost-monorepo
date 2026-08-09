@@ -2,7 +2,7 @@
 import { Typography, Divider, Box, LinearProgress, Stack } from "@mui/material";
 import AssetContents from "./AssetContents";
 import { LucideFolderOutput } from "lucide-react";
-import DragAndDropZone from "@editor/components/DragAndDropZone";
+import DragAndDropZone from "@/components/ui/DragAndDropZone";
 import { AnimatePresence, motion } from "motion/react";
 import ScrollContainer from "@/components/ui/ScrollContainer";
 import { useAssets } from "@/contexts/AssetsProvider";

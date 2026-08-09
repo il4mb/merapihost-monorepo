@@ -180,65 +180,37 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
         }
 
         case "SET_NODES": {
-            // We use a fresh map so we don't carry over mismatched keys from action.payload
             const sourceNodes = new Map(action.payload);
             const newNodes = new Map();
-            let rootNode = null;
-
-            // 1. Single Pass: Sanitize IDs, assign types, and locate Root
-            for (const [oldKey, node] of sourceNodes.entries()) {
-                // @ts-ignore
-                const sanitizedNode = { ...node };
-
-                // Fix missing IDs
-                if (!sanitizedNode.id) {
-                    sanitizedNode.id = nanoid();
-                }
-
-                // Fix missing types
-                if (!sanitizedNode.type) {
-                    sanitizedNode.type = "Element";
-                }
-
-                // Identify Root
-                if (sanitizedNode.type === "Root") {
-                    rootNode = sanitizedNode;
-                }
-
-                // Store securely using the guaranteed ID as the Map key
-                newNodes.set(sanitizedNode.id, sanitizedNode);
+            const rootNode = {
+                id: "root",
+                type: "Root",
+                props: {
+                    style: {
+                        width: "100%",
+                        height: "100%",
+                        position: "relative",
+                        padding: 0,
+                        margin: 0,
+                        boxSizing: "border-box",
+                        display: "flow-root",
+                        overflow: "auto"
+                    }
+                },
+                parent: null
             }
 
-            // 2. If Root doesn't exist, create and append it
-            if (!rootNode) {
-                rootNode = {
-                    id: "root",
-                    type: "Root",
-                    props: {
-                        style: {
-                            width: "100%",
-                            height: "100%",
-                            position: "relative",
-                            padding: 0,
-                            margin: 0,
-                            boxSizing: "border-box",
-                            display: "flow-root",
-                            overflow: "auto"
-                        }
-                    },
-                    parent: null,
-                    order: 0
-                };
-                newNodes.set(rootNode.id, rootNode);
-            }
+            newNodes.set(rootNode.id, rootNode);
 
             // 3. Make all other parentless nodes children of the Root
-            for (const [id, node] of newNodes.entries()) {
+            for (const [id, node] of sourceNodes.entries()) {
                 if (id !== rootNode.id && !node.parent) {
                     newNodes.set(id, {
                         ...node,
                         parent: rootNode.id
                     });
+                } else {
+                    newNodes.set(id, node);
                 }
             }
 

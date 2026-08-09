@@ -36,6 +36,7 @@ export type NodeObject = {
     type?: string;
     tagName?: string;
     name?: string;
+    content?: string;
     props?: Record<string, any>;
     parent?: string | null;
     order?: number;
