@@ -6,11 +6,12 @@ import { Typography, Divider, Box, LinearProgress, Stack, IconButton, Tooltip } 
 import { memo, useCallback, useEffect, useState, useMemo } from "react";
 import { useStudio } from "@/contexts/StudioProvider";
 import type { PageObject } from "@/types";
-import { FileIcon, FilePenIcon, SettingsIcon } from "lucide-react";
+import { FileIcon, FilePenIcon, FilePlusCorner, SettingsIcon } from "lucide-react";
 import { useNavigate } from "@/hooks/useNavigate";
 import { useParams } from "next/navigation";
 import { useNavigation } from "@/components/navigations/NavigationProvider";
 import PageSettingsDialog from "../dialogs/PageSettingsDialog";
+import PageCreateDialog from "../dialogs/PageCreateDialog";
 
 const ELLIPSIS_STYLE = {
     overflow: "hidden",
@@ -105,12 +106,13 @@ export default function PagesManager() {
     const { pages, loading, error } = usePages();
     const pagesArray = useMemo(() => Array.from(pages.values()), [pages]);
     const [editingPageSetting, setEditingPageSetting] = useState<PageObject | null>(null);
+    const [openCreateDialog, setOpenCreateDialog] = useState(false);
 
     const handleClick = useCallback((page: PageObject) => {
         dispatch({ type: "SET_SELECTED_PAGE", payload: page });
     }, [dispatch]);
 
-    const handleUpatePage = useCallback((updatedPage: PageObject) => {
+    const handleAfterUpdatePage = useCallback((updatedPage: PageObject) => {
         dispatch({
             type: "UPDATE_PAGE",
             payload: {
@@ -122,6 +124,13 @@ export default function PagesManager() {
                     status: updatedPage.status
                 }
             }
+        });
+    }, [dispatch]);
+
+    const handleAfterCreatePage = useCallback((newPage: PageObject) => {
+        dispatch({
+            type: "ADD_PAGE",
+            payload: newPage
         });
     }, [dispatch]);
 
@@ -151,11 +160,20 @@ export default function PagesManager() {
             direction="column"
             sx={{ overflow: "hidden", flex: 1 }}>
             <Box sx={{ position: 'relative' }}>
-                <Typography
-                    variant="overline"
-                    sx={{ px: 1, display: "block", fontWeight: 600 }}>
-                    Pages
-                </Typography>
+                <Stack direction="row" sx={{ px: 1, py: .5, alignItems: "center", gap: .5, justifyContent: "space-between" }}>
+                    <Typography
+                        variant="overline"
+                        sx={{ px: 1, display: "block", fontWeight: 600 }}>
+                        Pages
+                    </Typography>
+                    <Tooltip title="Create New Page" arrow>
+                        <IconButton
+                            size="small"
+                            onClick={() => setOpenCreateDialog(true)}>
+                            <FilePlusCorner size={16} />
+                        </IconButton>
+                    </Tooltip>
+                </Stack>
                 <Divider />
                 <LinearProgress
                     sx={{
@@ -180,10 +198,16 @@ export default function PagesManager() {
                 ))}
             </ScrollContainer>
 
+            <PageCreateDialog
+                open={openCreateDialog}
+                onClose={() => setOpenCreateDialog(false)}
+                onSuccess={handleAfterCreatePage}
+            />
+
             <PageSettingsDialog
                 page={editingPageSetting!}
                 onClose={() => setEditingPageSetting(null)}
-                onSuccess={handleUpatePage}
+                onSuccess={handleAfterUpdatePage}
             />
         </Stack>
     );

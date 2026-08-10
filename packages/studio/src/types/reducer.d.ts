@@ -109,6 +109,7 @@ export type CoreActionMap = {
     SET_OPENED_ASSET: AssetObject | null;
 
     SET_PAGES: Map<string, PageObject>;
+    ADD_PAGE: PageObject;
     UPDATE_PAGE: {
         id: string;
         data: DeepPartial<Omit<PageObject, "id">>;

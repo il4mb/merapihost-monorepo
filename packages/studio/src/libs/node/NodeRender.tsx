@@ -1,0 +1,59 @@
+"use client";
+import { useMemo, useEffect, useState } from "react";
+import { NodeObject } from "@/types";
+import { useStudio } from "@/contexts/StudioProvider";
+import { REGISTRY } from "./index";
+
+type NodeRenderProps = {
+    node: NodeObject;
+}
+
+export default function NodeRender({ node }: NodeRenderProps) {
+
+    const { state, dispatch } = useStudio();
+    const [dom, setDom] = useState<HTMLElement | null>(null);
+
+    const Component = useMemo(() => {
+        if (!node.type) return null;
+        return REGISTRY[node.type] || null;
+    }, [node.type]);
+
+    const childrenNode = useMemo(() => {
+        const id = node.id;
+        return Array.from(state.nodes.values())
+            .filter(n => n.parent === id)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+    }, [state.nodes]);
+
+    const children = childrenNode.map(n => <NodeRender key={n.id} node={n} />);
+
+    useEffect(() => {
+        if (!dom) return;
+        dispatch({ type: "SET_DOM", payload: { id: node.id, dom } });
+        return () => {
+            dispatch({ type: "REMOVE_DOM", payload: node.id });
+        }
+    }, [dom, node.id, dispatch]);
+
+    if (node.visible === false) return null;
+
+    // if "Root", render its children directly without any wrapper
+    if (node.type === "Root") {
+        return children;
+    }
+
+    if (Component) {
+        return (
+            // @ts-ignore
+            <Component node={node} ref={setDom}>
+                {children}
+            </Component>
+        );
+    }
+
+    return (
+        <div style={{ border: "1px solid red", padding: "8px", color: "red" }} ref={setDom}>
+            Unknown type: {node.type || "undefined"} (id: {node.id})
+        </div>
+    );
+}

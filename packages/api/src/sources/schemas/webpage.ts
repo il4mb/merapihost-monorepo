@@ -38,6 +38,8 @@ export const nodeSchema = z.strictObject({
     props: z.record(z.string(), z.any()).optional(),
     content: z.string().optional(),
     parent: z.string().nullable(),
+    visible: z.boolean().optional().default(true),
+    order: z.number().int().optional(),
 }).superRefine((data, ctx) => {
     if (!data.tagName && !data.type) {
         ctx.addIssue({

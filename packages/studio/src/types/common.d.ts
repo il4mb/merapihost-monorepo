@@ -69,6 +69,7 @@ export type TypeModel<T = any> = {
     color?: string;
     childrenColor?: string;
     visibleOnTree?: boolean;
+    isInstance?: (node: NodeObject<T>) => boolean;
     default?: {
         name?: string | ((this: TypeContext<T>) => string);
         events?: string[] | ((this: TypeContext<T>) => string[]);

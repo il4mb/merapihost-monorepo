@@ -1,5 +1,24 @@
 import { nanoid } from "nanoid";
 import { AssetObject, EditorAction, EditorState, NodeObject, Variable, PageObject } from "@/types";
+import { REGISTRY } from "./node";
+
+export const ROOT_NODE = {
+    id: "root",
+    type: "Root",
+    props: {
+        style: {
+            width: "100%",
+            height: "100%",
+            position: "relative",
+            padding: 0,
+            margin: 0,
+            boxSizing: "border-box",
+            display: "flow-root",
+            overflow: "auto"
+        }
+    },
+    parent: null
+} as NodeObject;
 
 export const initialState: EditorState = {
     viewport: {
@@ -33,6 +52,31 @@ export const initialState: EditorState = {
     }
 }
 
+
+const getValidNodeType = (target: string | NodeObject): string => {
+    if (target && typeof target !== "string") {
+        for (const type of Object.values(REGISTRY)) {
+            if (type.model.isInstance && type.model.isInstance(target)) {
+                return type.model.name;
+            }
+        }
+        return "Element"; // Default to "Element" if no valid type is found
+    }
+    const validTypes = Object.keys(REGISTRY);
+    if (validTypes.includes(String(target))) {
+        return target as string;
+    } else {
+        return "Element";
+    }
+}
+
+const fallbackNodeValidType = (node: NodeObject): NodeObject => {
+    return {
+        ...node,
+        type: getValidNodeType(node)
+    };
+}
+
 const updateParentChildren = (nodes: Map<string, NodeObject>, parentId: string | null) => {
     if (!parentId) return;
     const parent = nodes.get(parentId);
@@ -43,7 +87,7 @@ const updateParentChildren = (nodes: Map<string, NodeObject>, parentId: string |
 
     nodes.set(parentId, {
         ...parent,
-
+        children
     })
 }
 
@@ -73,19 +117,11 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
 
         // --- NODE MANAGEMENT ---
         case "ADD_NODE": {
-            const newNodes = new Map(state.nodes)
-            const targetParent = action.payload.data.parent
-
-            // Insert initial node profile
+            const newNodes = new Map(state.nodes);
             newNodes.set(action.payload.id, {
                 ...action.payload,
-                data: {
-                    ...action.payload.data,
-                    nodes: []
-                }
-            })
-
-            updateParentChildren(newNodes, targetParent)
+                type: getValidNodeType(action.payload)
+            });
             return { ...state, nodes: newNodes }
         }
 
@@ -94,44 +130,33 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
             if (!node) return state
 
             const newNodes = new Map(state.nodes)
-            const oldParent = node.parent
-
-            const newParent =
-                action.payload?.parent !== undefined
-                    ? action.payload.parent
-                    : oldParent
-
-            newNodes.set(action.payload.id, {
+            const newNode = {
                 ...node,
                 ...action.payload,
                 id: node.id, // Ensure ID remains unchanged 
+                type: getValidNodeType(action.payload), // Ensure type is valid
+                props: {
+                    ...node.props,
+                    ...action.payload.props
+                }
+            };
+            newNodes.set(action.payload.id, newNode);
+            return { ...state, nodes: newNodes }
+        }
+
+        case "UPDATE_NODE_PROPS": {
+            const node = state.nodes.get(action.payload.id);
+            if (!node) return state;
+
+            const newNodes = new Map(state.nodes);
+            newNodes.set(action.payload.id, {
+                ...node,
                 props: {
                     ...node.props,
                     ...action.payload.props
                 }
             });
-
-            if (oldParent !== newParent) {
-                updateParentChildren(newNodes, oldParent)
-            }
-            updateParentChildren(newNodes, newParent)
-
-            return { ...state, nodes: newNodes }
-        }
-
-        case "UPDATE_NODE_PROPS": {
-            const node = state.nodes.get(action.payload.id)
-            if (!node) return state;
-
-            const newNodes = new Map(state.nodes)
-            newNodes.set(action.payload.id, {
-                ...node,
-                props: {
-                    ...node.props,
-                    ...action.payload.props
-                }
-            })
-            return { ...state, nodes: newNodes }
+            return { ...state, nodes: newNodes };
         }
 
         case "DELETE_NODE": {
@@ -182,35 +207,17 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
         case "SET_NODES": {
             const sourceNodes = new Map(action.payload);
             const newNodes = new Map();
-            const rootNode = {
-                id: "root",
-                type: "Root",
-                props: {
-                    style: {
-                        width: "100%",
-                        height: "100%",
-                        position: "relative",
-                        padding: 0,
-                        margin: 0,
-                        boxSizing: "border-box",
-                        display: "flow-root",
-                        overflow: "auto"
-                    }
-                },
-                parent: null
-            }
-
-            newNodes.set(rootNode.id, rootNode);
+            newNodes.set(ROOT_NODE.id, ROOT_NODE);
 
             // 3. Make all other parentless nodes children of the Root
             for (const [id, node] of sourceNodes.entries()) {
-                if (id !== rootNode.id && !node.parent) {
-                    newNodes.set(id, {
+                if (id !== ROOT_NODE.id && !node.parent) {
+                    newNodes.set(id, fallbackNodeValidType({
                         ...node,
-                        parent: rootNode.id
-                    });
+                        parent: ROOT_NODE.id
+                    }));
                 } else {
-                    newNodes.set(id, node);
+                    newNodes.set(id, fallbackNodeValidType(node));
                 }
             }
 
@@ -358,6 +365,19 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
                 pages: {
                     ...state.pages,
                     collection: new Map(action.payload)
+                }
+            }
+        }
+
+        case "ADD_PAGE": {
+            const newPages = new Map(state.pages.collection);
+            newPages.set(action.payload.id, action.payload);
+
+            return {
+                ...state,
+                pages: {
+                    ...state.pages,
+                    collection: newPages
                 }
             }
         }

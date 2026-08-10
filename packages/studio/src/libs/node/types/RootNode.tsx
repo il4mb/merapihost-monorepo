@@ -1,8 +1,8 @@
 import { createType } from "../tools";
 import PageIcon from "@/components/icons/PageIcon";
 import { Fragment, useEffect } from "react";
-import { ElementNode } from "./ElementNode";
 import { useStudio } from "@/contexts/StudioProvider";
+import { NodeRender } from "..";
 
 type RootProps = {
     dom?: HTMLIFrameElement | null;
@@ -25,7 +25,7 @@ export const RootNode = createType<RootProps>(({ dom }) => {
     return (
         <Fragment>
             {rootNodes.map(rootNode => (
-                <ElementNode key={rootNode.id} node={rootNode} />
+                <NodeRender key={rootNode.id} node={rootNode} />
             ))}
         </Fragment>
     );
