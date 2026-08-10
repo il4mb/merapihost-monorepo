@@ -1,6 +1,4 @@
-import type { NodeObject, NodeVariable } from "./node";
-import type { AssetObject } from "./asset";
-import type { PageObject } from "./page"; // 1. Added missing import
+import type { NodeObject, NodeVariable, AssetObject, PageObject, Block } from "./index";
 
 // 2. Fixed DeepPartial to prevent infinite recursion on complex objects
 export type DeepPartial<T> = T extends Function | Map<any, any> | Set<any> | HTMLElement
@@ -57,6 +55,16 @@ export interface EditorState {
 export type CoreActionMap = {
     UPDATE_VIEWPORT: Partial<EditorState["viewport"]>;
     ADD_NODE: NodeObject;
+    INSERT_BLOCK: {
+        block: Block;
+        targetId: string;
+        position: "before" | "after";
+    };
+    MOVE_NODE: {
+        sourceId: string;
+        targetId: string;
+        position: "before" | "after";
+    };
     UPDATE_NODE: {
         id: string
     } & DeepPartial<Omit<NodeObject, "id">>;

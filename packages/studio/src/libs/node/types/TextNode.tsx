@@ -26,12 +26,13 @@ export const TextNode = createType<TextProps>(({ node, children, ref }) => {
 }, {
     name: "Text",
     icon: TypeIcon,
-    isInstance(node) {
-        if (("content" in node && typeof node.content === "string") || (node.props?.children && typeof node.props.children === "string")) {
+    isInstance(target) {
+        if (("content" in target && typeof target.content === "string") || (target.props?.children && typeof target.props.children === "string")) {
             return true;
         }
         return false;
     },
+    draggable: true,
     default: {
         name() {
             return this.node.tagName || "Element";

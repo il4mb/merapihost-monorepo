@@ -7,7 +7,7 @@ import { useStudio } from "@/contexts/StudioProvider";
 import { REGISTRY } from "@/libs/node";
 import { useTypeContext } from "@/hooks/useNodes";
 import LabelField from "@/components/ui/fields/LabelField";
-import ScrollContainer from "@/components/ui/ScrollContainer";              
+import ScrollContainer from "@/components/ui/ScrollContainer";
 
 const TreeContainer = styled("div")({
     display: "flex",
@@ -177,7 +177,7 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
                 onClick={onClick}
                 sx={theme => ({
                     opacity: isVisible ? 1 : 0.5,
-                    paddingLeft: `${depth * 16 + 8}px`,
+                    paddingLeft: `${depth * 12}px`,
                     backgroundColor: isSelected
                         ? "rgba(0, 120, 215, 0.1)"
                         : isHovered
@@ -272,7 +272,7 @@ export default function TreeManager({ }: TreeManagerProps) {
     }, [state.nodes]);
 
     return (
-        <Box>
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             <Typography
                 variant="overline"
                 sx={{ px: 1, display: "block", fontWeight: 600 }}>

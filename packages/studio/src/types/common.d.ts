@@ -69,7 +69,29 @@ export type TypeModel<T = any> = {
     color?: string;
     childrenColor?: string;
     visibleOnTree?: boolean;
-    isInstance?: (node: NodeObject<T>) => boolean;
+
+    /**
+     * Defines whether the node is an instance of this type.
+     */
+    isInstance?: (target: NodeObject<T>) => boolean;
+
+    /**
+     * Defines whether the node can be dragged.
+     * Used for drag-and-drop operations to determine if a node can be dragged.
+     */
+    draggable?: boolean | ((node: NodeObject<T>) => boolean);
+
+    /**
+     * Defines whether the node can accept children.
+     */
+    droppable?: string[] | boolean | ((node: NodeObject<T>) => boolean);
+
+    /**
+     * Defines whether the node can be accepted by this type.
+     * Used for drag-and-drop operations to determine if a node can be dropped onto another node of this type.
+     */
+    accepts?: string[] | ((node: NodeObject<T>) => string[]) | ((node: NodeObject<T>) => boolean);
+
     default?: {
         name?: string | ((this: TypeContext<T>) => string);
         events?: string[] | ((this: TypeContext<T>) => string[]);
@@ -80,9 +102,13 @@ export type TypeComponent<T = any> = React.FC<T> & {
     model: TypeModel<T>;
 }
 
+
+export type BlockNodeObject = Omit<NodeObject, 'id' | 'parent'> & {
+    children?: BlockNodeObject[];
+}
 export type Block = {
     label: string;
-    type: string;
-    icon?: React.ReactNode;
-    defaultProps?: Record<string, any>;
+    category?: string;
+    icon?: FC<{ size?: number, color?: string }>;
+    content: BlockNodeObject;
 }

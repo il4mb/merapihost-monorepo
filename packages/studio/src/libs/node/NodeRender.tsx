@@ -18,6 +18,13 @@ export default function NodeRender({ node }: NodeRenderProps) {
         return REGISTRY[node.type] || null;
     }, [node.type]);
 
+    const typeModel = useMemo(() => {
+        if ("model" in Component && Component.model) {
+            return Component.model;
+        }
+        return null;
+    }, [Component]);
+
     const childrenNode = useMemo(() => {
         const id = node.id;
         return Array.from(state.nodes.values())
@@ -34,6 +41,31 @@ export default function NodeRender({ node }: NodeRenderProps) {
             dispatch({ type: "REMOVE_DOM", payload: node.id });
         }
     }, [dom, node.id, dispatch]);
+
+    useEffect(() => {
+        if (!dom || !typeModel) return;
+        const isDraggable = typeof typeModel.draggable === "function" ? typeModel.draggable(node) : typeModel.draggable;
+        const handleDragStart = (e: DragEvent) => {
+            e.stopPropagation();
+            e.dataTransfer?.setData("studio/node", node.id);
+        };
+        const handleDragEnd = (e: DragEvent) => {
+            e.stopPropagation();
+        };
+        if (isDraggable) {
+            dom.setAttribute("draggable", "true");
+            dom.addEventListener("dragstart", handleDragStart);
+            dom.addEventListener("dragend", handleDragEnd);
+        } else {
+            dom.removeAttribute("draggable");
+            dom.removeEventListener("dragstart", handleDragStart);
+            dom.removeEventListener("dragend", handleDragEnd);
+        }
+        return () => {
+            dom.removeEventListener("dragstart", handleDragStart);
+            dom.removeEventListener("dragend", handleDragEnd);
+        }
+    }, [dom, typeModel, node]);
 
     if (node.visible === false) return null;
 

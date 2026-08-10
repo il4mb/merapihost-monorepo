@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
-import { AssetObject, EditorAction, EditorState, NodeObject, Variable, PageObject } from "@/types";
+import { AssetObject, EditorAction, EditorState, NodeObject, Variable, PageObject, BlockNodeObject } from "@/types";
 import { REGISTRY } from "./node";
+import { merge } from "lodash";
 
 export const ROOT_NODE = {
     id: "root",
@@ -35,7 +36,7 @@ export const initialState: EditorState = {
     selected: new Set<string>(),
     dragged: new Set<string>(),
     devices: [
-        { id: "desktop", name: "Desktop", width: "100%", height: "100%" },
+        { id: "desktop", name: "Desktop", width: 1920, height: 1080 },
         { id: "tablet", name: "Tablet", width: 768, height: 1024 },
         { id: "mobile", name: "Mobile", width: 420, height: 916 }
     ],
@@ -53,43 +54,54 @@ export const initialState: EditorState = {
 }
 
 
+const buildBlockContent = (content: BlockNodeObject, parentId: string, nodesMap = new Map<string, NodeObject>()) => {
+    const { children, ...rest } = content;
+
+    // 1. Create the new node
+    const newNode: NodeObject = fallbackNodeValidType({
+        ...rest,
+        id: nanoid(),
+        parent: parentId,
+    });
+
+    const typeModel = REGISTRY[newNode.type]?.model;
+    if (typeModel && typeModel.default.props && typeof newNode.props === "object" && newNode.props !== null) {
+        // @ts-ignore
+        newNode.props = merge({}, typeModel.default.props, newNode.props);
+    }
+
+    // 2. Add to flat Map store
+    nodesMap.set(newNode.id, newNode);
+
+    // 3. Process children recursively using the same Map accumulator
+    if (Array.isArray(children) && children.length > 0) {
+        children.forEach((childBlock) => {
+            buildBlockContent(childBlock, newNode.id, nodesMap);
+        });
+    }
+
+    return { rootNode: newNode, nodesMap };
+};
+
 const getValidNodeType = (target: string | NodeObject): string => {
-    if (target && typeof target !== "string") {
-        for (const type of Object.values(REGISTRY)) {
-            if (type.model.isInstance && type.model.isInstance(target)) {
-                return type.model.name;
-            }
-        }
-        return "Element"; // Default to "Element" if no valid type is found
+    if (typeof target !== "string" && target !== null) {
+        // Find matching registry type using model.isInstance
+        const match = Object.values(REGISTRY).find(
+            (item) => item.model.isInstance?.(target)
+        );
+        return match ? match.model.name : "Element";
     }
-    const validTypes = Object.keys(REGISTRY);
-    if (validTypes.includes(String(target))) {
-        return target as string;
-    } else {
-        return "Element";
-    }
-}
 
-const fallbackNodeValidType = (node: NodeObject): NodeObject => {
-    return {
-        ...node,
-        type: getValidNodeType(node)
-    };
-}
+    // @ts-ignore
+    return target in REGISTRY ? String(target) : "Element";
+};
 
-const updateParentChildren = (nodes: Map<string, NodeObject>, parentId: string | null) => {
-    if (!parentId) return;
-    const parent = nodes.get(parentId);
-    if (!parent) return;
+const fallbackNodeValidType = (node: NodeObject): NodeObject => ({
+    ...node,
+    type: getValidNodeType(node),
+});
 
-    const children = Array.from(nodes.values())
-        .filter(node => node.parent === parentId);
 
-    nodes.set(parentId, {
-        ...parent,
-        children
-    })
-}
 
 // ==========================================
 // 3. STUDIO REDUCER
@@ -123,6 +135,124 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
                 type: getValidNodeType(action.payload)
             });
             return { ...state, nodes: newNodes }
+        }
+
+        case "INSERT_BLOCK": {
+            const { block, targetId, position } = action.payload;
+
+            // 1. Get target reference
+            const targetNode = state.nodes.get(targetId);
+            if (!targetNode) {
+                console.warn(`Target node not found for INSERT_BLOCK action.`);
+                return state;
+            }
+
+            const newNodes = new Map(state.nodes);
+            const targetParentId = targetNode.parent;
+
+            // 2. Build root node and all recursive children under target's parent
+            const { rootNode, nodesMap: blockNodes } = buildBlockContent(block.content, targetParentId);
+
+            console.log(Array.from(blockNodes.values()));
+            // 3. Merge all generated nodes into the state Map
+            blockNodes.forEach((node, id) => {
+                newNodes.set(id, node);
+            });
+
+            // 4. Get existing siblings under the parent (excluding the new root)
+            const targetSiblings = Array.from(newNodes.values())
+                .filter((node) => node.parent === targetParentId && node.id !== rootNode.id)
+                .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            // 5. Find target's index
+            const targetIndex = targetSiblings.findIndex((node) => node.id === targetId);
+            if (targetIndex === -1) return state; // Failsafe
+
+            // 6. Calculate insertion index strictly for before | after
+            const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
+
+            // 7. Insert the root node into siblings list
+            targetSiblings.splice(insertIndex, 0, rootNode);
+
+            // 8. Reassign sequential order numbers (0, 1, 2, 3...)
+            targetSiblings.forEach((node, index) => {
+                newNodes.set(node.id, {
+                    ...node,
+                    order: index,
+                });
+            });
+
+            return {
+                ...state,
+                nodes: newNodes,
+            };
+        }
+
+        case "MOVE_NODE": {
+            const { sourceId, targetId, position } = action.payload;
+
+            // 1. Get references
+            const sourceNode = state.nodes.get(sourceId);
+            const targetNode = state.nodes.get(targetId);
+
+            if (!sourceNode || !targetNode) {
+                console.warn(`Source or target node not found for MOVE_NODE action.`);
+                return state;
+            }
+
+            const newNodes = new Map(state.nodes);
+            const targetParentId = targetNode.parent; // Add fallback if needed: || ROOT_NODE.id
+            const oldParentId = sourceNode.parent;
+
+            // 2. Get the target's siblings, EXCLUDING the dragged node, and sort them by current order
+            const targetSiblings = Array.from(newNodes.values())
+                .filter(node => node.parent === targetParentId && node.id !== sourceId)
+                .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            // 3. Find the target's index in this clean list
+            const targetIndex = targetSiblings.findIndex(node => node.id === targetId);
+            if (targetIndex === -1) return state; // Failsafe
+
+            // 4. Calculate exact insertion point
+            const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
+
+            // 5. Update the source node's parent (order is handled below)
+            const updatedSourceNode = {
+                ...sourceNode,
+                parent: targetParentId
+            };
+
+            // 6. Insert the source node into the siblings array at the calculated index
+            targetSiblings.splice(insertIndex, 0, updatedSourceNode);
+
+            // 7. Iterate through the modified array and reassign sequential `order` numbers (0, 1, 2, 3...)
+            targetSiblings.forEach((node, index) => {
+                newNodes.set(node.id, {
+                    ...node,
+                    order: index
+                });
+            });
+
+            // 8. (Optional but recommended) If the node was moved to a DIFFERENT parent, 
+            // re-index the old parent's children to remove the gap left behind.
+            if (oldParentId !== targetParentId) {
+                const oldSiblings = Array.from(newNodes.values())
+                    .filter(node => node.parent === oldParentId)
+                    .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+                oldSiblings.forEach((node, index) => {
+                    newNodes.set(node.id, {
+                        ...node,
+                        order: index
+                    });
+                });
+            }
+
+            // 9. Return updated state
+            return {
+                ...state,
+                nodes: newNodes
+            };
         }
 
         case "UPDATE_NODE": {
@@ -181,9 +311,7 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
             const allDeletedIds = [action.payload, ...descendantsToDelete]
 
             allDeletedIds.forEach(id => newNodes.delete(id))
-            if (targetParent) {
-                updateParentChildren(newNodes, targetParent)
-            }
+
 
             const newHovered = new Set(state.hovered)
             const newSelected = new Set(state.selected)

@@ -1,20 +1,14 @@
 import { Box } from "@mui/material";
 import { Square } from "lucide-react";
-import { NodeObject } from "@/types";
 import { createType } from "../tools";
-import { JSX } from "react/jsx-runtime";
+import type { JSX } from "react/jsx-runtime";
 
 const VOID_ELEMENTS = new Set([
     "area", "base", "br", "col", "embed", "hr", "img", "input",
     "link", "meta", "param", "source", "track", "wbr"
 ]);
 
-type ElementProps = {
-    node: NodeObject;
-    children?: React.ReactNode;
-}
-
-export const ElementNode = createType<ElementProps>(({ node, children, ref }) => {
+export const ElementNode = createType(({ node, children, ref }) => {
 
     const tagName = (node.tagName || "div").toLowerCase() as keyof JSX.IntrinsicElements;
     const isVoidTag = VOID_ELEMENTS.has(tagName);
@@ -34,6 +28,8 @@ export const ElementNode = createType<ElementProps>(({ node, children, ref }) =>
 }, {
     name: "Element",
     icon: Square,
+    draggable: true,
+
     default: {
         name() {
             return this.node.tagName || "Element";

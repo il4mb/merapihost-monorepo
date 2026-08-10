@@ -5,6 +5,7 @@ import NodeRender from "./NodeRender"; // Not a type node
 import { ElementNode } from "./types/ElementNode";
 import { RootNode } from "./types/RootNode";
 import { TextNode } from "./types/TextNode";
+import { GridType, GridItemType } from "./types/GridNode";
 
 // END of type nodes
 
@@ -13,6 +14,8 @@ export const REGISTRY: Record<string, TypeComponent<unknown>> = {
     "Element": ElementNode,
     "Root": RootNode,
     "Text": TextNode,
+    "Grid": GridType,
+    "GridItem": GridItemType
 };
 
 export {
@@ -20,3 +23,6 @@ export {
     RootNode,
     NodeRender
 }
+
+
+export * from "./tools";   
