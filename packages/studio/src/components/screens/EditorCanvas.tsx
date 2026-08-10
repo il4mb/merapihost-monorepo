@@ -10,7 +10,7 @@ import createCache from "@emotion/cache";
 import { createPortal } from "react-dom";
 import { RootNode } from "@/libs/node";
 import { NodeObject } from "@/types";
-
+import { debounce } from "lodash";
 
 const Iframe = styled("iframe")({
     width: "100%",
@@ -98,7 +98,7 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
                 console.log(`Navigation prevented for anchor: ${anchor.href}`);
             }
         };
-        const onMouseEnter = (e: MouseEvent) => {
+        const onMouseEnter = debounce((e: MouseEvent) => {
             const domEntries = Array.from(domsRef.current.entries());
             const target = e.target as HTMLElement;
             let [targetId] = domEntries.find(([id, dom]) => dom === target) || [null, null];
@@ -120,8 +120,8 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             } else {
                 dispatch({ type: "CLEAR_HOVERED" });
             }
-        }
-        const onMouseLeave = () => dispatch({ type: "CLEAR_HOVERED" });
+        }, 100);
+        const onMouseLeave = debounce(() => dispatch({ type: "CLEAR_HOVERED" }), 100);
         const onMouseDown = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
             const domEntries = Array.from(domsRef.current.entries());

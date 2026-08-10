@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { CaseSensitive } from "lucide-react";
+import { CaseSensitive, TypeIcon } from "lucide-react";
 import { NodeObject } from "@/types";
 import { createType } from "../tools";
 import { JSX } from "react/jsx-runtime";
@@ -25,7 +25,7 @@ export const TextNode = createType<TextProps>(({ node, children, ref }) => {
     return node.content;
 }, {
     name: "Text",
-    icon: CaseSensitive,
+    icon: TypeIcon,
     isInstance(node) {
         if (("content" in node && typeof node.content === "string") || (node.props?.children && typeof node.props.children === "string")) {
             return true;

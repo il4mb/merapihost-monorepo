@@ -54,21 +54,11 @@ export default function Panel(props: PanelProps) {
         if (isDragging) {
             window.addEventListener('mousemove', handleMouseMove);
             window.addEventListener('mouseup', handleMouseUp);
-
-            // Lock text selection and cursor globally during drag
-            document.body.style.userSelect = 'none';
-            document.body.style.cursor = 'col-resize';
-        } else {
-            // Restore defaults
-            document.body.style.userSelect = '';
-            document.body.style.cursor = '';
         }
 
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
-            document.body.style.userSelect = '';
-            document.body.style.cursor = '';
         };
     }, [isDragging, isLeftToRight, minWidth, maxWidth, resizeable]);
 
@@ -114,6 +104,24 @@ export default function Panel(props: PanelProps) {
                     }}
                 />
             )}
+
+            {isDragging && (
+                // Overlay to capture mouse events during drag
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        cursor: 'col-resize',
+                        zIndex: 9999,
+                        backgroundColor: 'transparent'
+                    }}
+                />
+            )}
+
+
         </PanelContainer>
     );
 }

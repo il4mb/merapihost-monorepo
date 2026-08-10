@@ -7,22 +7,7 @@ import { useStudio } from "@/contexts/StudioProvider";
 import { REGISTRY } from "@/libs/node";
 import { useTypeContext } from "@/hooks/useNodes";
 import LabelField from "@/components/ui/fields/LabelField";
-
-const ScrollContainer = styled("div")({
-    width: "100%",
-    height: "100%",
-    overflowY: "auto",
-    "&::-webkit-scrollbar": {
-        width: "6px"
-    },
-    "&::-webkit-scrollbar-thumb": {
-        backgroundColor: "rgba(0,0,0,0.2)",
-        borderRadius: "3px"
-    },
-    "&::-webkit-scrollbar-thumb:hover": {
-        backgroundColor: "rgba(0,0,0,0.3)"
-    }
-});
+import ScrollContainer from "@/components/ui/ScrollContainer";              
 
 const TreeContainer = styled("div")({
     display: "flex",
@@ -48,10 +33,7 @@ const ToggleButton = styled(IconButton)({
     height: "16px",
     minWidth: "0px",
     minHeight: "0px",
-    border: "none",
-    "&:hover": {
-        // backgroundColor: "rgba(0,0,0,0.08)"
-    }
+    border: "none"
 });
 
 const ToggleIcon = styled(motion.div)({

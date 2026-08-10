@@ -1,6 +1,6 @@
 "use client";
 import { useStudio } from "@/contexts/StudioProvider";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useCallback, useEffect } from "react";
 import { useScreenContainer } from "./ScreenContainer";
 import { styled } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
@@ -37,33 +37,36 @@ type ScreenFrameProps = {
 export default function ScreenFrame({ children }: ScreenFrameProps) {
 
     const { rect } = useScreenContainer();
-    const { state } = useStudio();
+    const { state, dispatch } = useStudio();
+    const frameRef = useRef<HTMLDivElement>(null);
+
     const device = useMemo(() => state.devices.find(d => d.id === state.device), [state.devices, state.device]);
     const mediaLabel = useMemo(() => {
         if (!device) return "Unknown Device";
         if (device.width === "100%") return "Responsive";
         return `${device.name} (${device.width} x ${device.height || "auto"})`;
     }, [device]);
+
     const { width, height, scale } = useMemo(() => {
         if (!rect) {
-            return { width: "calc(100% - 20px)", height: "calc(100% - 20px)", scale: 1 }
+            return { width: "calc(100% - 20px)", height: "calc(100% - 20px)", scale: 1 };
         }
 
         if (!device || device.width === "100%") {
-            return { width: "calc(100% - 20px)", height: "calc(100% - 20px)", scale: 1 }
+            return { width: "calc(100% - 20px)", height: "calc(100% - 20px)", scale: 1 };
         }
 
-        const targetWidth = Number(device.width)
-        const targetHeight = device.height ? Number(device.height) : rect.height
+        const targetWidth = Number(device.width);
+        const targetHeight = device.height ? Number(device.height) : rect.height;
 
-        const PADDING = 40
-        const availableWidth = rect.width - PADDING
-        const availableHeight = rect.height - PADDING
+        const PADDING = 40;
+        const availableWidth = rect.width - PADDING;
+        const availableHeight = rect.height - PADDING;
 
-        const scaleX = availableWidth / targetWidth
-        const scaleY = availableHeight / targetHeight
+        const scaleX = availableWidth / targetWidth;
+        const scaleY = availableHeight / targetHeight;
 
-        const calculatedScale = Math.min(1, Math.min(scaleX, scaleY))
+        const calculatedScale = Math.min(1, Math.min(scaleX, scaleY));
 
         return {
             width: targetWidth,
@@ -72,8 +75,29 @@ export default function ScreenFrame({ children }: ScreenFrameProps) {
         }
     }, [device, rect]);
 
+
+    const updateViewport = useCallback(() => {
+        if (!frameRef.current) return;
+        const rect = frameRef.current.getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+        dispatch({
+            type: "UPDATE_VIEWPORT",
+            payload: {
+                width,
+                height, scale
+            }
+        });
+    }, [dispatch, scale]);
+
+    useEffect(() => {
+        updateViewport();
+    }, [updateViewport]);
+
+
     return (
         <FrameOfScreen
+            ref={frameRef}
             sx={{
                 width, height,
                 transform: `translate(-50%, -50%) scale(${scale})`,
