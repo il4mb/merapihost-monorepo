@@ -141,6 +141,7 @@ export const listWebpages = async (req: Request, res: Response) => {
             title: wp.title,
             description: wp.description,
             route: wp.route,
+            status: wp.status,
             createdAt: wp.createdAt,
             updatedAt: wp.updatedAt
         }))
@@ -193,6 +194,7 @@ export const createWebpage = async (req: Request, res: Response) => {
             title: webpage.title,
             description: webpage.description,
             route: webpage.route,
+            status: webpage.status,
             createdAt: webpage.createdAt,
             updatedAt: webpage.updatedAt
         }
@@ -269,7 +271,7 @@ export const updateWebpage = async (req: Request, res: Response) => {
     const { nodes, meta, ...patch } = updateWebpageSchema.parse(req.body);
 
     const updated = getUpdate(patch, webpage);
-    const hasChanges = Object.keys(updated).length > 0 || (nodes && nodes.length > 0);
+    const hasChanges = Object.keys(updated).length > 0 || (nodes && nodes.length > 0) || (meta && meta.trim() !== "");
     if (!hasChanges) {
         throw new Exception({
             status: 412,
@@ -316,7 +318,7 @@ export const updateWebpage = async (req: Request, res: Response) => {
         await setWebpageNodes(website, webpage._id, nodes);
     }
 
-    if (meta !== undefined) {
+    if (meta && typeof meta === "string" && meta.trim() !== "") {
         await setWebpageMeta(website, webpage._id, meta);
     }
 
@@ -328,7 +330,8 @@ export const updateWebpage = async (req: Request, res: Response) => {
             description: updatedWebpage.description,
             route: updatedWebpage.route,
             createdAt: updatedWebpage.createdAt,
-            updatedAt: updatedWebpage.updatedAt
+            updatedAt: updatedWebpage.updatedAt,
+            status: updatedWebpage.status
         }
     });
 }

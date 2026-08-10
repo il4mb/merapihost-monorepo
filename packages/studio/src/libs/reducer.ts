@@ -362,6 +362,47 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
             }
         }
 
+        case "UPDATE_PAGE": {
+            const page = state.pages.collection.get(action.payload.id);
+            if (!page) {
+                console.warn(`Page with id "${action.payload.id}" does not exist.`);
+                return state;
+            }
+            const updatedPage = {
+                ...page,
+                ...action.payload.data
+            } as PageObject;
+            const newPages = new Map(state.pages.collection);
+            newPages.set(action.payload.id, updatedPage);
+
+            return {
+                ...state,
+                pages: {
+                    ...state.pages,
+                    collection: newPages
+                }
+            }
+        }
+
+        case "REMOVE_PAGE": {
+            const newPages = new Map(state.pages.collection);
+            newPages.delete(action.payload);
+
+            // If the removed page was selected or opened, clear those states
+            const isSelectedPageRemoved = state.pages.selected?.id === action.payload;
+            const isOpenedPageRemoved = state.pages.opened?.id === action.payload;
+
+            return {
+                ...state,
+                pages: {
+                    ...state.pages,
+                    collection: newPages,
+                    selected: isSelectedPageRemoved ? null : state.pages.selected,
+                    opened: isOpenedPageRemoved ? null : state.pages.opened
+                }
+            }
+        }
+
         case "SET_SELECTED_PAGE": {
             return {
                 ...state,

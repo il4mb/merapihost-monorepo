@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const WEBPAGE_FIELDS = ["id", "title", "description", "route", "meta", "nodes", "createdAt", "updatedAt"] as const;
+export const WEBPAGE_FIELDS = ["id", "title", "description", "route", "meta", "nodes", "status", "createdAt", "updatedAt"] as const;
 
 // Internal schema to validate a single item against your allowed fields
 const singleFieldSchema = z.string().refine((v) => WEBPAGE_FIELDS.includes(v as any), {
@@ -52,8 +52,9 @@ export const createWebpageSchema = z.strictObject({
     title: z.string().min(1, "Title is required"),
     description: z.string(),
     route: z.string().min(1, "Route is required"),
-    meta: z.string().optional(),
+    meta: z.string().nullable().optional(),
     nodes: z.array(nodeSchema),
+    status: z.enum(["active", "inactive"]).optional().default("inactive"),
 });
 
 export const updateWebpageSchema = createWebpageSchema.partial();

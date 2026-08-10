@@ -1,31 +1,28 @@
 "use client";
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, TextField, Typography, Box } from "@mui/material";
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Grid, FormHelperText, Switch, TextField, Typography } from "@mui/material";
 import { PageObject } from "@/types";
 import { useState, useEffect, useCallback } from "react";
-import CodeMirror, { ViewUpdate } from '@uiw/react-codemirror';
-import { html } from '@codemirror/lang-html';
-import { linter, lintGutter, Diagnostic } from '@codemirror/lint';
-import { syntaxTree } from '@codemirror/language';
-import { autocompletion, CompletionContext } from '@codemirror/autocomplete';
-import { useIsDark } from "@/theme";
 import MetaTagEditor from "@/components/ui/fields/MetaTagEditor";
+import { enqueueSnackbar } from "notistack";
 
 const EMPTY_DATA = {
     title: "",
     description: "",
     route: "",
-    meta: ""
+    status: "active" as "active" | "inactive",
+    meta: null as string | null
 }
 
 type PageSettingsDialogProps = {
     page: PageObject | null;
     onClose: () => void;
+    onSuccess?: (updatedPage: PageObject) => void;
 };
 
-export default function PageSettingsDialog({ page, onClose }: PageSettingsDialogProps) {
-    const isDark = useIsDark();
-    const [showAdvance, setShowAdvance] = useState(true);
+export default function PageSettingsDialog({ page, onClose, onSuccess }: PageSettingsDialogProps) {
+    const [showAdvance, setShowAdvance] = useState(false);
     const [data, setData] = useState(EMPTY_DATA);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         if (page) {
@@ -33,34 +30,66 @@ export default function PageSettingsDialog({ page, onClose }: PageSettingsDialog
                 title: page.title,
                 description: page.description || "",
                 route: page.route,
-                meta: String(page.meta || "")
+                status: page.status,
+                meta: null // Meta will be fetched separately in MetaTagEditor
             });
         }
     }, [page]);
+
+    const handleClose = useCallback(() => {
+        if (saving) {
+            enqueueSnackbar("Please wait for the save operation to complete.", { variant: "warning" });
+            return;
+        }
+        onClose();
+    }, [onClose, saving]);
+
+    const handleSave = useCallback(async () => {
+        if (!page.id) return;
+        setSaving(true);
+        try {
+            const response = await fetch(`/api/pages/${page.id}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            }).then(res => res.json());
+
+            if (!response.success) {
+                throw new Error(response.message || "Failed to save page settings");
+            }
+
+            onSuccess?.(response.data);
+            onClose();
+        } catch (error: any) {
+            enqueueSnackbar(error.message || "An unexpected error occurred", { variant: "error" });
+        } finally {
+            setSaving(false);
+        }
+
+    }, [data, page]);
 
     const handleChange = (field: keyof typeof data, value: string) => {
         setData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleMetaChange = useCallback((val: string, viewUpdate: ViewUpdate) => {
-        setData(prev => ({ ...prev, meta: val }));
-    }, []);
-
     const cleanState = () => {
         setData(EMPTY_DATA);
+        setShowAdvance(false);
     }
 
     return (
         <Dialog
             open={!!page}
-            onClose={onClose}
+            onClose={handleClose}
             slotProps={{
                 transition: {
                     onExited: cleanState
                 }
             }}
-            maxWidth={showAdvance ? "md" : "sm"}
-            fullWidth>
+            maxWidth={showAdvance ? "lg" : "sm"}
+            fullWidth >
             <DialogTitle component="div" sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <Typography variant="h6">
                     Page Settings
@@ -73,8 +102,9 @@ export default function PageSettingsDialog({ page, onClose }: PageSettingsDialog
             </DialogTitle>
             <DialogContent sx={{ overflow: "visible" }}>
                 <Grid container spacing={2}>
-                    <Grid size={showAdvance ? 6 : 12}>
+                    <Grid size={showAdvance ? 4 : 12}>
                         <TextField
+                            disabled={saving}
                             label="Title"
                             value={data.title}
                             fullWidth
@@ -82,6 +112,7 @@ export default function PageSettingsDialog({ page, onClose }: PageSettingsDialog
                             onChange={(e) => handleChange("title", e.target.value)}
                         />
                         <TextField
+                            disabled={saving}
                             label="Description"
                             value={data.description}
                             fullWidth
@@ -91,27 +122,46 @@ export default function PageSettingsDialog({ page, onClose }: PageSettingsDialog
                             onChange={(e) => handleChange("description", e.target.value)}
                         />
                         <TextField
+                            disabled={saving}
                             label="Route"
                             fullWidth
                             margin="normal"
                             onChange={(e) => handleChange("route", e.target.value)}
                             value={data.route} />
-                        <Typography variant="body2" color="textSecondary">
-                            Status: {page?.status || "N/A"}
-                        </Typography>
+                        <FormControlLabel
+                            label={data.status === "active" ? "Active" : "Inactive"}
+                            control={
+                                <Switch
+                                    disabled={saving}
+                                    checked={data.status === "active"}
+                                    onChange={(e) => handleChange("status", e.target.checked ? "active" : "inactive")}
+                                />
+                            } />
+                        <FormHelperText>
+                            {data.status === "active" ? "This page is currently active and accessible." : "This page is inactive and not accessible."}
+                        </FormHelperText>
                     </Grid>
                     {showAdvance && (
-                        <Grid size={6}>
-                            <MetaTagEditor pageId={page?.id} />
+                        <Grid size={8}>
+                            <MetaTagEditor
+                                disabled={saving}
+                                pageId={page?.id}
+                                onChange={v => handleChange("meta", v)} />
                         </Grid>
                     )}
                 </Grid>
             </DialogContent>
             <DialogActions>
-                <Button onClick={() => { }} color="primary">
-                    Save
+                <Button
+                    onClick={handleSave}
+                    color="primary"
+                    loading={saving}
+                    disabled={saving}>
+                    {saving ? "Saving..." : "Save"}
                 </Button>
-                <Button onClick={onClose} color="secondary">
+                <Button
+                    onClick={handleClose}
+                    color="secondary">
                     Cancel
                 </Button>
             </DialogActions>

@@ -1,7 +1,6 @@
 "use client";
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Alert, CircularProgress, Typography, Box } from "@mui/material";
-import { PageObject } from "@/types";
-import { useState, useEffect, useCallback } from "react";
+import { Button, Alert, CircularProgress, Typography, Box } from "@mui/material";
+import { useState, useEffect, useCallback, useRef } from "react";
 import CodeMirror, { ViewUpdate } from '@uiw/react-codemirror';
 import { html } from '@codemirror/lang-html';
 import { linter, lintGutter, Diagnostic } from '@codemirror/lint';
@@ -56,16 +55,28 @@ function headCompletions(context: CompletionContext) {
 
 
 type MetaTagEditorProps = {
-    pageId: string;
+    pageId?: string | null;
+    disabled?: boolean;
+    onChange?: (meta: string) => void;
 }
-export default function MetaTagEditor({ pageId }: MetaTagEditorProps) {
+export default function MetaTagEditor({ pageId, disabled, onChange }: MetaTagEditorProps) {
 
     const isDark = useIsDark();
     const [loading, setLoading] = useState(true);
     const [meta, setMeta] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const onChangeRef = useRef(onChange);
+
+    useEffect(() => {
+        onChangeRef.current = onChange;
+    }, [onChange]);
 
     const fetchMeta = useCallback(async () => {
+        if (!pageId) {
+            setMeta("");
+            setLoading(false);
+            return;
+        }
         try {
             setLoading(true);
             setError(null);
@@ -74,6 +85,9 @@ export default function MetaTagEditor({ pageId }: MetaTagEditorProps) {
                 throw new Error(response.message || "Failed to fetch meta");
             }
             setMeta(response.data?.meta || "");
+            if (onChangeRef.current) {
+                onChangeRef.current(response.data?.meta || "");
+            }
         } catch (error: any) {
             setError(error.message || "An unexpected error occurred");
         } finally {
@@ -82,13 +96,16 @@ export default function MetaTagEditor({ pageId }: MetaTagEditorProps) {
     }, [pageId]);
 
     const handleMetaChange = useCallback((val: string, viewUpdate: ViewUpdate) => {
+        if (disabled) return;
         setMeta(val);
-    }, []);
+        if (onChangeRef.current) {
+            onChangeRef.current(val);
+        }
+    }, [disabled]);
 
     useEffect(() => {
         fetchMeta();
     }, [fetchMeta]);
-
 
     return (
         <Box>
@@ -112,8 +129,8 @@ export default function MetaTagEditor({ pageId }: MetaTagEditorProps) {
                     borderColor: "divider",
                     borderRadius: 1,
                     overflow: "hidden",
-                    pointerEvents: loading ? "none" : "all",
-                    opacity: loading ? 0.5 : 1,
+                    pointerEvents: disabled || loading ? "none" : "all",
+                    opacity: disabled || loading ? 0.5 : 1,
                     transition: "opacity 0.3s",
                     position: "relative"
                 }}>
