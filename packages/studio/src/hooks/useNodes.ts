@@ -17,7 +17,7 @@ export const useTypeContext = <T = any>(nodeId: string): TypeContext<T> => {
             dom: state.doms.get(nodeId) || null,
             type: node?.type ? REGISTRY[node.type] : undefined
         } as TypeContext<T>;
-    }, [node, state.doms, REGISTRY, nodeId]);
+    }, [node, state.doms, nodeId]);
 }
 
 export const useSelectedNodes = () => {

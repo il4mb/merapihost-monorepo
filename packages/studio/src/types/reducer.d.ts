@@ -32,7 +32,6 @@ export interface EditorState {
     variables: Map<string, Map<string, NodeVariable>>;
     hovered: Set<string>;
     selected: Set<string>;
-    dragged: Set<string>;
     device: string;
 
     assets: {

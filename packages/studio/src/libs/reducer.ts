@@ -35,7 +35,6 @@ export const initialState: EditorState = {
     doms: new Map<string, HTMLElement>(),
     hovered: new Set<string>(),
     selected: new Set<string>(),
-    dragged: new Set<string>(),
     devices: [
         { id: "desktop", name: "Desktop", width: 1600, height: 1080 },
         { id: "tablet", name: "Tablet", width: 768, height: 1024 },
@@ -86,6 +85,11 @@ const buildBlockContent = (content: BlockNodeObject, parentId: string, nodesMap 
 
 const getValidNodeType = (target: string | NodeObject): string => {
     if (typeof target !== "string" && target !== null) {
+        const targetType = target.type;
+        // If the type is explicitly defined and exists in the registry, return it
+        if (targetType in REGISTRY) {
+            return targetType;
+        }
         // Find matching registry type using model.isInstance
         const match = Object.values(REGISTRY).find(
             (item) => item.model.isInstance?.(target)
@@ -186,6 +190,8 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
             return {
                 ...state,
                 nodes: newNodes,
+                selected: new Set([rootNode.id]),
+                hovered: new Set()
             };
         }
 
@@ -265,13 +271,12 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
                 ...node,
                 ...action.payload,
                 id: node.id, // Ensure ID remains unchanged 
-                type: getValidNodeType(action.payload), // Ensure type is valid
                 props: {
                     ...node.props,
                     ...action.payload.props
                 }
             };
-            newNodes.set(action.payload.id, newNode);
+            newNodes.set(action.payload.id, fallbackNodeValidType(newNode));
             return { ...state, nodes: newNodes }
         }
 
@@ -294,8 +299,7 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
             const targetNode = state.nodes.get(action.payload)
             if (!targetNode) return state
 
-            const newNodes = new Map(state.nodes)
-            const targetParent = targetNode.parent
+            const newNodes = new Map(state.nodes);
 
             const getDescendants = (parentId: string): string[] => {
                 let ids: string[] = []
@@ -316,20 +320,17 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
 
             const newHovered = new Set(state.hovered)
             const newSelected = new Set(state.selected)
-            const newDragged = new Set(state.dragged)
 
             allDeletedIds.forEach(id => {
                 newHovered.delete(id)
                 newSelected.delete(id)
-                newDragged.delete(id)
             })
 
             return {
                 ...state,
                 nodes: newNodes,
                 hovered: newHovered,
-                selected: newSelected,
-                dragged: newDragged
+                selected: newSelected
             }
         }
 
@@ -430,14 +431,7 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
             return { ...state, selected: newSet }
         }
 
-        case "ADD_DRAGGED":
-            return { ...state, dragged: new Set(state.dragged).add(action.payload) }
-        case "REMOVE_DRAGGED": {
-            const newSet = new Set(state.dragged)
-            newSet.delete(action.payload)
-            return { ...state, dragged: newSet }
-        }
-
+     
         case "SET_DEVICE": {
             const deviceExists = state.devices.some(
                 device => device.id === action.payload

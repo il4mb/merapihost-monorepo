@@ -1,8 +1,15 @@
 import type { ShortcutHandler } from "@/types";
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
+import { useStudio } from "@/contexts/StudioProvider";
 
 export const useMainShortcutListener = () => {
 
+    const { state, dispatch } = useStudio();
+    const selectedRef = useRef(state.selected);
+
+    useEffect(() => {
+        selectedRef.current = state.selected;
+    }, [state.selected]);
 
     const handleSave = () => {
         console.log("Save action triggered");
@@ -21,6 +28,20 @@ export const useMainShortcutListener = () => {
         console.warn("Reload is restricted.");
     }
 
+    const handleDelete = () => {
+        const selected = Array.from(selectedRef.current);
+        if (selected.length <= 0) return;
+
+        const payload = selected.map(id => ({
+            type: "DELETE_NODE",
+            payload: id
+        }));
+        
+        dispatch({
+            type: "BULK",
+            payload: payload as any
+        });
+    }
 
 
     return useMemo<ShortcutHandler[]>(() => [
@@ -28,6 +49,16 @@ export const useMainShortcutListener = () => {
             keys: ["Control", "s"],
             preventDefault: true,
             action: handleSave
+        },
+        {
+            keys: ["Delete"],
+            preventDefault: true,
+            action: handleDelete
+        },
+        {
+            keys: ["Backspace"],
+            preventDefault: true,
+            action: handleDelete
         },
         {
             keys: ["Control", "Shift", "s"],
