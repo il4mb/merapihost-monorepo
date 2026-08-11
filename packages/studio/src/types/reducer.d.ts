@@ -1,4 +1,4 @@
-import type { NodeObject, NodeVariable, AssetObject, PageObject, Block } from "./index";
+import type { NodeObject, NodeVariable, AssetObject, PageObject, Block, Edge, Coordinates } from "./index";
 
 // 2. Fixed DeepPartial to prevent infinite recursion on complex objects
 export type DeepPartial<T> = T extends Function | Map<any, any> | Set<any> | HTMLElement
@@ -9,6 +9,16 @@ export type DeepPartial<T> = T extends Function | Map<any, any> | Set<any> | HTM
     ? { [P in keyof T]?: DeepPartial<T[P]> }
     : T;
 
+
+export type Viewport = {
+    scale: number;
+    width: number;
+    height: number;
+    scroll: Coordinates;
+    edge: Edge;
+    iframe: HTMLIFrameElement | null;
+}
+
 export interface EditorState {
     devices: {
         id: string;
@@ -16,21 +26,7 @@ export interface EditorState {
         width: number | string;
         height?: number | string;
     }[];
-    viewport: {
-        scale: number
-        width: number
-        height: number
-        scroll: {
-            top: number
-            left: number
-        }
-        rect: {
-            top: number
-            left: number
-            bottom: number
-            right: number
-        }
-    };
+    viewport: Viewport;
     nodes: Map<string, NodeObject>;
     doms: Map<string, HTMLElement>;
     variables: Map<string, Map<string, NodeVariable>>;

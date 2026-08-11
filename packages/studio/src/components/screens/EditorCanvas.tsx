@@ -12,6 +12,8 @@ import { createPortal } from "react-dom";
 import { RootNode } from "@/libs/node";
 import { Block, NodeObject } from "@/types";
 import { debounce } from "lodash";
+import SpotsContainer from "./SpotsContainer";
+import { useGlobalKeyListener, useMainShortcutListener } from '@/hooks';
 
 const getGeometry = (el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
@@ -237,6 +239,10 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
     const dropTargetRef = useRef<DropTarget | null>(null); // Store the current drop target for comparison
     const draggedBlockRef = useRef<Block | null>(null);
 
+    const shortcuts = useMainShortcutListener();
+
+    useGlobalKeyListener(iframe?.contentWindow, shortcuts); // Listen for global key events in the iframe
+
     const handleNodeMoving = (sourceNodeId: string, event: DragEvent) => {
         event.preventDefault();
 
@@ -340,6 +346,28 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
                 console.log(`Navigation prevented for anchor: ${anchor.href}`);
             }
         };
+
+        const updateViewport = () => {
+            if (!iframeWindow) return;
+            const scrollLeft = iframeWindow.scrollX;
+            const scrollTop = iframeWindow.scrollY;
+            const rect = iframeWindow.document.documentElement.getBoundingClientRect();
+            dispatch({
+                type: "UPDATE_VIEWPORT",
+                payload: {
+                    width: rect.width,
+                    height: rect.height,
+                    scroll: { x: scrollLeft, y: scrollTop },
+                    edge: {
+                        top: rect.top,
+                        left: rect.left,
+                        bottom: rect.bottom,
+                        right: rect.right
+                    },
+                    iframe: iframe
+                }
+            });
+        }
 
         const onMouseEnter = debounce((e: MouseEvent) => {
             const domEntries = Array.from(domsRef.current.entries());
@@ -461,17 +489,9 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             handleClearDropTarget();
         };
 
-
-        const onScroll = (e: Event) => {
-            const scrollLeft = iframeWindow.scrollX;
-            const scrollTop = iframeWindow.scrollY;
-            dispatch({
-                type: "UPDATE_VIEWPORT",
-                payload: { scroll: { left: scrollLeft, top: scrollTop } }
-            });
-        };
-
-        iframeWindow.addEventListener("scroll", onScroll, true);
+        window.addEventListener("resize", updateViewport);
+        iframeWindow.addEventListener("scroll", updateViewport, true);
+        iframeWindow.addEventListener("resize", updateViewport, true);
         iframeWindow.addEventListener("click", preventAnchorNavigation, true);
         iframeWindow.addEventListener("mouseenter", onMouseEnter, true);
         iframeWindow.addEventListener("mouseleave", onMouseLeave, true);
@@ -480,7 +500,9 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
         iframeWindow.addEventListener("dragleave", onDragLeave, true);
         iframeWindow.addEventListener("drop", onDrop, true);
         return () => {
-            iframeWindow.removeEventListener("scroll", onScroll, true);
+            window.removeEventListener("resize", updateViewport);
+            iframeWindow.removeEventListener("scroll", updateViewport, true);
+            iframeWindow.removeEventListener("resize", updateViewport, true);
             iframeWindow.removeEventListener("click", preventAnchorNavigation, true);
             iframeWindow.removeEventListener("mouseenter", onMouseEnter, true);
             iframeWindow.removeEventListener("mouseleave", onMouseLeave, true);
@@ -517,8 +539,6 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             <Iframe
                 ref={setIframe}
                 srcDoc="<!DOCTYPE html><html><head></head><body></body></html>"
-                onDragOver={(e) => (e.preventDefault(), console.log("Dropped!"))}
-                onDrop={(e) => (e.preventDefault(), console.log("Dropped!"))}
                 sandbox="allow-scripts allow-same-origin"
             />
             {(isReady && cache && iframe?.contentDocument?.body) && createPortal(
@@ -540,6 +560,7 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
                 </CacheProvider>,
                 iframe.contentDocument.body
             )}
+            <SpotsContainer />
         </Fragment>
     );
 }

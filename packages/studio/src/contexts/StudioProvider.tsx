@@ -4,6 +4,7 @@ import { createContext, useContext, ReactNode, useReducer } from "react";
 import type { EditorAction, EditorState } from "@/types";
 import AssetsProvider from "./AssetsProvider";
 import PagesProvider from "./PagesProvider";
+import { useGlobalKeyListener, useMainShortcutListener } from "@/hooks";
 
 interface StudioProviderProps {
     children: ReactNode;
@@ -11,6 +12,10 @@ interface StudioProviderProps {
 export default function StudioProvider({ children }: StudioProviderProps) {
     const [state, dispatch] = useReducer(studioReducer, initialState);
     const value = { state, dispatch };
+
+    const shortcuts = useMainShortcutListener();
+
+    useGlobalKeyListener(typeof window !== "undefined" ? window : null, shortcuts);
 
     return (
         <StudioContext.Provider value={value}>

@@ -29,8 +29,8 @@ type Rect = {
 export default function DropIndicator({ target, position, direction }: Props) {
     const { state } = useStudio();
 
-    const scrollX = state.viewport?.scroll?.left ?? 0;
-    const scrollY = state.viewport?.scroll?.top ?? 0;
+    const scrollX = state.viewport?.scroll?.x ?? 0;
+    const scrollY = state.viewport?.scroll?.y ?? 0;
 
     const toRect = (el: Element): Rect => {
         const r = el.getBoundingClientRect();

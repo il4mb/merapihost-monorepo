@@ -1,0 +1,223 @@
+import { NodeObject } from "@/types";
+import { useCallback, useEffect, useState, useMemo, memo, Fragment } from "react";
+import { Box, Typography } from "@mui/material";
+import { useStudio } from "@/contexts/StudioProvider";
+import { getLayoutBoxes } from "@/libs/tools/layout";
+import type { Edge, LayoutBoxes } from "@/types";
+import { REGISTRY } from "@/libs/node";
+
+const COLORS = {
+    margin: "rgba(243, 202, 18, 0.35)", // Orange
+    border: "rgba(255, 204, 0, 0.4)", // Yellow
+    padding: "rgba(11, 243, 50, .35)", // Green
+    content: "rgba(52, 136, 255, 1)", // Blue
+}
+
+
+type IndicatorActionProps = {
+    node: NodeObject;
+    element: HTMLElement;
+    layout: LayoutBoxes;
+};
+
+const IndicatorAction = memo(({ node, layout }: IndicatorActionProps) => {
+    const typeModel = useMemo(() => {
+        return REGISTRY[node.type]?.model;
+    }, [node.type]);
+
+    const posX = layout.border.left;
+    const posY = layout.border.top;
+
+    return (
+        <Box
+            sx={{
+                position: "absolute",
+                top: posY,
+                left: posX,
+                transform: "translateY(-100%) translateY(-4px)",
+                minWidth: 100,
+                minHeight: 20,
+                padding: "2px 6px",
+                fontSize: 12,
+                color: "#fff",
+                zIndex: 9999,
+                backgroundColor: "rgb(1, 111, 255)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                borderRadius: "3px 3px 0 0",
+                pointerEvents: "auto",
+                whiteSpace: "nowrap",
+            }}>
+            {typeModel?.icon && (
+                <Box component={typeModel.icon} size={14} />
+            )}
+            <Typography variant="caption" sx={{ fontSize: 12, color: "#fff", lineHeight: 1 }}>
+                {typeModel?.name || node.type}
+            </Typography>
+        </Box>
+    );
+});
+
+type IndicatorProps = {
+    element: HTMLElement;
+    node: NodeObject;
+}
+const Indicator = memo(({ element, node }: IndicatorProps) => {
+    const { state: { viewport } } = useStudio();
+    const [layout, setLayout] = useState<LayoutBoxes | null>(null);
+
+    const updateLayout = useCallback(() => {
+        const layoutBoxes = getLayoutBoxes(element, viewport);
+        if (!layoutBoxes) return;
+        setLayout(layoutBoxes);
+    }, [element, viewport]);
+
+    useEffect(() => {
+        // Target document and window (handles both iframe and root document contexts)
+        const doc = element.ownerDocument;
+        const win = doc?.defaultView;
+
+        let rafId: number | null = null;
+
+        // Schedule layout recalculation after browser reflow completes
+        const scheduleUpdate = () => {
+            if (rafId) win?.cancelAnimationFrame(rafId);
+            rafId = win?.requestAnimationFrame(updateLayout) ?? null;
+        };
+
+        // Initial update
+        scheduleUpdate();
+
+        // 1. ResizeObserver: Watch element AND document body for global layout shifts
+        const resizeObserver = new ResizeObserver(scheduleUpdate);
+        resizeObserver.observe(element);
+        if (doc?.body) {
+            resizeObserver.observe(doc.body);
+        }
+
+        // 2. MutationObserver: Watch full subtree mutations (DOM additions, removals, style/class shifts)
+        const mutationObserver = new MutationObserver(scheduleUpdate);
+        if (doc?.body) {
+            mutationObserver.observe(doc.body, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                characterData: true,
+                attributeFilter: ["style", "class", "hidden"],
+            });
+        }
+
+        // 3. Scroll & Window Resize Listeners
+        const iframeWin = viewport.iframe?.contentWindow || win;
+        iframeWin?.addEventListener("scroll", scheduleUpdate, true);
+        iframeWin?.addEventListener("resize", scheduleUpdate);
+
+        return () => {
+            if (rafId) win?.cancelAnimationFrame(rafId);
+            resizeObserver.disconnect();
+            mutationObserver.disconnect();
+            iframeWin?.removeEventListener("scroll", scheduleUpdate, true);
+            iframeWin?.removeEventListener("resize", scheduleUpdate);
+        };
+    }, [updateLayout, element, viewport.iframe]);
+
+    const createRectPath = (edge: Edge) => {
+        return `M${edge.left},${edge.top} L${edge.right},${edge.top} L${edge.right},${edge.bottom} L${edge.left},${edge.bottom} Z`;
+    };
+
+    if (!layout) return null;
+
+    return (
+        <Fragment>
+            <IndicatorAction
+                layout={layout}
+                node={node}
+                element={element}
+            />
+            <Box
+                component="svg"
+                style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    pointerEvents: "none",
+                    width: "100%",
+                    height: "100%",
+                }}
+            >
+                {/* --- PATTERN DEFINITIONS --- */}
+                <defs>
+                    <pattern
+                        id="stripes-margin"
+                        patternUnits="userSpaceOnUse"
+                        width="8"
+                        height="8"
+                        patternTransform="rotate(-45)"
+                    >
+                        <rect width="4" height="8" fill={COLORS.margin} />
+                    </pattern>
+                    <pattern
+                        id="stripes-padding"
+                        patternUnits="userSpaceOnUse"
+                        width="8"
+                        height="8"
+                        patternTransform="rotate(45)"
+                    >
+                        <rect width="4" height="8" fill={COLORS.padding} />
+                    </pattern>
+                </defs>
+
+                {/* 1. Margin Area */}
+                <path
+                    d={`${createRectPath(layout.margin)} ${createRectPath(layout.border)}`}
+                    fillRule="evenodd"
+                    fill="url(#stripes-margin)"
+                />
+
+                {/* 2. Border Area */}
+                <path
+                    d={`${createRectPath(layout.border)} ${createRectPath(layout.padding)}`}
+                    fillRule="evenodd"
+                    fill={COLORS.border}
+                />
+
+                {/* 3. Padding Area */}
+                <path
+                    d={`${createRectPath(layout.padding)} ${createRectPath(layout.content)}`}
+                    fillRule="evenodd"
+                    fill="url(#stripes-padding)"
+                />
+
+                {/* 4. Content Area */}
+                <path
+                    d={createRectPath(layout.padding)}
+                    fill="transparent"
+                    stroke={COLORS.content}
+                    strokeDasharray="5,2"
+                    strokeWidth={1.5}
+                />
+            </Box>
+        </Fragment>
+    );
+});
+
+export default function SelectedIndicators() {
+    const { state: { selected, doms, nodes } } = useStudio();
+    const pairs = useMemo(() => {
+        return Array.from(selected).map((id) => {
+            const node = doms.get(id);
+            const nodeObject = nodes.get(id);
+            if (!node || !nodeObject) return null;
+            return { element: node, node: nodeObject };
+        }).filter((item): item is { element: HTMLElement; node: NodeObject } => item !== null);
+    }, [selected, doms, nodes]);
+
+    return (
+        <Fragment>
+            {pairs.map(({ element, node }) => (
+                <Indicator key={node.id} element={element} node={node} />
+            ))}
+        </Fragment>
+    );
+}

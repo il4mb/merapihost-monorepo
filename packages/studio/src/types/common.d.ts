@@ -3,6 +3,15 @@ import { FC, RefObject } from "react";
 import { NodeObject, NodeVariable } from "./node";
 import { AssetObject } from "./asset";
 
+export interface ShortcutHandler {
+    /** List of keys required to trigger the action (e.g. ["Control", "s"]) */
+    keys: string[];
+    /** Callback executed when shortcut matches */
+    action: (event: KeyboardEvent) => void;
+    /** Prevent browser default behavior (defaults to true) */
+    preventDefault?: boolean;
+}
+
 export type RelativeRect = {
     top: number
     left: number
@@ -11,7 +20,22 @@ export type RelativeRect = {
     width: number
     height: number
 }
+export type Edge = {
+    top: number
+    left: number
+    bottom: number
+    right: number
+}
 
+export type Coordinates = {
+    x: number
+    y: number
+}
+
+export type Size = {
+    width: number
+    height: number
+}
 
 // 1. Component Props (Strictly NonNullable as requested)
 export type ModifierComponentProps<T = any> = {
@@ -62,6 +86,7 @@ export type TypeContext<T> = {
     dom: HTMLElement | null
     type: TypeComponent<T> | undefined
 }
+
 export type TypeModel<T = any> = {
     name: string;
     extends?: string;

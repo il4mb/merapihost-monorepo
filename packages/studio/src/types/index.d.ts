@@ -3,3 +3,4 @@ export type * from "./common";
 export type * from "./asset";
 export type * from "./reducer";
 export type * from "./page";
+export type * from "./tools";

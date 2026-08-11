@@ -26,8 +26,9 @@ export const initialState: EditorState = {
         scale: 1,
         width: 0,
         height: 0,
-        scroll: { top: 0, left: 0 },
-        rect: { top: 0, left: 0, bottom: 0, right: 0 }
+        scroll: { x: 0, y: 0 },
+        edge: { top: 0, left: 0, bottom: 0, right: 0 },
+        iframe: null
     },
     nodes: new Map<string, NodeObject>(),
     variables: new Map<string, Map<string, Variable>>(),
@@ -36,7 +37,7 @@ export const initialState: EditorState = {
     selected: new Set<string>(),
     dragged: new Set<string>(),
     devices: [
-        { id: "desktop", name: "Desktop", width: 1920, height: 1080 },
+        { id: "desktop", name: "Desktop", width: 1600, height: 1080 },
         { id: "tablet", name: "Tablet", width: 768, height: 1024 },
         { id: "mobile", name: "Mobile", width: 420, height: 916 }
     ],
@@ -119,9 +120,9 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
                         ...state.viewport.scroll,
                         ...action.payload?.scroll
                     },
-                    rect: {
-                        ...state.viewport.rect,
-                        ...action.payload?.rect
+                    edge: {
+                        ...state.viewport.edge,
+                        ...action.payload?.edge
                     }
                 }
             }

@@ -85,7 +85,8 @@ export default function ScreenFrame({ children }: ScreenFrameProps) {
             type: "UPDATE_VIEWPORT",
             payload: {
                 width,
-                height, scale
+                height,
+                scale // scale is important here, no other component can pass it to state, so we need to pass it here
             }
         });
     }, [dispatch, scale]);
