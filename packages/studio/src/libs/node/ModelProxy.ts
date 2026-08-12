@@ -1,4 +1,4 @@
-import type { TypeModel } from "@/types";
+import type { TypeComponent, TypeModel } from "@/types";
 import { NodeContext } from "./NodeModel";
 import { REGISTRY } from ".";
 
@@ -8,75 +8,81 @@ import { REGISTRY } from ".";
  */
 export class ModelProxy {
 
-    readonly realModel: TypeModel | null = null;
+    readonly type: TypeComponent;
+    readonly model: TypeModel;
 
-    constructor(model: TypeModel) {
-        this.realModel = model;
+    constructor(type: TypeComponent) {
+        this.type = type;
+        this.model = type.model;
     }
 
     get name() {
-        return this.realModel?.name || this.extends?.name || "Unknown";
+        return this.model?.name || this.extends?.name || "Unknown";
     }
 
     get extends() {
-        const extendsType = this.realModel?.extends;
+        const extendsType = this.model?.extends;
         if (!extendsType) return null;
-        const parentModel = REGISTRY[extendsType]?.model;
+        const parentModel = REGISTRY[extendsType];
         if (!parentModel) return null;
         return new ModelProxy(parentModel);
     }
 
     get icon() {
-        return this.realModel?.icon || this.extends?.icon || null;
+        return this.model?.icon || this.extends?.icon || null;
     }
 
     get color() {
-        return this.realModel?.color || this.extends?.color || undefined;
+        return this.model?.color || this.extends?.color || undefined;
     }
 
     get childrenColor() {
-        return this.realModel?.childrenColor || this.extends?.childrenColor || undefined;
+        return this.model?.childrenColor || this.extends?.childrenColor || undefined;
     }
 
     get draggable() {
-        return this.realModel?.draggable ?? this.extends?.draggable ?? true;
+        return this.model?.draggable ?? this.extends?.draggable ?? true;
     }
 
     get droppable() {
-        return this.realModel?.droppable ?? this.extends?.droppable ?? true;
+        return this.model?.droppable ?? this.extends?.droppable ?? true;
     }
 
     get accepts() {
-        return this.realModel?.accepts ?? this.extends?.accepts ?? true;
+        return this.model?.accepts ?? this.extends?.accepts ?? true;
     }
 
     get visibleOnTree() {
-        return this.realModel?.visibleOnTree ?? this.extends?.visibleOnTree ?? true;
+        return this.model?.visibleOnTree ?? this.extends?.visibleOnTree ?? true;
+    }
+
+    get render() {
+        return this.type; // Return the component itself for rendering
     }
 
     getDefaultName(nm: NodeContext) {
-        if (typeof this.realModel?.default?.name === "string") {
-            return this.realModel.default.name;
+        if (typeof this.model?.default?.name === "string") {
+            return this.model.default.name;
         }
-        if (typeof this.realModel?.default?.name === "function") {
-            return this.realModel.default.name(nm);
+        if (typeof this.model?.default?.name === "function") {
+            return this.model.default.name(nm);
         }
-        return this.realModel.name || this.extends?.getDefaultName(nm) || "Unknown";
+        return this.model.name || this.extends?.getDefaultName(nm) || "Unknown";
     }
 
     getDefaultEvents(nm: NodeContext) {
-        if (Array.isArray(this.realModel?.default?.events)) {
-            return this.realModel.default.events;
+        if (Array.isArray(this.model?.default?.events)) {
+            return this.model.default.events;
         }
-        if (typeof this.realModel?.default?.events === "function") {
-            return this.realModel.default.events(nm);
+        if (typeof this.model?.default?.events === "function") {
+            return this.model.default.events(nm);
         }
         return this.extends?.getDefaultEvents(nm) || [];
     }
 
-    getDefaultProps(nm: NodeContext) {
-        if (this.realModel?.default?.props) {
-            return this.realModel.default.props;
+    getDefaultProps(nm: NodeContext): Record<string, any> {
+        if (this.model?.default?.props) {
+            return this.model.default.props;
         }
         return this.extends?.getDefaultProps(nm) || {};
     }

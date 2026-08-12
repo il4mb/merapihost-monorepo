@@ -3,8 +3,9 @@ import { AssetObject, EditorAction, EditorState, NodeObject, Variable, PageObjec
 import { REGISTRY } from "./node";
 import { merge } from "lodash";
 import { nodeReducer } from "./node/nodeReducer";
+import { NodeModel } from "./node/NodeModel";
 
-export const ROOT_NODE = {
+export const ROOT_NODE = new NodeModel({
     id: "root",
     type: "Root",
     props: {
@@ -20,7 +21,7 @@ export const ROOT_NODE = {
         }
     },
     parent: null
-} as NodeObject;
+});
 
 export const initialState: EditorState = {
     viewport: {
@@ -32,9 +33,8 @@ export const initialState: EditorState = {
         iframe: null
     },
     nodes: {
-        collection: new Map<string, NodeObject>([[ROOT_NODE.id, ROOT_NODE]]),
+        collection: new Map<string, NodeModel>([[ROOT_NODE.id, ROOT_NODE]]),
         variables: new Map<string, Map<string, Variable>>(),
-        doms: new Map<string, HTMLElement>(),
         hovered: new Set<string>(),
         selected: new Set<string>(),
     },

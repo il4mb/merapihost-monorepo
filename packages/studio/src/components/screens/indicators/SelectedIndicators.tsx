@@ -5,6 +5,7 @@ import { useNodesReducer, useStudio } from "@/contexts/StudioProvider";
 import { getLayoutBoxes } from "@/libs/tools/layout";
 import type { Edge, LayoutBoxes } from "@/types";
 import { REGISTRY } from "@/libs/node";
+import { NodeModel } from "@/libs/node/NodeModel";
 
 const COLORS = {
     margin: "rgba(243, 202, 18, 0.35)", // Orange
@@ -15,15 +16,12 @@ const COLORS = {
 
 
 type IndicatorActionProps = {
-    node: NodeObject;
+    node: NodeModel;
     element: HTMLElement;
     layout: LayoutBoxes;
 };
 
 const IndicatorAction = memo(({ node, layout }: IndicatorActionProps) => {
-    const typeModel = useMemo(() => {
-        return REGISTRY[node.type]?.model;
-    }, [node.type]);
 
     const posX = layout.border.left;
     const posY = layout.border.top;
@@ -49,33 +47,32 @@ const IndicatorAction = memo(({ node, layout }: IndicatorActionProps) => {
                 pointerEvents: "auto",
                 whiteSpace: "nowrap",
             }}>
-            {typeModel?.icon && (
-                <Box component={typeModel.icon} size={14} />
+            {node.type?.icon && (
+                <Box component={node.type.icon} size={14} />
             )}
             <Typography variant="caption" sx={{ fontSize: 12, color: "#fff", lineHeight: 1 }}>
-                {typeModel?.name || node.type}
+                {node.type?.name || node.name || "Unknown Type"}
             </Typography>
         </Box>
     );
 });
 
 type IndicatorProps = {
-    element: HTMLElement;
-    node: NodeObject;
+    node: NodeModel;
 }
-const Indicator = memo(({ element, node }: IndicatorProps) => {
+const Indicator = memo(({ node }: IndicatorProps) => {
     const { state: { viewport } } = useStudio();
     const [layout, setLayout] = useState<LayoutBoxes | null>(null);
 
     const updateLayout = useCallback(() => {
-        const layoutBoxes = getLayoutBoxes(element, viewport);
+        const layoutBoxes = getLayoutBoxes(node.dom!, viewport);
         if (!layoutBoxes) return;
         setLayout(layoutBoxes);
-    }, [element, viewport]);
+    }, [node.dom!, viewport]);
 
     useEffect(() => {
         // Target document and window (handles both iframe and root document contexts)
-        const doc = element.ownerDocument;
+        const doc = node.dom?.ownerDocument;
         const win = doc?.defaultView;
 
         let rafId: number | null = null;
@@ -91,7 +88,7 @@ const Indicator = memo(({ element, node }: IndicatorProps) => {
 
         // 1. ResizeObserver: Watch element AND document body for global layout shifts
         const resizeObserver = new ResizeObserver(scheduleUpdate);
-        resizeObserver.observe(element);
+        resizeObserver.observe(node.dom!);
         if (doc?.body) {
             resizeObserver.observe(doc.body);
         }
@@ -120,7 +117,7 @@ const Indicator = memo(({ element, node }: IndicatorProps) => {
             iframeWin?.removeEventListener("scroll", scheduleUpdate, true);
             iframeWin?.removeEventListener("resize", scheduleUpdate);
         };
-    }, [updateLayout, element, viewport.iframe]);
+    }, [updateLayout, node.dom!, viewport.iframe]);
 
     const createRectPath = (edge: Edge) => {
         return `M${edge.left},${edge.top} L${edge.right},${edge.top} L${edge.right},${edge.bottom} L${edge.left},${edge.bottom} Z`;
@@ -133,7 +130,7 @@ const Indicator = memo(({ element, node }: IndicatorProps) => {
             <IndicatorAction
                 layout={layout}
                 node={node}
-                element={element}
+                element={node.dom!}
             />
             <Box
                 component="svg"
@@ -144,8 +141,7 @@ const Indicator = memo(({ element, node }: IndicatorProps) => {
                     pointerEvents: "none",
                     width: "100%",
                     height: "100%",
-                }}
-            >
+                }}>
                 {/* --- PATTERN DEFINITIONS --- */}
                 <defs>
                     <pattern
@@ -153,8 +149,7 @@ const Indicator = memo(({ element, node }: IndicatorProps) => {
                         patternUnits="userSpaceOnUse"
                         width="8"
                         height="8"
-                        patternTransform="rotate(-45)"
-                    >
+                        patternTransform="rotate(-45)">
                         <rect width="4" height="8" fill={COLORS.margin} />
                     </pattern>
                     <pattern
@@ -162,8 +157,7 @@ const Indicator = memo(({ element, node }: IndicatorProps) => {
                         patternUnits="userSpaceOnUse"
                         width="8"
                         height="8"
-                        patternTransform="rotate(45)"
-                    >
+                        patternTransform="rotate(45)">
                         <rect width="4" height="8" fill={COLORS.padding} />
                     </pattern>
                 </defs>
@@ -203,20 +197,18 @@ const Indicator = memo(({ element, node }: IndicatorProps) => {
 });
 
 export default function SelectedIndicators() {
-    const { state: { selected, doms, collection } } = useNodesReducer();
-    const pairs = useMemo(() => {
-        return Array.from(selected).map((id) => {
-            const node = doms.get(id);
-            const nodeObject = collection.get(id);
-            if (!node || !nodeObject) return null;
-            return { element: node, node: nodeObject };
-        }).filter((item): item is { element: HTMLElement; node: NodeObject } => item !== null);
-    }, [selected, doms, collection]);
+    const { state: { selected, collection } } = useNodesReducer();
+    const selectedNodes = useMemo(() => {
+        return Array.from(selected).map((id) =>
+            collection.get(id)
+        ).filter((node): node is NodeModel => Boolean(node && node.dom));
+    }, [selected, collection]);
 
+    // console.log("Selected Nodes:", selectedNodes.map(node => ({ id: node.id, name: node.name })));
     return (
         <Fragment>
-            {pairs.map(({ element, node }) => (
-                <Indicator key={node.id} element={element} node={node} />
+            {selectedNodes.map((node) => (
+                <Indicator key={node.id} node={node} />
             ))}
         </Fragment>
     );

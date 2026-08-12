@@ -5,12 +5,12 @@ import { styled, ThemeProvider, createTheme } from "@mui/material/styles";
 import { Fragment, useEffect, useMemo, useState, useRef } from "react";
 import { useStudio } from "@/contexts/StudioProvider";
 import { CacheProvider } from "@emotion/react";
-import { CssBaseline, Box } from "@mui/material";
+import { CssBaseline } from "@mui/material";
 import DropIndicator from "./DropIndicator";
 import createCache from "@emotion/cache";
 import { createPortal } from "react-dom";
 import { RootNode } from "@/libs/node";
-import { Block, NodeObject } from "@/types";
+import { Block, NodeObject, NodeModel } from "@/types";
 import { debounce } from "lodash";
 import SpotsContainer from "./SpotsContainer";
 import { useGlobalKeyListener } from '@/contexts/GlobalKeyListenerProvider';
@@ -109,8 +109,8 @@ type ComputeDropTargetResult = {
     position: "before" | "after";
     isHorizontal: boolean;
 }
-const computeDropTarget = (rawTarget: HTMLElement, event: DragEvent, excludeElement?: HTMLElement): ComputeDropTargetResult | null => {
 
+const computeDropTarget = (rawTarget: HTMLElement, event: DragEvent, excludeElement?: HTMLElement): ComputeDropTargetResult | null => {
     let targetNode = rawTarget;
     let targetGeo = getGeometry(targetNode);
     let isHorizontal = checkIsHorizontal(targetNode);
@@ -188,7 +188,6 @@ const computeDropTarget = (rawTarget: HTMLElement, event: DragEvent, excludeElem
     };
 };
 
-
 const Iframe = styled("iframe")({
     width: "100%",
     height: "100%",
@@ -196,10 +195,9 @@ const Iframe = styled("iframe")({
     overflow: "hidden",
     borderRadius: "8px",
     backgroundColor: "white",
-    pointerEvents: "all", // Prevents interaction with the iframe content
+    pointerEvents: "all",
 });
 
-// MUI ThemeProvider expects a compiled theme object via createTheme()
 const theme = createTheme({
     cssVariables: {
         colorSchemeSelector: 'color-scheme',
@@ -218,49 +216,50 @@ const theme = createTheme({
     }
 });
 
-
 type DropTarget = {
     target: HTMLElement;
     position: "before" | "after";
     direction: "horizontal" | "vertical";
 }
+
 type EditorCanvasProps = {
     nodes: NodeObject[];
 };
 
 export default function EditorCanvas({ nodes }: EditorCanvasProps) {
-
-    const { registerClient } = useGlobalKeyListener(); // Ensure the global key listener is initialized
+    const { registerClient } = useGlobalKeyListener();
     const { state, dispatch } = useStudio();
+    
     const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null);
-    const [isReady, setIsReady] = useState(false); // Track iframe load state
-    const [dropTarget, setDropTarget] = useState<DropTarget | null>(null); // Track the current drop target
-    const domsRef = useRef<Map<string, HTMLElement>>(new Map()); // Store DOM elements for each node
-    const arrayNodeRef = useRef<NodeObject[]>([]); // Store the array of nodes for comparison
-    const dropTargetRef = useRef<DropTarget | null>(null); // Store the current drop target for comparison
+    const [isReady, setIsReady] = useState(false);
+    const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+    
+    const arrayNodeRef = useRef<NodeModel[]>([]);
+    const dropTargetRef = useRef<DropTarget | null>(null);
     const draggedBlockRef = useRef<Block | null>(null);
 
     const handleNodeMoving = (sourceNodeId: string, event: DragEvent) => {
         event.preventDefault();
-
-        const sourceElement = domsRef.current.get(sourceNodeId);
+        
+        // BUG FIX: Retrieve sourceElement correctly from the nodes array ref
+        const sourceNode = arrayNodeRef.current.find(n => n.id === sourceNodeId);
+        const sourceElement = sourceNode?.dom;
         const rawTarget = event.target as HTMLElement;
+        
         if (!rawTarget || !sourceElement) return;
-
         if (sourceElement.contains(rawTarget)) return;
 
         const resolved = computeDropTarget(rawTarget, event, sourceElement);
         if (!resolved) return;
 
         const { targetNode, position, isHorizontal } = resolved;
-
         const isNoop = position === "before"
             ? sourceElement.nextElementSibling === targetNode
             : targetNode.nextElementSibling === sourceElement;
 
         if (isNoop) return;
 
-        draggedBlockRef.current = null; // this drag is a node move, not a block insert
+        draggedBlockRef.current = null;
 
         setDropTarget((prev) => {
             if (prev && prev.target === targetNode && prev.position === position) return prev;
@@ -278,7 +277,6 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
         if (!resolved) return;
 
         const { targetNode, position, isHorizontal } = resolved;
-
         draggedBlockRef.current = block;
 
         setDropTarget((prev) => {
@@ -295,46 +293,31 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
     useEffect(() => {
         const iframeWindow = iframe?.contentWindow;
         if (!iframeWindow) return;
-        const unregister = registerClient(iframeWindow);
-        return unregister;
+        return registerClient(iframeWindow);
     }, [registerClient, iframe]);
 
-    // Keep dropTargetRef in sync for event handlers to access
     useEffect(() => {
         dropTargetRef.current = dropTarget;
     }, [dropTarget]);
 
-    // Keep domsRef synced for event listeners
-    useEffect(() => {
-        domsRef.current = state.nodes.doms;
-    }, [state.nodes.doms]);
-
-    // Keep a ref to the latest nodes array for event handlers to access
     useEffect(() => {
         arrayNodeRef.current = Array.from(state.nodes.collection.values());
     }, [state.nodes.collection]);
 
-    // Wait for the iframe's document to fully initialize
     useEffect(() => {
         if (!iframe) return;
-
         const handleLoad = () => {
             if (iframe.contentDocument?.head && iframe.contentDocument?.body) {
                 setIsReady(true);
             }
         };
-
         iframe.addEventListener("load", handleLoad);
-
-        // Check immediately in case it loaded before the event listener was attached
         if (iframe.contentDocument?.readyState === "complete") {
             handleLoad();
         }
-
         return () => iframe.removeEventListener("load", handleLoad);
     }, [iframe]);
 
-    // Prevent default navigation for anchor tags within the iframe
     useEffect(() => {
         if (!iframe || !isReady) return;
         const iframeWindow = iframe.contentWindow;
@@ -362,36 +345,32 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
                     width: rect.width,
                     height: rect.height,
                     scroll: { x: scrollLeft, y: scrollTop },
-                    edge: {
-                        top: rect.top,
-                        left: rect.left,
-                        bottom: rect.bottom,
-                        right: rect.right
-                    },
+                    edge: { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right },
                     iframe: iframe
                 }
             });
-        }
+        };
 
         const onMouseEnter = debounce((e: MouseEvent) => {
-            const domEntries = Array.from(domsRef.current.entries());
+            const arrayNode = arrayNodeRef.current;
             const target = e.target as HTMLElement;
-            let [targetId] = domEntries.find(([id, dom]) => dom === target) || [null, null];
-            if (!targetId) {
-                let current = target;
+            let targetNode = arrayNode.find((node) => node.dom === target);
+            
+            if (!targetNode) {
+                let current: HTMLElement | null = target;
                 if (current === iframeDocument?.body) {
-                    targetId = "root";
+                    targetNode = arrayNode.find((node) => node.id === "root") || undefined;
                 } else {
                     while (current && current !== iframeDocument?.body) {
-                        targetId = domEntries.find(([id, dom]) => dom === current)?.[0] || null;
-                        if (targetId) break;
-                        current = current.parentElement as HTMLElement;
-                    };
-                };
-            };
+                        targetNode = arrayNode.find((node) => node.dom === current);
+                        if (targetNode) break;
+                        current = current.parentElement as HTMLElement | null;
+                    }
+                }
+            }
 
-            if (targetId) {
-                dispatch({ type: "SET_HOVERED", payload: targetId });
+            if (targetNode) {
+                dispatch({ type: "SET_HOVERED", payload: targetNode.id });
             } else {
                 dispatch({ type: "CLEAR_HOVERED" });
             }
@@ -403,33 +382,27 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
 
         const onMouseDown = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
-            const domEntries = Array.from(domsRef.current.entries());
-            let targetId = domEntries.find(([id, dom]) => dom === target)?.[0] || null;
+            const arrayNode = arrayNodeRef.current;
+            let targetNode = arrayNode.find((node) => node.dom === target);
 
-            if (!targetId) {
-                let current = target;
+            if (!targetNode) {
+                let current: HTMLElement | null = target;
                 if (current === iframeDocument?.body) {
-                    targetId = "root";
+                    targetNode = arrayNode.find((node) => node.id === "root") || undefined;
                 } else {
                     while (current && current !== iframeDocument?.body) {
-                        targetId = domEntries.find(([id, dom]) => dom === current)?.[0] || null;
-                        if (targetId) break;
-                        current = current.parentElement as HTMLElement;
-                    };
-                };
-            };
+                        targetNode = arrayNode.find((node) => node.dom === current);
+                        if (targetNode) break;
+                        current = current.parentElement as HTMLElement | null;
+                    }
+                }
+            }
 
-            if (targetId) {
+            if (targetNode) {
                 if (e.shiftKey || e.ctrlKey || e.metaKey) {
-                    dispatch({
-                        type: "ADD_SELECTED",
-                        payload: targetId
-                    });
+                    dispatch({ type: "ADD_SELECTED", payload: targetNode.id });
                 } else {
-                    dispatch({
-                        type: "SET_SELECTED",
-                        payload: targetId
-                    });
+                    dispatch({ type: "SET_SELECTED", payload: targetNode.id });
                 }
             } else {
                 dispatch({ type: "CLEAR_SELECTED" });
@@ -438,7 +411,6 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
 
         const onDragOver = (e: DragEvent) => {
             e.preventDefault();
-
             const dataTransfer = e.dataTransfer;
             if (!dataTransfer) return;
 
@@ -463,7 +435,8 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
 
             if (draggedNodeId && dropTargetRef.current) {
                 const { target, position } = dropTargetRef.current;
-                const targetId = Array.from(domsRef.current.entries()).find(([id, dom]) => dom === target)?.[0];
+                const targetNode = arrayNodeRef.current.find((node) => node.dom === target);
+                const targetId = targetNode ? targetNode.id : null;
                 if (targetId) {
                     dispatch({
                         type: "MOVE_NODE",
@@ -472,7 +445,8 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
                 }
             } else if (draggedBlockData && dropTargetRef.current && draggedBlockRef.current) {
                 const { target, position } = dropTargetRef.current;
-                const targetId = Array.from(domsRef.current.entries()).find(([id, dom]) => dom === target)?.[0];
+                const targetNode = arrayNodeRef.current.find((node) => node.dom === target);
+                const targetId = targetNode ? targetNode.id : null;
                 if (targetId) {
                     dispatch({
                         type: "INSERT_BLOCK",
@@ -484,7 +458,6 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
                     });
                 }
             }
-
             handleClearDropTarget();
         };
 
@@ -494,17 +467,20 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
         };
 
         window.addEventListener("resize", updateViewport);
-        iframeWindow.addEventListener("scroll", updateViewport, true);
-        iframeWindow.addEventListener("resize", updateViewport, true);
-        iframeWindow.addEventListener("click", preventAnchorNavigation, true);
-        iframeWindow.addEventListener("mouseenter", onMouseEnter, true);
-        iframeWindow.addEventListener("mouseleave", onMouseLeave, true);
-        iframeWindow.addEventListener("mousedown", onMouseDown, true);
-        iframeWindow.addEventListener("dragover", onDragOver, true);
-        iframeWindow.addEventListener("dragleave", onDragLeave, true);
-        iframeWindow.addEventListener("drop", onDrop, true);
-        return () => {
-            window.removeEventListener("resize", updateViewport);
+        
+        const attachIframeListeners = () => {
+            iframeWindow.addEventListener("scroll", updateViewport, true);
+            iframeWindow.addEventListener("resize", updateViewport, true);
+            iframeWindow.addEventListener("click", preventAnchorNavigation, true);
+            iframeWindow.addEventListener("mouseenter", onMouseEnter, true);
+            iframeWindow.addEventListener("mouseleave", onMouseLeave, true);
+            iframeWindow.addEventListener("mousedown", onMouseDown, true);
+            iframeWindow.addEventListener("dragover", onDragOver, true);
+            iframeWindow.addEventListener("dragleave", onDragLeave, true);
+            iframeWindow.addEventListener("drop", onDrop, true);
+        };
+        
+        const detachIframeListeners = () => {
             iframeWindow.removeEventListener("scroll", updateViewport, true);
             iframeWindow.removeEventListener("resize", updateViewport, true);
             iframeWindow.removeEventListener("click", preventAnchorNavigation, true);
@@ -514,10 +490,19 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             iframeWindow.removeEventListener("dragover", onDragOver, true);
             iframeWindow.removeEventListener("dragleave", onDragLeave, true);
             iframeWindow.removeEventListener("drop", onDrop, true);
-        }
+        };
+
+        attachIframeListeners();
+
+        return () => {
+            window.removeEventListener("resize", updateViewport);
+            detachIframeListeners();
+            // ENHANCEMENT: Clear lodash debounces on unmount
+            onMouseEnter.cancel();
+            onMouseLeave.cancel();
+        };
     }, [iframe, dispatch, isReady]);
 
-    // Only create the Emotion cache once the iframe's <head> is definitely available
     const cache = useMemo(() => {
         if (!isReady || !iframe?.contentDocument?.head) return null;
         return createCache({
@@ -536,7 +521,6 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             payload: nodeMap
         });
     }, [nodes, dispatch]);
-
 
     return (
         <Fragment>

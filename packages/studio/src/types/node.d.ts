@@ -30,7 +30,7 @@ type SourceVariable = {
     };
 };
 
-export type Variable = StringVariable | NumberVariable | BooleanVariable | JSONVariable  | SourceVariable;
+export type Variable = StringVariable | NumberVariable | BooleanVariable | JSONVariable | SourceVariable;
 export type NodeObject = {
     id: string;
     type?: string;

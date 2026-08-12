@@ -1,7 +1,6 @@
 import { nanoid } from "nanoid";
 import { NodeState, NodeObject, Variable, BlockNodeObject, NodeActions, GenericAction } from "@/types";
-import { REGISTRY } from "./index";
-import { merge } from "lodash";
+import { NodeModel } from "./NodeModel";
 
 export const ROOT_NODE = {
     id: "root",
@@ -22,32 +21,22 @@ export const ROOT_NODE = {
 } as NodeObject;
 
 export const initialState: NodeState = {
-    collection: new Map<string, NodeObject>(),
+    collection: new Map<string, NodeModel>(),
     variables: new Map<string, Map<string, Variable>>(),
-    doms: new Map<string, HTMLElement>(),
     hovered: new Set<string>(),
     selected: new Set<string>()
 }
 
-const buildBlockContent = (content: BlockNodeObject, parentId: string, nodesMap = new Map<string, NodeObject>()) => {
+const buildBlockContent = (content: BlockNodeObject, parentId: string, nodesMap = new Map<string, NodeModel>()) => {
     const { children, ...rest } = content;
 
     // 1. Create the new node
-    const newNode: NodeObject = fallbackNodeValidType({
+    const newNode = new NodeModel({
         ...rest,
         id: nanoid(),
         parent: parentId,
     });
-
-    const typeModel = REGISTRY[newNode.type]?.model;
-    if (typeModel && typeModel.default.props && typeof newNode.props === "object" && newNode.props !== null) {
-        // @ts-ignore
-        newNode.props = merge({}, typeModel.default.props, newNode.props);
-    }
-
-    // 2. Add to flat Map store
     nodesMap.set(newNode.id, newNode);
-
     // 3. Process children recursively using the same Map accumulator
     if (Array.isArray(children) && children.length > 0) {
         children.forEach((childBlock) => {
@@ -58,43 +47,28 @@ const buildBlockContent = (content: BlockNodeObject, parentId: string, nodesMap 
     return { rootNode: newNode, nodesMap };
 };
 
-const getValidNodeType = (target: string | NodeObject): string => {
-    if (typeof target !== "string" && target !== null) {
-        const targetType = target.type;
-        // If the type is explicitly defined and exists in the registry, return it
-        if (targetType in REGISTRY) {
-            return targetType;
-        }
-        // Find matching registry type using model.isInstance
-        const match = Object.values(REGISTRY).find(
-            (item) => item.model.isInstance?.(target)
-        );
-        return match ? match.model.name : "Element";
-    }
-
-    // @ts-ignore
-    return target in REGISTRY ? String(target) : "Element";
-};
-
-const fallbackNodeValidType = (node: NodeObject): NodeObject => ({
-    ...node,
-    type: getValidNodeType(node),
-});
-
-// ==========================================
-// 3. NODE REDUCER
-// ==========================================
-
 export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>): NodeState => {
     switch (action.type) {
+        case "SET_NODES": {
+
+            const newNodes = new Map<string, NodeModel>();
+            newNodes.set(ROOT_NODE.id, new NodeModel(ROOT_NODE));
+
+            for (const [id, node] of action.payload.entries()) {
+                if (id !== ROOT_NODE.id && !node.parent) {
+                    newNodes.set(id, new NodeModel({ ...node, parent: ROOT_NODE.id }));
+                } else {
+                    newNodes.set(id, new NodeModel(node));
+                }
+            }
+
+            return { ...state, collection: newNodes };
+        }
 
         // --- NODE MANAGEMENT ---
         case "ADD_NODE": {
             const newNodes = new Map(state.collection);
-            newNodes.set(action.payload.id, {
-                ...action.payload,
-                type: getValidNodeType(action.payload)
-            });
+            newNodes.set(action.payload.id, new NodeModel(action.payload));
             return { ...state, collection: newNodes }
         }
 
@@ -136,10 +110,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
             // 8. Reassign sequential order numbers (0, 1, 2, 3...)
             targetSiblings.forEach((node, index) => {
-                newNodes.set(node.id, {
-                    ...node,
-                    order: index,
-                });
+                const updatedNode = new NodeModel(node);
+                updatedNode.order = index;
+                newNodes.set(node.id, updatedNode);
             });
 
             return {
@@ -154,8 +127,8 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             const { sourceId, targetId, position } = action.payload;
 
             // 1. Get references
-            const sourceNode = state.collection.get(sourceId);
-            const targetNode = state.collection.get(targetId);
+            const sourceNode = state.collection.get(sourceId) ? new NodeModel(state.collection.get(sourceId)!) : null;
+            const targetNode = state.collection.get(targetId) ? new NodeModel(state.collection.get(targetId)!) : null;
 
             if (!sourceNode || !targetNode) {
                 console.warn(`Source or target node not found for MOVE_NODE action.`);
@@ -179,20 +152,16 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
 
             // 5. Update the source node's parent (order is handled below)
-            const updatedSourceNode = {
-                ...sourceNode,
-                parent: targetParentId
-            };
+            sourceNode.parent = targetParentId;
 
             // 6. Insert the source node into the siblings array at the calculated index
-            targetSiblings.splice(insertIndex, 0, updatedSourceNode);
+            targetSiblings.splice(insertIndex, 0, sourceNode);
 
             // 7. Iterate through the modified array and reassign sequential `order` numbers (0, 1, 2, 3...)
             targetSiblings.forEach((node, index) => {
-                newNodes.set(node.id, {
-                    ...node,
-                    order: index
-                });
+                const updatedNode = new NodeModel(node);
+                updatedNode.order = index;
+                newNodes.set(node.id, updatedNode);
             });
 
             // 8. (Optional but recommended) If the node was moved to a DIFFERENT parent, 
@@ -203,10 +172,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
                     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
                 oldSiblings.forEach((node, index) => {
-                    newNodes.set(node.id, {
-                        ...node,
-                        order: index
-                    });
+                    const updatedNode = new NodeModel(node);
+                    updatedNode.order = index;
+                    newNodes.set(node.id, updatedNode);
                 });
             }
 
@@ -218,35 +186,51 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "UPDATE_NODE": {
-            const node = state.collection.get(action.payload.id)
+            const node = state.collection.get(action.payload.id) ? new NodeModel(state.collection.get(action.payload.id)!) : null;
             if (!node) return state
 
-            const newNodes = new Map(state.collection)
-            const newNode = {
-                ...node,
-                ...action.payload,
-                id: node.id, // Ensure ID remains unchanged 
-                props: {
+            const newNodes = new Map(state.collection);
+
+            if ("name" in action.payload && action.payload.name !== undefined) {
+                node.name = action.payload.name;
+            }
+            if ("props" in action.payload && action.payload.props !== undefined) {
+                node.props = {
                     ...node.props,
                     ...action.payload.props
-                }
-            };
-            newNodes.set(action.payload.id, fallbackNodeValidType(newNode));
+                };
+            }
+            if ("content" in action.payload && action.payload.content !== undefined) {
+                node.content = action.payload.content;
+            }
+            if ("tagName" in action.payload && action.payload.tagName !== undefined) {
+                node.tagName = action.payload.tagName;
+            }
+            if ("parent" in action.payload && action.payload.parent !== undefined) {
+                node.parent = action.payload.parent;
+            }
+            if ("order" in action.payload && action.payload.order !== undefined) {
+                node.order = action.payload.order;
+            }
+            if ("visible" in action.payload && action.payload.visible !== undefined) {
+                node.visible = action.payload.visible;
+            }
+
+            newNodes.set(action.payload.id, node);
+
             return { ...state, collection: newNodes }
         }
 
         case "UPDATE_NODE_PROPS": {
-            const node = state.collection.get(action.payload.id);
-            if (!node) return state;
+            const updateNode = state.collection.get(action.payload.id) ? new NodeModel(state.collection.get(action.payload.id)!) : null;
+            if (!updateNode) return state;
 
             const newNodes = new Map(state.collection);
-            newNodes.set(action.payload.id, {
-                ...node,
-                props: {
-                    ...node.props,
-                    ...action.payload.props
-                }
-            });
+            updateNode.props = {
+                ...updateNode.props,
+                ...action.payload.props
+            };
+            newNodes.set(action.payload.id, updateNode);
             return { ...state, collection: newNodes };
         }
 
@@ -289,25 +273,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             }
         }
 
-        case "SET_NODES": {
-            const sourceNodes = new Map(action.payload);
-            const newNodes = new Map();
-            newNodes.set(ROOT_NODE.id, ROOT_NODE);
 
-            // 3. Make all other parentless nodes children of the Root
-            for (const [id, node] of sourceNodes.entries()) {
-                if (id !== ROOT_NODE.id && !node.parent) {
-                    newNodes.set(id, fallbackNodeValidType({
-                        ...node,
-                        parent: ROOT_NODE.id
-                    }));
-                } else {
-                    newNodes.set(id, fallbackNodeValidType(node));
-                }
-            }
-
-            return { ...state, collection: newNodes };
-        }
 
         case "ADD_VARIABLE": {
             const { nodeId, variable } = action.payload;
@@ -350,17 +316,32 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "SET_DOM": {
-            const newDoms = new Map(state.doms);
-            newDoms.set(action.payload.id, action.payload.dom);
-            return { ...state, doms: newDoms };
+            const node = state.collection.get(action.payload.id) ? new NodeModel(state.collection.get(action.payload.id)!) : null;
+            if (!node) return state;
+
+            const newNodes = new Map(state.collection);
+            node.dom = action.payload.dom;
+            newNodes.set(action.payload.id, node);
+
+            return {
+                ...state,
+                collection: newNodes
+            }
         }
 
         case "REMOVE_DOM": {
-            const newDoms = new Map(state.doms);
-            newDoms.delete(action.payload);
-            return { ...state, doms: newDoms };
-        }
+            const node = state.collection.get(action.payload) ? new NodeModel(state.collection.get(action.payload)!) : null;
+            if (!node) return state;
 
+            const newNodes = new Map(state.collection);
+            node.dom = null;
+            newNodes.set(action.payload, node);
+
+            return {
+                ...state,
+                collection: newNodes
+            }
+        }
         // --- INTERACTION STATES ---
         case "ADD_HOVERED":
             return { ...state, hovered: new Set(state.hovered).add(action.payload) }

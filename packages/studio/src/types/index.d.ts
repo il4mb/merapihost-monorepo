@@ -4,3 +4,4 @@ export type * from "./asset";
 export type * from "./reducer";
 export type * from "./page";
 export type * from "./tools";
+export type { NodeModel } from "@/libs/node/NodeModel";

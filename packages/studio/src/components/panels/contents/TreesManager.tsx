@@ -44,7 +44,7 @@ const ToggleIcon = styled(motion.div)({
 });
 
 type TreeProps = {
-    node: NodeObject
+    node: NodeModel;
     defaultOpen?: boolean
     depth?: number
     color?: string
@@ -55,21 +55,19 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
 
     const ignoreInteractionRef = useRef(false);
     const { state, dispatch } = useNodesReducer();
-    const model = useMemo(() => new NodeModel(node), [node]);
 
     const [collapsed, setCollapsed] = useState(!defaultOpen);
     const isSelected = state.selected.has(node.id);
     const isHovered = state.hovered.has(node.id);
 
-    const color = extendedColor || model.type?.color;
-    const childrenColor = extendedColor || model.type?.childrenColor;
+    const color = extendedColor || node.type?.color;
+    const childrenColor = extendedColor || node.type?.childrenColor;
     const parentVisible = isNodeVisible ?? true;
     const isVisible = parentVisible && (node.visible ?? true);
 
     const childNodes = useMemo(() => {
         return Array.from(state.collection.values()).filter(n => {
-            const type = n.type ? REGISTRY[n.type] : undefined;
-            if (type?.model?.visibleOnTree === false) {
+            if (n.type?.model?.visibleOnTree === false) {
                 return false;
             }
             return n.parent === node.id;
@@ -104,7 +102,7 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
             } else {
                 dispatch({ type: "SET_SELECTED", payload: node.id })
             }
-            const dom = state.doms.get(node.id);
+            const dom = node.dom;
             const win = dom?.ownerDocument?.defaultView;
 
             if (dom && win) {
@@ -125,17 +123,17 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
                 })
             }
         }
-    }, [node, state.selected, state.doms, dispatch, node.id]);
+    }, [node, state.selected, dispatch, node.id]);
 
     const setName = useCallback((newName: string) => {
         dispatch({ type: "UPDATE_NODE", payload: { id: node.id, name: newName } });
     }, [node.id, dispatch]);
 
     const onFinishNameChange = useCallback((finalName: string) => {
-        const processedName = finalName || model.type.getDefaultName(model);
+        const processedName = finalName || node.type.getDefaultName(node);
         dispatch({ type: "UPDATE_NODE", payload: { id: node.id, name: processedName } });
         ignoreInteractionRef.current = false;
-    }, [node.id, dispatch, model.type]);
+    }, [node.id, dispatch, node.type]);
 
     const onStartNameEditing = useCallback(() => {
         ignoreInteractionRef.current = true;
@@ -154,11 +152,11 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
         dispatch({ type: "UPDATE_NODE", payload: { id: node.id, visible: !isVisible } });
     }, [node.id, dispatch, isVisible]);
 
-    if (model.type?.visibleOnTree === false) {
+    if (node.type?.visibleOnTree === false) {
         return null;
     }
 
-    const IconComponent = model.type?.icon || CircleQuestionMark;
+    const IconComponent = node.type?.icon || CircleQuestionMark;
 
     return (
         <TreeContainer>
@@ -219,7 +217,7 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
                 </Box>
                 <LabelField
                     sx={{ color: color || "inherit" }}
-                    value={model.name}
+                    value={node.name}
                     onChange={setName}
                     onFinish={onFinishNameChange}
                     onStartEditing={onStartNameEditing} />

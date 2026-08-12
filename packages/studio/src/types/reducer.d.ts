@@ -1,3 +1,4 @@
+import { NodeModel } from "@/libs/node/NodeModel";
 import type { NodeObject, NodeVariable, AssetObject, PageObject, Block, Edge, Coordinates } from "./index";
 
 // 2. Fixed DeepPartial to prevent infinite recursion on complex objects
@@ -21,8 +22,7 @@ export type Viewport = {
 
 
 export interface NodeState {
-    collection: Map<string, NodeObject>;
-    doms: Map<string, HTMLElement>;
+    collection: Map<string, NodeModel>;
     variables: Map<string, Map<string, NodeVariable>>;
     hovered: Set<string>;
     selected: Set<string>;

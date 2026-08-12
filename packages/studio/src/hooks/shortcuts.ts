@@ -1,10 +1,10 @@
 import type { ShortcutHandler } from "@/types";
 import { useMemo, useRef, useEffect } from "react";
-import { useStudio } from "@/contexts/StudioProvider";
+import { useNodesReducer } from "@/contexts/StudioProvider";
 
 export const useMainShortcutListener = () => {
 
-    const { state, dispatch } = useStudio();
+    const { state, dispatch } = useNodesReducer();
     const selectedRef = useRef(state.selected);
 
     useEffect(() => {
@@ -46,7 +46,6 @@ export const useMainShortcutListener = () => {
             payload: payload as any
         });
     }
-
 
     return useMemo<ShortcutHandler[]>(() => [
         {

@@ -1,11 +1,10 @@
 "use client";
 import { useMemo, useEffect, useState } from "react";
-import { NodeObject } from "@/types";
-import { useNodesReducer, useStudio } from "@/contexts/StudioProvider";
-import { REGISTRY } from "./index";
+import { useNodesReducer } from "@/contexts/StudioProvider";
+import { NodeModel } from "./NodeModel";
 
 type NodeRenderProps = {
-    node: NodeObject;
+    node: NodeModel;
 }
 
 export default function NodeRender({ node }: NodeRenderProps) {
@@ -13,17 +12,7 @@ export default function NodeRender({ node }: NodeRenderProps) {
     const { state, dispatch } = useNodesReducer();
     const [dom, setDom] = useState<HTMLElement | null>(null);
 
-    const Component = useMemo(() => {
-        if (!node.type) return null;
-        return REGISTRY[node.type] || null;
-    }, [node.type]);
-
-    const typeModel = useMemo(() => {
-        if ("model" in Component && Component.model) {
-            return Component.model;
-        }
-        return null;
-    }, [Component]);
+    const Component = useMemo(() => node.type.render, [node.type]);
 
     const childrenNode = useMemo(() => {
         const id = node.id;
@@ -43,8 +32,8 @@ export default function NodeRender({ node }: NodeRenderProps) {
     }, [dom, node.id, dispatch]);
 
     useEffect(() => {
-        if (!dom || !typeModel) return;
-        const isDraggable = typeof typeModel.draggable === "function" ? typeModel.draggable(node) : typeModel.draggable;
+        if (!dom || !node.type) return;
+        const isDraggable = typeof node.type.draggable === "function" ? node.type.draggable(node) : node.type.draggable;
         const handleDragStart = (e: DragEvent) => {
             e.stopPropagation();
             e.dataTransfer?.setData("studio/node", node.id);
@@ -65,12 +54,12 @@ export default function NodeRender({ node }: NodeRenderProps) {
             dom.removeEventListener("dragstart", handleDragStart);
             dom.removeEventListener("dragend", handleDragEnd);
         }
-    }, [dom, typeModel, node]);
+    }, [dom, node.type, node]);
 
     if (node.visible === false) return null;
 
     // if "Root", render its children directly without any wrapper
-    if (node.type === "Root") {
+    if (node.type.name === "Root") {
         return children;
     }
 
@@ -85,7 +74,7 @@ export default function NodeRender({ node }: NodeRenderProps) {
 
     return (
         <div style={{ border: "1px solid red", padding: "8px", color: "red" }} ref={setDom}>
-            Unknown type: {node.type || "undefined"} (id: {node.id})
+            Unknown type: {node.type.name} (id: {node.id})
         </div>
     );
 }

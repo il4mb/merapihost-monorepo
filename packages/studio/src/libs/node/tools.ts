@@ -3,7 +3,7 @@ import { FC, RefObject } from "react";
 import { NodeModel } from "./NodeModel";
 
 type FCProps = {
-    node: NodeObject;
+    node: NodeModel;
     children: React.ReactNode;
     ref: RefObject<HTMLElement | null>;
 }
