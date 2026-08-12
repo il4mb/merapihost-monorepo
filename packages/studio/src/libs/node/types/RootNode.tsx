@@ -17,6 +17,9 @@ export const RootNode = createType<RootProps>(({ dom }) => {
         const body = dom.contentDocument?.body;
         if (!body) return;
         dispatch({ type: "SET_DOM", payload: { id: "root", dom: body } });
+        dom.style.height = "100%";
+        dom.style.width = "100%";
+        dom.style.minHeight = "100vh";
         return () => {
             dispatch({ type: "REMOVE_DOM", payload: "root" });
         }

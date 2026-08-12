@@ -28,12 +28,9 @@ export default function BlocksManager() {
             grouped[category].push(block);
         });
         setExpanded(prev => {
-            const firstCategory = Object.keys(grouped)[0];
-            const newExpanded = { ...prev };
+            const newExpanded: Record<string, boolean> = {};
             Object.keys(grouped).forEach(category => {
-                if (!(category in newExpanded)) {
-                    newExpanded[category] = category === firstCategory;
-                }
+                newExpanded[category] = prev[category] ?? true;
             });
             return newExpanded;
         });

@@ -1,4 +1,4 @@
-import type { TypeComponent, TypeModel } from "@/types";
+import type { NodeModel, TypeComponent, TypeModel } from "@/types";
 import { NodeContext } from "./NodeModel";
 import { REGISTRY } from ".";
 
@@ -17,7 +17,7 @@ export class ModelProxy {
     }
 
     get name() {
-        return this.model?.name || this.extends?.name || "Unknown";
+        return String(this.model?.name);
     }
 
     get extends() {
@@ -48,16 +48,46 @@ export class ModelProxy {
         return this.model?.droppable ?? this.extends?.droppable ?? true;
     }
 
-    get accepts() {
-        return this.model?.accepts ?? this.extends?.accepts ?? true;
-    }
-
     get visibleOnTree() {
         return this.model?.visibleOnTree ?? this.extends?.visibleOnTree ?? true;
     }
 
     get render() {
         return this.type; // Return the component itself for rendering
+    }
+
+    /**
+     * Determines if the current model can be dropped onto the target model.
+     * @param target The target NodeModel to check against.
+     * @returns A boolean indicating if the current model can be dropped onto the target model.
+     */
+    isDroppable(target: NodeModel) {
+        if (!target || !target.type) return false;
+        const droppable = this.model?.droppable ?? this.extends?.model?.droppable ?? true;
+        if (typeof droppable === "function") {
+            return droppable(target.node);
+        }
+        if (Array.isArray(droppable)) {
+            return droppable.includes(target?.type?.name);
+        }
+        return Boolean(droppable);
+    }
+
+    /**
+     * Determines if the current model can accept the source model as a child.
+     * @param source The source NodeModel to check against.
+     * @returns A boolean indicating if the current model can accept the source model as a child.
+     */
+    isAccepted(source: NodeModel) {
+        if (!source || !source.type) return false;
+        const accepts = this.model?.accepts ?? this.extends?.model?.accepts ?? true;
+        if (typeof accepts === "function") {
+            return accepts(source.node);
+        }
+        if (Array.isArray(accepts)) {
+            return accepts.includes(source.type.name);
+        }
+        return Boolean(accepts);
     }
 
     getDefaultName(nm: NodeContext) {
@@ -68,6 +98,16 @@ export class ModelProxy {
             return this.model.default.name(nm);
         }
         return this.model.name || this.extends?.getDefaultName(nm) || "Unknown";
+    }
+
+    getDefaultTagName(nm: NodeContext) {
+        if (typeof this.model?.default?.tagName === "string") {
+            return this.model.default.tagName;
+        }
+        if (typeof this.model?.default?.tagName === "function") {
+            return this.model.default.tagName(nm);
+        }
+        return this.extends?.getDefaultTagName(nm) || "div";
     }
 
     getDefaultEvents(nm: NodeContext) {

@@ -1,7 +1,8 @@
-import type { NodeObject } from "@/types";
+import type { NodeObject, Block, BlockNodeObject } from "@/types";
 import { ElementNode, REGISTRY } from ".";
 import { ModelProxy } from "./ModelProxy";
 import { merge } from "lodash";
+import { nanoid } from "nanoid";
 
 export interface NodeContext {
     node: NodeObject | null;
@@ -36,7 +37,7 @@ export class NodeModel implements NodeContext {
             // existing NodeModel
             this.node = node.node;
             this.type = node.type;
-            this.dom = node.dom;
+            this._dom = node.dom;
         } else {
             // new NodeModel
             this.node = node;
@@ -73,20 +74,20 @@ export class NodeModel implements NodeContext {
         return this.node?.props || {};
     }
     set props(value: Record<string, any>) {
-        this.node.props = value;
+        this.node.props = { ...value };
     }
 
 
     get content() {
         return this.node?.content || undefined;
     }
-    set content(value: string) {
+    set content(value: string | undefined | null) {
         this.node.content = value;
     }
 
 
     get tagName() {
-        return this.node?.tagName || "div";
+        return this.node?.tagName || this.type.getDefaultTagName(this);
     }
     set tagName(value: string) {
         this.node.tagName = value;
@@ -114,5 +115,56 @@ export class NodeModel implements NodeContext {
     }
     set visible(value: boolean) {
         this.node.visible = value;
+    }
+
+
+    // Overloads
+    static build(
+        content: BlockNodeObject,
+        parentId?: string | null
+    ): NodeModel;
+    static build(
+        content: BlockNodeObject,
+        parentId: string | null,
+        map: Map<string, NodeModel>
+    ): { root: NodeModel; collection: Map<string, NodeModel> };
+
+    // Implementation
+    static build(
+        content: BlockNodeObject,
+        parentId: string | null = null,
+        map?: Map<string, NodeModel>
+    ): NodeModel | { root: NodeModel; collection: Map<string, NodeModel> } {
+        const { children, ...rest } = content;
+
+        // 1. Create the new node
+        const node = new NodeModel({
+            ...rest,
+            id: nanoid(),
+            parent: parentId,
+        });
+
+        // 2. If map is provided, process children recursively
+        if (map) {
+            map.set(node.id, node);
+
+            if (Array.isArray(children) && children.length > 0) {
+                children.forEach((childBlock, index) => {
+                    // Because 'map' is passed, TypeScript knows this returns { root, collection }
+                    const result = NodeModel.build(childBlock, node.id, map);
+
+                    // Maintain sequence order for descendants
+                    result.root.order = index;
+                });
+            }
+
+            return {
+                root: node,
+                collection: map
+            };
+        }
+
+        // 3. If no map is provided, ignore children and return the single node
+        return node;
     }
 }

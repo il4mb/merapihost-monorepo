@@ -59,12 +59,12 @@ export type NodeActions = {
     INSERT_BLOCK: {
         block: Block;
         targetId: string;
-        position: "before" | "after";
+        position: "before" | "after" | "inside";
     };
     MOVE_NODE: {
         sourceId: string;
         targetId: string;
-        position: "before" | "after";
+        position: "before" | "after" | "inside";
     };
     UPDATE_NODE: {
         id: string

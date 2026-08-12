@@ -9,8 +9,8 @@ import { CssBaseline } from "@mui/material";
 import DropIndicator from "./DropIndicator";
 import createCache from "@emotion/cache";
 import { createPortal } from "react-dom";
-import { RootNode } from "@/libs/node";
-import { Block, NodeObject, NodeModel } from "@/types";
+import { RootNode, NodeModel } from "@/libs/node";
+import { Block, NodeObject } from "@/types";
 import { debounce } from "lodash";
 import SpotsContainer from "./SpotsContainer";
 import { useGlobalKeyListener } from '@/contexts/GlobalKeyListenerProvider';
@@ -105,8 +105,8 @@ const checkContainerIsHorizontal = (container: HTMLElement, children: HTMLElemen
 };
 
 type ComputeDropTargetResult = {
-    targetNode: HTMLElement;
-    position: "before" | "after";
+    targetEl: HTMLElement;
+    position: "before" | "after" | "inside";
     isHorizontal: boolean;
 }
 
@@ -117,11 +117,17 @@ const computeDropTarget = (rawTarget: HTMLElement, event: DragEvent, excludeElem
 
     let insertPosition: "before" | "after" | "inside";
     const isVoidElement = /^(IMG|INPUT|BR|HR|AREA|BASE|COL|EMBED|PARAM|SOURCE|TRACK|WBR)$/i.test(targetNode.tagName);
+    const validChildren = Array.from(targetNode.children).filter(
+        (child) => child !== excludeElement
+    ) as HTMLElement[];
 
     if (isVoidElement) {
         insertPosition = isHorizontal
             ? (event.clientX < targetGeo.midX ? "before" : "after")
             : (event.clientY < targetGeo.midY ? "before" : "after");
+    } else if (validChildren.length === 0) {
+        // Force 'inside' for empty divs/containers
+        insertPosition = "inside";
     } else {
         const edgeThreshold = 0.25;
         const maxEdgePx = 24;
@@ -139,51 +145,40 @@ const computeDropTarget = (rawTarget: HTMLElement, event: DragEvent, excludeElem
         }
     }
 
-    if (insertPosition === "inside") {
-        const validChildren = Array.from(targetNode.children).filter(
-            (child) => child !== excludeElement
-        ) as HTMLElement[];
+    if (insertPosition === "inside" && validChildren.length > 0) {
+        const childrenGeometries = validChildren.map((child) => getGeometry(child));
+        const isContainerHorizontal = checkContainerIsHorizontal(targetNode, validChildren);
 
-        if (validChildren.length > 0) {
-            const childrenGeometries = validChildren.map((child) => getGeometry(child));
-            const isContainerHorizontal = checkContainerIsHorizontal(targetNode, validChildren);
+        let closestChildGeo: typeof childrenGeometries[0] | null = null;
+        let minDistance = Infinity;
 
-            let closestChildGeo: typeof childrenGeometries[0] | null = null;
-            let minDistance = Infinity;
-
-            for (const childGeo of childrenGeometries) {
-                const distance = Math.hypot(event.clientX - childGeo.midX, event.clientY - childGeo.midY);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestChildGeo = childGeo;
-                }
+        for (const childGeo of childrenGeometries) {
+            const distance = Math.hypot(event.clientX - childGeo.midX, event.clientY - childGeo.midY);
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestChildGeo = childGeo;
             }
+        }
 
-            if (closestChildGeo) {
-                targetNode = closestChildGeo.element;
-                targetGeo = closestChildGeo;
-                isHorizontal = isContainerHorizontal;
-                insertPosition = isContainerHorizontal
-                    ? (event.clientX < targetGeo.midX ? "before" : "after")
-                    : (event.clientY < targetGeo.midY ? "before" : "after");
-            }
-        } else {
-            const containerStyle = window.getComputedStyle(targetNode);
-            const isContainerHorizontal =
-                (containerStyle.display === "flex" && containerStyle.flexDirection.includes("row")) ||
-                containerStyle.display.includes("inline") ||
-                containerStyle.gridAutoFlow === "column";
-
+        if (closestChildGeo) {
+            targetNode = closestChildGeo.element;
+            targetGeo = closestChildGeo;
             isHorizontal = isContainerHorizontal;
             insertPosition = isContainerHorizontal
                 ? (event.clientX < targetGeo.midX ? "before" : "after")
                 : (event.clientY < targetGeo.midY ? "before" : "after");
         }
+    } else if (insertPosition === "inside" && validChildren.length === 0) {
+        const containerStyle = window.getComputedStyle(targetNode);
+        isHorizontal = (containerStyle.display === "flex" && containerStyle.flexDirection.includes("row")) ||
+            containerStyle.display.includes("inline") ||
+            containerStyle.gridAutoFlow === "column";
+        // Do not mutate insertPosition here; it stays "inside"
     }
 
     return {
-        targetNode,
-        position: insertPosition as "before" | "after",
+        targetEl: targetNode,
+        position: insertPosition as "before" | "after" | "inside",
         isHorizontal,
     };
 };
@@ -218,7 +213,7 @@ const theme = createTheme({
 
 type DropTarget = {
     target: HTMLElement;
-    position: "before" | "after";
+    position: "before" | "after" | "inside";
     direction: "horizontal" | "vertical";
 }
 
@@ -229,65 +224,191 @@ type EditorCanvasProps = {
 export default function EditorCanvas({ nodes }: EditorCanvasProps) {
     const { registerClient } = useGlobalKeyListener();
     const { state, dispatch } = useStudio();
-    
+
     const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null);
     const [isReady, setIsReady] = useState(false);
     const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
-    
+
     const arrayNodeRef = useRef<NodeModel[]>([]);
     const dropTargetRef = useRef<DropTarget | null>(null);
     const draggedBlockRef = useRef<Block | null>(null);
+    const draggedBlockNodeRef = useRef<NodeModel | null>(null);
 
     const handleNodeMoving = (sourceNodeId: string, event: DragEvent) => {
         event.preventDefault();
-        
-        // BUG FIX: Retrieve sourceElement correctly from the nodes array ref
+
         const sourceNode = arrayNodeRef.current.find(n => n.id === sourceNodeId);
         const sourceElement = sourceNode?.dom;
         const rawTarget = event.target as HTMLElement;
-        
+
         if (!rawTarget || !sourceElement) return;
         if (sourceElement.contains(rawTarget)) return;
 
         const resolved = computeDropTarget(rawTarget, event, sourceElement);
         if (!resolved) return;
 
-        const { targetNode, position, isHorizontal } = resolved;
-        const isNoop = position === "before"
-            ? sourceElement.nextElementSibling === targetNode
-            : targetNode.nextElementSibling === sourceElement;
+        const { targetEl: initialTargetEl, position: initialPosition, isHorizontal } = resolved;
+
+        let currentEl: HTMLElement | null = initialTargetEl;
+        let currentPosition: "before" | "after" | "inside" = initialPosition;
+        let validDropTarget: { targetEl: HTMLElement; position: "before" | "after" | "inside" } | null = null;
+
+        // Bubble up through parent DOM/nodes until an accepting container is found
+        while (currentEl) {
+            const currentTargetNode = arrayNodeRef.current.find(n => n.dom === currentEl);
+
+            if (!currentTargetNode) {
+                currentEl = currentEl.parentElement;
+                continue;
+            }
+
+            // Prevent dropping a node onto itself or its descendants
+            if (sourceNodeId === currentTargetNode.id || sourceElement.contains(currentEl)) {
+                const parentNode = arrayNodeRef.current.find(n => n.id === currentTargetNode.parent);
+                currentEl = parentNode?.dom || currentEl.parentElement;
+                currentPosition = "after";
+                continue;
+            }
+
+            // Determine the target container node that will receive the dropped node
+            const containerNode = currentPosition === "inside"
+                ? currentTargetNode
+                : arrayNodeRef.current.find(n => n.id === currentTargetNode.parent);
+
+            // Check if the container accepts the source node and if the source node can be dropped onto the container
+            if (containerNode && containerNode.type.isAccepted(sourceNode) && sourceNode.type.isDroppable(containerNode)) {
+                validDropTarget = { targetEl: currentEl, position: currentPosition };
+                break; // Found a valid target!
+            }
+
+            // If rejected, attempt fallback strategies:
+            if (currentPosition === "inside") {
+                // 1. Fallback from 'inside' to 'before'/'after' relative to the current element
+                const rect = currentEl.getBoundingClientRect();
+                const mid = isHorizontal ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
+                const cursor = isHorizontal ? event.clientX : event.clientY;
+                currentPosition = cursor < mid ? "before" : "after";
+            } else {
+                // 2. Bubble up to the parent element itself
+                const parentNode = arrayNodeRef.current.find(n => n.id === currentTargetNode.parent);
+                if (!parentNode || !parentNode.dom) break;
+
+                currentEl = parentNode.dom;
+                const rect = currentEl.getBoundingClientRect();
+                const mid = isHorizontal ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
+                const cursor = isHorizontal ? event.clientX : event.clientY;
+                currentPosition = cursor < mid ? "before" : "after";
+            }
+        }
+
+        if (!validDropTarget) return;
+
+        const { targetEl, position } = validDropTarget;
+
+        // Check for no-op moves
+        let isNoop = false;
+        if (position === "before") {
+            isNoop = sourceElement.nextElementSibling === targetEl;
+        } else if (position === "after") {
+            isNoop = targetEl.nextElementSibling === sourceElement;
+        }
 
         if (isNoop) return;
 
         draggedBlockRef.current = null;
 
         setDropTarget((prev) => {
-            if (prev && prev.target === targetNode && prev.position === position) return prev;
-            return { target: targetNode, position, direction: isHorizontal ? "horizontal" : "vertical" };
+            if (prev && prev.target === targetEl && prev.position === position) return prev;
+            return { target: targetEl, position, direction: isHorizontal ? "horizontal" : "vertical" };
         });
     };
 
     const handleBlockMoving = (block: Block, event: DragEvent) => {
         event.preventDefault();
 
+        // 1. Cache blockNode during dragging to prevent re-building on every frame/pixel move
+        if (!draggedBlockNodeRef.current || draggedBlockRef.current !== block) {
+            draggedBlockNodeRef.current = NodeModel.build(block.content, null);
+        }
+        const blockNode = draggedBlockNodeRef.current;
+
         const rawTarget = event.target as HTMLElement;
         if (!rawTarget) return;
+        const isIframeDoc = rawTarget.tagName === "HTML";
 
         const resolved = computeDropTarget(rawTarget, event);
         if (!resolved) return;
 
-        const { targetNode, position, isHorizontal } = resolved;
+        const { targetEl: initialTargetEl, position: initialPosition, isHorizontal } = resolved;
+
+        let currentEl: HTMLElement | null = initialTargetEl;
+        let currentPosition: "before" | "after" | "inside" = initialPosition;
+        let validDropTarget: { targetEl: HTMLElement; position: "before" | "after" | "inside" } | null = null;
+
+        // Bubble up through parent DOM/nodes until an accepting container is found
+        while (currentEl) {
+            const currentTargetNode = isIframeDoc ?
+                arrayNodeRef.current.find(n => n.id === "root") :
+                arrayNodeRef.current.find(n => n.dom === currentEl);
+
+            if (!currentTargetNode && !isIframeDoc) {
+                currentEl = currentEl.parentElement;
+                continue;
+            }
+
+            // Determine the target container node that will receive the dropped block
+            const containerNode = isIframeDoc
+                ? arrayNodeRef.current.find(n => n.id === "root")
+                : currentPosition === "inside"
+                    ? currentTargetNode
+                    : arrayNodeRef.current.find(n => n.id === currentTargetNode.parent);
+
+            // 2. Symmetric validation (both isAccepted and isDroppable checks)
+            const isAccepted = containerNode
+                && containerNode.type.isAccepted(blockNode)
+                && blockNode.type.isDroppable(containerNode);
+
+            if (isAccepted) {
+                validDropTarget = { targetEl: currentEl, position: currentPosition };
+                break; // Found a valid target!
+            }
+
+            // If rejected, attempt fallback strategies:
+            if (currentPosition === "inside") {
+                // Fallback from 'inside' to 'before'/'after' relative to the current element
+                const rect = currentEl.getBoundingClientRect();
+                const mid = isHorizontal ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
+                const cursor = isHorizontal ? event.clientX : event.clientY;
+                currentPosition = cursor < mid ? "before" : "after";
+            } else {
+                // Bubble up to the parent element itself
+                const parentNode = arrayNodeRef.current.find(n => n.id === currentTargetNode.parent);
+                if (!parentNode || !parentNode.dom) break;
+
+                currentEl = parentNode.dom;
+                const rect = currentEl.getBoundingClientRect();
+                const mid = isHorizontal ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
+                const cursor = isHorizontal ? event.clientX : event.clientY;
+                currentPosition = cursor < mid ? "before" : "after";
+            }
+        }
+
+        if (!validDropTarget) return;
+
+        const { targetEl, position } = validDropTarget;
+
         draggedBlockRef.current = block;
 
         setDropTarget((prev) => {
-            if (prev && prev.target === targetNode && prev.position === position) return prev;
-            return { target: targetNode, position, direction: isHorizontal ? "horizontal" : "vertical" };
+            if (prev && prev.target === targetEl && prev.position === position) return prev;
+            return { target: targetEl, position, direction: isHorizontal ? "horizontal" : "vertical" };
         });
     };
 
     const handleClearDropTarget = () => {
         setDropTarget(null);
         draggedBlockRef.current = null;
+        draggedBlockNodeRef.current = null;
     };
 
     useEffect(() => {
@@ -324,6 +445,8 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
         const iframeDocument = iframe.contentDocument;
         if (!iframeWindow || !iframeDocument) return;
 
+        iframeWindow.document.documentElement.style.minHeight = "100vh";
+
         const preventAnchorNavigation = (event: MouseEvent) => {
             const target = event.target as HTMLElement;
             if (!target) return;
@@ -355,7 +478,7 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             const arrayNode = arrayNodeRef.current;
             const target = e.target as HTMLElement;
             let targetNode = arrayNode.find((node) => node.dom === target);
-            
+
             if (!targetNode) {
                 let current: HTMLElement | null = target;
                 if (current === iframeDocument?.body) {
@@ -467,7 +590,7 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
         };
 
         window.addEventListener("resize", updateViewport);
-        
+
         const attachIframeListeners = () => {
             iframeWindow.addEventListener("scroll", updateViewport, true);
             iframeWindow.addEventListener("resize", updateViewport, true);
@@ -479,7 +602,7 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             iframeWindow.addEventListener("dragleave", onDragLeave, true);
             iframeWindow.addEventListener("drop", onDrop, true);
         };
-        
+
         const detachIframeListeners = () => {
             iframeWindow.removeEventListener("scroll", updateViewport, true);
             iframeWindow.removeEventListener("resize", updateViewport, true);
@@ -497,7 +620,6 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
         return () => {
             window.removeEventListener("resize", updateViewport);
             detachIframeListeners();
-            // ENHANCEMENT: Clear lodash debounces on unmount
             onMouseEnter.cancel();
             onMouseLeave.cancel();
         };

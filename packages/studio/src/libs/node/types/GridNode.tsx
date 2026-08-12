@@ -16,11 +16,12 @@ export const GridType = createType(({ node, children, ref }) => {
     isInstance(target) {
         return target.type === "Grid";
     },
-    draggable: true,
-    droppable: ["GridItem"],
+    draggable: true, // Grid can be dragged
+    droppable: true, // Grid can drop to any
+    accepts: ["GridItem"], // Grid can only accept GridItem as children
     default: {
-        name() {
-            return this.node.tagName || "Grid";
+        name(ctx) {
+            return ctx.node.tagName || "Grid";
         }
     }
 });
@@ -41,10 +42,10 @@ export const GridItemType = createType(({ node, children, ref }) => {
         return target.type === "GridItem";
     },
     draggable: true,
-    accepts: ["Grid"],
+    droppable: ['Grid'], // GridItem can drop to Grid type nodes
     default: {
-        name() {
-            return this.node.tagName || "Grid Item";
+        name(ctx) {
+            return ctx.node.tagName || "Grid Item";
         },
         props: {
             size: {

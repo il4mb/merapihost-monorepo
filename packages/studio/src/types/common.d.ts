@@ -2,7 +2,7 @@ import React from "react";
 import { FC, RefObject } from "react";
 import { NodeObject, NodeVariable } from "./node";
 import { AssetObject } from "./asset";
-import type { NodeContext } from "@/libs/node/NodeModel";
+import type { NodeContext, NodeModel } from "@/libs/node/NodeModel";
 
 export interface ShortcutHandler {
     /** List of keys required to trigger the action (e.g. ["Control", "s"]) */
@@ -111,8 +111,12 @@ export type TypeModel<T = any> = {
      */
     accepts?: string[] | ((node: NodeObject<T>) => string[]) | ((node: NodeObject<T>) => boolean);
 
+    onCreate?: (node: NodeModel) => void;
+    onChildAdded?: (child: NodeModel) => void;
+
     default?: {
         name?: string | ((ctx: NodeContext) => string);
+        tagName?: string | ((ctx: NodeContext) => string);
         events?: string[] | ((ctx: NodeContext) => string[]);
         props?: T;
     };

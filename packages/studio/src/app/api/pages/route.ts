@@ -58,12 +58,11 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
 
-    // Header logo (text-based)
+    // Header logo container
     {
         id: "header-logo",
         tagName: "div",
         props: {
-            children: "My Brand",
             sx: {
                 fontSize: "1.5rem",
                 fontWeight: "bold",
@@ -72,6 +71,15 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "header",
+        order: 0,
+        visible: true
+    },
+    // Header logo text
+    {
+        id: "header-logo-text",
+        type: "textnode",
+        content: "My Brand",
+        parent: "header-logo",
         order: 0,
         visible: true
     },
@@ -91,12 +99,11 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
 
-    // Nav links
+    // Nav links containers
     {
         id: "nav-home",
         tagName: "a",
         props: {
-            children: "Home",
             href: "#",
             sx: {
                 color: "#333",
@@ -104,16 +111,23 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
                 "&:hover": { color: "#1976d2" }
             }
         },
-        content: "Home",
         parent: "header-nav",
         order: 0,
         visible: true
     },
     {
+        id: "nav-home-text",
+        type: "textnode",
+        content: "Home",
+        parent: "nav-home",
+        order: 0,
+        visible: true
+    },
+
+    {
         id: "nav-about",
         tagName: "a",
         props: {
-            children: "About",
             href: "#",
             sx: {
                 color: "#333",
@@ -121,16 +135,23 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
                 "&:hover": { color: "#1976d2" }
             }
         },
-        content: "About",
         parent: "header-nav",
         order: 1,
         visible: true
     },
     {
+        id: "nav-about-text",
+        type: "textnode",
+        content: "About",
+        parent: "nav-about",
+        order: 0,
+        visible: true
+    },
+
+    {
         id: "nav-contact",
         tagName: "a",
         props: {
-            children: "Contact",
             href: "#",
             sx: {
                 color: "#333",
@@ -138,9 +159,16 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
                 "&:hover": { color: "#1976d2" }
             }
         },
-        content: "Contact",
         parent: "header-nav",
         order: 2,
+        visible: true
+    },
+    {
+        id: "nav-contact-text",
+        type: "textnode",
+        content: "Contact",
+        parent: "nav-contact",
+        order: 0,
         visible: true
     },
 
@@ -206,7 +234,6 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
     {
         id: "hero-title",
         tagName: "h1",
-        content: "Welcome to Your New Page",
         props: {
             sx: {
                 fontSize: {
@@ -223,12 +250,19 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         order: 0,
         visible: true
     },
+    {
+        id: "hero-title-text",
+        type: "textnode",
+        content: "Welcome to Your New Page",
+        parent: "hero-title",
+        order: 0,
+        visible: true
+    },
 
     // Hero subtitle
     {
         id: "hero-subtitle",
         tagName: "p",
-        content: "This is your starting point. Customize this page to match your brand and content needs.",
         props: {
             sx: {
                 fontSize: {
@@ -242,6 +276,14 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         },
         parent: "hero-section",
         order: 1,
+        visible: true
+    },
+    {
+        id: "hero-subtitle-text",
+        type: "textnode",
+        content: "This is your starting point. Customize this page to match your brand and content needs.",
+        parent: "hero-subtitle",
+        order: 0,
         visible: true
     },
 
@@ -291,7 +333,6 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         id: "feature-1-icon",
         tagName: "div",
         props: {
-            children: "📝",
             sx: {
                 fontSize: "2.5rem",
                 marginBottom: "10px"
@@ -302,9 +343,16 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
     {
+        id: "feature-1-icon-text",
+        type: "textnode",
+        content: "📝",
+        parent: "feature-1-icon",
+        order: 0,
+        visible: true
+    },
+    {
         id: "feature-1-title",
         tagName: "h3",
-        content: "Easy Editing",
         props: {
             sx: {
                 fontSize: "1.25rem",
@@ -318,9 +366,16 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
     {
+        id: "feature-1-title-text",
+        type: "textnode",
+        content: "Easy Editing",
+        parent: "feature-1-title",
+        order: 0,
+        visible: true
+    },
+    {
         id: "feature-1-text",
         tagName: "p",
-        content: "Edit any element directly on the page. Click to change text, styles, and more.",
         props: {
             sx: {
                 color: "#666",
@@ -329,6 +384,14 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         },
         parent: "feature-1",
         order: 2,
+        visible: true
+    },
+    {
+        id: "feature-1-text-content",
+        type: "textnode",
+        content: "Edit any element directly on the page. Click to change text, styles, and more.",
+        parent: "feature-1-text",
+        order: 0,
         visible: true
     },
 
@@ -357,7 +420,6 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         id: "feature-2-icon",
         tagName: "div",
         props: {
-            children: "🎨",
             sx: {
                 fontSize: "2.5rem",
                 marginBottom: "10px"
@@ -368,9 +430,16 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
     {
+        id: "feature-2-icon-text",
+        type: "textnode",
+        content: "🎨",
+        parent: "feature-2-icon",
+        order: 0,
+        visible: true
+    },
+    {
         id: "feature-2-title",
         tagName: "h3",
-        content: "Custom Styling",
         props: {
             sx: {
                 fontSize: "1.25rem",
@@ -384,9 +453,16 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
     {
+        id: "feature-2-title-text",
+        type: "textnode",
+        content: "Custom Styling",
+        parent: "feature-2-title",
+        order: 0,
+        visible: true
+    },
+    {
         id: "feature-2-text",
         tagName: "p",
-        content: "Use MUI's sx prop for responsive, theme-aware styling. Customize colors, spacing, and more.",
         props: {
             sx: {
                 color: "#666",
@@ -395,6 +471,14 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         },
         parent: "feature-2",
         order: 2,
+        visible: true
+    },
+    {
+        id: "feature-2-text-content",
+        type: "textnode",
+        content: "Use MUI's sx prop for responsive, theme-aware styling. Customize colors, spacing, and more.",
+        parent: "feature-2-text",
+        order: 0,
         visible: true
     },
 
@@ -422,9 +506,7 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
     {
         id: "feature-3-icon",
         tagName: "div",
-        content: "🚀",
         props: {
-
             sx: {
                 fontSize: "2.5rem",
                 marginBottom: "10px"
@@ -435,9 +517,16 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
     {
+        id: "feature-3-icon-text",
+        type: "textnode",
+        content: "🚀",
+        parent: "feature-3-icon",
+        order: 0,
+        visible: true
+    },
+    {
         id: "feature-3-title",
         tagName: "h3",
-        content: "Ready to Publish",
         props: {
             sx: {
                 fontSize: "1.25rem",
@@ -451,9 +540,16 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
     {
+        id: "feature-3-title-text",
+        type: "textnode",
+        content: "Ready to Publish",
+        parent: "feature-3-title",
+        order: 0,
+        visible: true
+    },
+    {
         id: "feature-3-text",
         tagName: "p",
-        content: "Your page is fully responsive and ready for production. Just add your content and go live!",
         props: {
             sx: {
                 color: "#666",
@@ -462,6 +558,14 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         },
         parent: "feature-3",
         order: 2,
+        visible: true
+    },
+    {
+        id: "feature-3-text-content",
+        type: "textnode",
+        content: "Your page is fully responsive and ready for production. Just add your content and go live!",
+        parent: "feature-3-text",
+        order: 0,
         visible: true
     },
 
@@ -485,7 +589,6 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
     {
         id: "cta-title",
         tagName: "h2",
-        content: "Ready to Get Started?",
         props: {
             sx: {
                 fontSize: "2rem",
@@ -499,9 +602,16 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
     {
+        id: "cta-title-text",
+        type: "textnode",
+        content: "Ready to Get Started?",
+        parent: "cta-title",
+        order: 0,
+        visible: true
+    },
+    {
         id: "cta-text",
         tagName: "p",
-        content: "Begin customizing your page by clicking on any element. Add your own content, images, and styling.",
         props: {
             sx: {
                 fontSize: "1.1rem",
@@ -514,9 +624,16 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
     {
+        id: "cta-text-content",
+        type: "textnode",
+        content: "Begin customizing your page by clicking on any element. Add your own content, images, and styling.",
+        parent: "cta-text",
+        order: 0,
+        visible: true
+    },
+    {
         id: "cta-button",
         tagName: "button",
-        content: "Start Editing",
         props: {
             sx: {
                 backgroundColor: "#1976d2",
@@ -534,6 +651,14 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         },
         parent: "cta-section",
         order: 2,
+        visible: true
+    },
+    {
+        id: "cta-button-text",
+        type: "textnode",
+        content: "Start Editing",
+        parent: "cta-button",
+        order: 0,
         visible: true
     },
 
@@ -578,7 +703,6 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
     {
         id: "footer-text",
         tagName: "p",
-        content: `© ${new Date().getFullYear()} My Company. All rights reserved.`,
         props: {
             sx: {
                 color: "#666",
@@ -587,6 +711,14 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "footer-content",
+        order: 0,
+        visible: true
+    },
+    {
+        id: "footer-text-content",
+        type: "textnode",
+        content: `© ${new Date().getFullYear()} My Company. All rights reserved.`,
+        parent: "footer-text",
         order: 0,
         visible: true
     },
@@ -608,9 +740,7 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
     {
         id: "footer-link-privacy",
         tagName: "a",
-        content: "Privacy Policy",
         props: {
-
             href: "#",
             sx: {
                 color: "#666",
@@ -624,9 +754,16 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
     {
+        id: "footer-link-privacy-text",
+        type: "textnode",
+        content: "Privacy Policy",
+        parent: "footer-link-privacy",
+        order: 0,
+        visible: true
+    },
+    {
         id: "footer-link-terms",
         tagName: "a",
-        content: "Terms of Service",
         props: {
             href: "#",
             sx: {
@@ -638,6 +775,14 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         },
         parent: "footer-links",
         order: 1,
+        visible: true
+    },
+    {
+        id: "footer-link-terms-text",
+        type: "textnode",
+        content: "Terms of Service",
+        parent: "footer-link-terms",
+        order: 0,
         visible: true
     }
 ];

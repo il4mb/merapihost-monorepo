@@ -2,6 +2,7 @@
 import { useMemo, useEffect, useState } from "react";
 import { useNodesReducer } from "@/contexts/StudioProvider";
 import { NodeModel } from "./NodeModel";
+import InternalNode from "./InternalNode";
 
 type NodeRenderProps = {
     node: NodeModel;
@@ -11,6 +12,9 @@ export default function NodeRender({ node }: NodeRenderProps) {
 
     const { state, dispatch } = useNodesReducer();
     const [dom, setDom] = useState<HTMLElement | null>(null);
+    const isSelected = useMemo(() => {
+        return state.selected.has(node.id);
+    }, [node.id, state.selected]);
 
     const Component = useMemo(() => node.type.render, [node.type]);
 
@@ -32,7 +36,7 @@ export default function NodeRender({ node }: NodeRenderProps) {
     }, [dom, node.id, dispatch]);
 
     useEffect(() => {
-        if (!dom || !node.type) return;
+        if (!dom || !node.type || !isSelected) return;
         const isDraggable = typeof node.type.draggable === "function" ? node.type.draggable(node) : node.type.draggable;
         const handleDragStart = (e: DragEvent) => {
             e.stopPropagation();
@@ -54,7 +58,7 @@ export default function NodeRender({ node }: NodeRenderProps) {
             dom.removeEventListener("dragstart", handleDragStart);
             dom.removeEventListener("dragend", handleDragEnd);
         }
-    }, [dom, node.type, node]);
+    }, [dom, node.type, node, isSelected]);
 
     if (node.visible === false) return null;
 
@@ -65,10 +69,11 @@ export default function NodeRender({ node }: NodeRenderProps) {
 
     if (Component) {
         return (
-            // @ts-ignore
-            <Component node={node} ref={setDom}>
-                {children}
-            </Component>
+            <InternalNode node={node}>
+                <Component node={node} ref={setDom}>
+                    {children}
+                </Component>
+            </InternalNode>
         );
     }
 

@@ -51,24 +51,35 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
     switch (action.type) {
         case "SET_NODES": {
 
-            const newNodes = new Map<string, NodeModel>();
+            let newNodes = new Map<string, NodeModel>();
             newNodes.set(ROOT_NODE.id, new NodeModel(ROOT_NODE));
 
             for (const [id, node] of action.payload.entries()) {
                 if (id !== ROOT_NODE.id && !node.parent) {
-                    newNodes.set(id, new NodeModel({ ...node, parent: ROOT_NODE.id }));
+                    const newNode = new NodeModel({ ...node, parent: ROOT_NODE.id });
+                    newNodes.set(id, newNode);
                 } else {
-                    newNodes.set(id, new NodeModel(node));
+                    const newNode = new NodeModel(node);
+                    newNodes.set(id, newNode);
                 }
             }
 
+            for (const node of newNodes.values()) {
+                if (node.parent && newNodes.has(node.parent)) {
+                    const parentNode = newNodes.get(node.parent);
+                    parentNode?.type.model.onChildAdded?.(node);
+                }
+            }
             return { ...state, collection: newNodes };
         }
 
         // --- NODE MANAGEMENT ---
         case "ADD_NODE": {
             const newNodes = new Map(state.collection);
-            newNodes.set(action.payload.id, new NodeModel(action.payload));
+            const newNode = new NodeModel(action.payload);
+            newNodes.set(newNode.id, newNode);
+
+            // newNode.type.model.onCreate?.(newNode, newNodes);
             return { ...state, collection: newNodes }
         }
 
@@ -83,32 +94,41 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             }
 
             const newNodes = new Map(state.collection);
-            const targetParentId = targetNode.parent;
 
-            // 2. Build root node and all recursive children under target's parent
+            // 2. Determine the actual parent (if 'inside', the target itself becomes the parent)
+            const targetParentId = position === "inside" ? targetNode.id : targetNode.parent;
+
+            // 3. Build root node and all recursive children under the determined parent
             const { rootNode, nodesMap: blockNodes } = buildBlockContent(block.content, targetParentId);
 
-            // 3. Merge all generated nodes into the state Map
+            // 4. Merge all generated nodes into the state Map
             blockNodes.forEach((node, id) => {
                 newNodes.set(id, node);
             });
 
-            // 4. Get existing siblings under the parent (excluding the new root)
+            // 5. Get existing siblings under the new parent (excluding the new root)
             const targetSiblings = Array.from(newNodes.values())
                 .filter((node) => node.parent === targetParentId && node.id !== rootNode.id)
                 .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-            // 5. Find target's index
-            const targetIndex = targetSiblings.findIndex((node) => node.id === targetId);
-            if (targetIndex === -1) return state; // Failsafe
+            // 6. Insert the node based on the position
+            if (position === "inside") {
+                // If dropping inside, append it to the end of the container's children
+                targetSiblings.push(rootNode);
+            } else {
+                // Find target's index among siblings
+                const targetIndex = targetSiblings.findIndex((node) => node.id === targetId);
 
-            // 6. Calculate insertion index strictly for before | after
-            const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
+                if (targetIndex !== -1) {
+                    // Calculate insertion index strictly for before | after
+                    const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
+                    targetSiblings.splice(insertIndex, 0, rootNode);
+                } else {
+                    targetSiblings.push(rootNode); // Failsafe fallback
+                }
+            }
 
-            // 7. Insert the root node into siblings list
-            targetSiblings.splice(insertIndex, 0, rootNode);
-
-            // 8. Reassign sequential order numbers (0, 1, 2, 3...)
+            // 7. Reassign sequential order numbers (0, 1, 2, 3...)
             targetSiblings.forEach((node, index) => {
                 const updatedNode = new NodeModel(node);
                 updatedNode.order = index;
@@ -136,36 +156,44 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             }
 
             const newNodes = new Map(state.collection);
-            const targetParentId = targetNode.parent; // Add fallback if needed: || ROOT_NODE.id
+
+            // 2. Determine the actual parent (if 'inside', the target itself becomes the parent)
+            const targetParentId = position === "inside" ? targetNode.id : targetNode.parent; // Add fallback if needed: || ROOT_NODE.id
             const oldParentId = sourceNode.parent;
 
-            // 2. Get the target's siblings, EXCLUDING the dragged node, and sort them by current order
+            // 3. Get the target's siblings (or children, if 'inside'), EXCLUDING the dragged node
             const targetSiblings = Array.from(newNodes.values())
                 .filter(node => node.parent === targetParentId && node.id !== sourceId)
                 .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-            // 3. Find the target's index in this clean list
-            const targetIndex = targetSiblings.findIndex(node => node.id === targetId);
-            if (targetIndex === -1) return state; // Failsafe
-
-            // 4. Calculate exact insertion point
-            const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
-
-            // 5. Update the source node's parent (order is handled below)
+            // 4. Update the source node's parent reference
             sourceNode.parent = targetParentId;
 
-            // 6. Insert the source node into the siblings array at the calculated index
-            targetSiblings.splice(insertIndex, 0, sourceNode);
+            // 5. Insert the node based on the position
+            if (position === "inside") {
+                // If dropping inside, append it to the end of the container's children
+                targetSiblings.push(sourceNode);
+            } else {
+                // Find the target's index in this clean list
+                const targetIndex = targetSiblings.findIndex(node => node.id === targetId);
 
-            // 7. Iterate through the modified array and reassign sequential `order` numbers (0, 1, 2, 3...)
+                if (targetIndex !== -1) {
+                    // Calculate exact insertion point
+                    const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
+                    targetSiblings.splice(insertIndex, 0, sourceNode);
+                } else {
+                    targetSiblings.push(sourceNode); // Failsafe fallback
+                }
+            }
+
+            // 6. Iterate through the modified array and reassign sequential `order` numbers (0, 1, 2, 3...)
             targetSiblings.forEach((node, index) => {
                 const updatedNode = new NodeModel(node);
                 updatedNode.order = index;
                 newNodes.set(node.id, updatedNode);
             });
 
-            // 8. (Optional but recommended) If the node was moved to a DIFFERENT parent, 
-            // re-index the old parent's children to remove the gap left behind.
+            // 7. If the node was moved to a DIFFERENT parent, re-index the old parent's children to close the gap
             if (oldParentId !== targetParentId) {
                 const oldSiblings = Array.from(newNodes.values())
                     .filter(node => node.parent === oldParentId)
@@ -178,7 +206,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
                 });
             }
 
-            // 9. Return updated state
+            // 8. Return updated state
             return {
                 ...state,
                 collection: newNodes
@@ -236,7 +264,11 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
         case "DELETE_NODE": {
             const targetNode = state.collection.get(action.payload)
-            if (!targetNode) return state
+            if (!targetNode) return state;
+            if (String(targetNode.type.model.name).toLowerCase() === "root") {
+                console.warn("Cannot remove DOM reference for the Root node.");
+                return state;
+            }
 
             const newNodes = new Map(state.collection);
 

@@ -6,15 +6,7 @@ export const ContainerBlock = {
     category: "Layout",
     icon: Proportions,
     content: {
-        type: "Element",
-        tagName: "div",
-        props: {
-            style: {
-                maxWidth: "1200px",
-                margin: "0 auto",
-                padding: "16px"
-            }
-        },
+        type: "Container",
         children: [
             {
                 type: "Text",
@@ -54,13 +46,7 @@ export const BoxBlock = {
     content: {
         type: "Element",
         tagName: "div",
-        props: {
-            style: {
-                backgroundColor: "#f5f5f5",
-                padding: "16px",
-                borderRadius: "8px"
-            }
-        },
+        props: {},
         children: [
             {
                 type: "Text",

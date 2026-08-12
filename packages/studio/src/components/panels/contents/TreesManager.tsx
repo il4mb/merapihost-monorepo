@@ -1,11 +1,9 @@
 import { Box, Divider, IconButton, styled, Typography } from "@mui/material";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { NodeObject } from "@/types/node";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { ChevronRight, CircleQuestionMark, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useNodesReducer, useStudio } from "@/contexts/StudioProvider";
-import { REGISTRY } from "@/libs/node";
-import { useTypeContext } from "@/hooks/useNodes";
+import { useNodesReducer } from "@/contexts/StudioProvider";
+import { useNodeChildren } from "@/hooks/useNodes";
 import LabelField from "@/components/ui/fields/LabelField";
 import ScrollContainer from "@/components/ui/ScrollContainer";
 import { NodeModel } from "@/libs/node/NodeModel";
@@ -45,35 +43,43 @@ const ToggleIcon = styled(motion.div)({
 
 type TreeProps = {
     node: NodeModel;
-    defaultOpen?: boolean
-    depth?: number
-    color?: string
-    isNodeVisible?: boolean
+    defaultOpen?: boolean;
+    depth?: number;
+    color?: string;
+    isNodeVisible?: boolean;
 };
 
-const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNodeVisible }: TreeProps) => {
+type TreeVisualProps = TreeProps & {
+    isSelected: boolean;
+    isHovered: boolean;
+    childNodes: NodeModel[];
+    dispatch: any; // Use the exact Dispatch type from your useNodesReducer if available
+};
+
+// 1. Pure Visual Component wrapped in React.memo
+const TreeVisual = memo(({
+    node,
+    defaultOpen = true,
+    depth = 0,
+    color: extendedColor,
+    isNodeVisible,
+    isSelected,
+    isHovered,
+    childNodes,
+    dispatch
+}: TreeVisualProps) => {
 
     const ignoreInteractionRef = useRef(false);
-    const { state, dispatch } = useNodesReducer();
-
-    const [collapsed, setCollapsed] = useState(!defaultOpen);
-    const isSelected = state.selected.has(node.id);
-    const isHovered = state.hovered.has(node.id);
 
     const color = extendedColor || node.type?.color;
     const childrenColor = extendedColor || node.type?.childrenColor;
     const parentVisible = isNodeVisible ?? true;
     const isVisible = parentVisible && (node.visible ?? true);
 
-    const childNodes = useMemo(() => {
-        return Array.from(state.collection.values()).filter(n => {
-            if (n.type?.model?.visibleOnTree === false) {
-                return false;
-            }
-            return n.parent === node.id;
-        }).sort((a, b) => (a.order || 0) - (b.order || 0));
-    }, [state.collection, node.id]);
     const hasChildren = childNodes.length > 0;
+    const childrenHasTextnode = childNodes.some(child => String(child.type.name).toLowerCase() === "textnode");
+
+    const [collapsed, setCollapsed] = useState(!defaultOpen || childrenHasTextnode);
 
     const onToggle = useCallback((e: React.MouseEvent) => {
         if (ignoreInteractionRef.current) return;
@@ -84,56 +90,50 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
     const onMouseEnter = useCallback(() => {
         if (ignoreInteractionRef.current) return;
         dispatch({ type: "ADD_HOVERED", payload: node.id });
-    }, []);
+    }, [dispatch, node.id]);
 
     const onMouseLeave = useCallback(() => {
         if (ignoreInteractionRef.current) return;
         dispatch({ type: "CLEAR_HOVERED" });
-    }, []);
+    }, [dispatch]);
 
     const onClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (ignoreInteractionRef.current) return;
-        e.stopPropagation()
-        if (state.selected.has(node.id)) {
-            dispatch({ type: "REMOVE_SELECTED", payload: node.id })
+        e.stopPropagation();
+        
+        if (isSelected) {
+            dispatch({ type: "REMOVE_SELECTED", payload: node.id });
         } else {
             if (e.shiftKey || e.ctrlKey || e.metaKey) {
-                dispatch({ type: "ADD_SELECTED", payload: node.id })
+                dispatch({ type: "ADD_SELECTED", payload: node.id });
             } else {
-                dispatch({ type: "SET_SELECTED", payload: node.id })
+                dispatch({ type: "SET_SELECTED", payload: node.id });
             }
+            
             const dom = node.dom;
             const win = dom?.ownerDocument?.defaultView;
 
             if (dom && win) {
                 win.requestAnimationFrame(() => {
-                    // 1. Get the node's position relative to the iframe's current viewport
                     const rect = dom.getBoundingClientRect();
-
-                    // 2. Calculate the exact center of the iframe's viewport
                     const targetY = win.scrollY + rect.top - (win.innerHeight / 2) + (rect.height / 2);
                     const targetX = win.scrollX + rect.left - (win.innerWidth / 2) + (rect.width / 2);
 
-                    // 3. Scroll ONLY the iframe's window
-                    win.scrollTo({
-                        top: targetY,
-                        left: targetX,
-                        behavior: "smooth"
-                    });
-                })
+                    win.scrollTo({ top: targetY, left: targetX, behavior: "smooth" });
+                });
             }
         }
-    }, [node, state.selected, dispatch, node.id]);
+    }, [isSelected, dispatch, node.id, node.dom]);
 
     const setName = useCallback((newName: string) => {
         dispatch({ type: "UPDATE_NODE", payload: { id: node.id, name: newName } });
-    }, [node.id, dispatch]);
+    }, [dispatch, node.id]);
 
     const onFinishNameChange = useCallback((finalName: string) => {
         const processedName = finalName || node.type.getDefaultName(node);
         dispatch({ type: "UPDATE_NODE", payload: { id: node.id, name: processedName } });
         ignoreInteractionRef.current = false;
-    }, [node.id, dispatch, node.type]);
+    }, [dispatch, node.id, node.type]);
 
     const onStartNameEditing = useCallback(() => {
         ignoreInteractionRef.current = true;
@@ -144,13 +144,13 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
                 { type: "CLEAR_HOVERED" },
                 { type: "SET_SELECTED", payload: node.id }
             ]
-        })
-    }, []);
+        });
+    }, [dispatch, node.id]);
 
     const toggleVisibility = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
         e.stopPropagation();
         dispatch({ type: "UPDATE_NODE", payload: { id: node.id, visible: !isVisible } });
-    }, [node.id, dispatch, isVisible]);
+    }, [dispatch, node.id, isVisible]);
 
     if (node.type?.visibleOnTree === false) {
         return null;
@@ -168,38 +168,32 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
                     opacity: isVisible ? 1 : 0.5,
                     paddingLeft: `${depth * 12}px`,
                     backgroundColor: isSelected
-                        ? "rgba(0, 120, 215, 0.1)"
+                        ? "rgba(0, 120, 215, 0.25)"
                         : isHovered
                             ? "rgba(0, 0, 0, 0.05)"
                             : "transparent",
                     "&:hover": {
                         backgroundColor: isSelected
-                            ? "rgba(0, 120, 215, 0.15)"
+                            ? "rgba(0, 120, 215, 0.25)"
                             : "rgba(0, 0, 0, 0.1)",
-                        "& .visibility-toggle": {
-                            opacity: 1
-                        }
+                        "& .visibility-toggle": { opacity: 1 }
                     },
                     ...theme.applyStyles("dark", {
                         backgroundColor: isSelected
-                            ? "rgba(0, 128, 255, 0.4)"
+                            ? "rgba(0, 128, 255, 0.35)"
                             : isHovered
-                                ? "rgba(255, 255, 255, 0.1)"
+                                ? "rgba(100, 100, 100, 0.1)"
                                 : "transparent",
                         "&:hover": {
                             backgroundColor: isSelected
                                 ? "rgba(0, 128, 255, 0.5)"
-                                : "rgba(255, 255, 255, 0.15)"
+                                : "rgba(100, 100, 100, 0.15)"
                         }
                     }),
-                    "& .visibility-toggle": {
-                        opacity: 0
-                    }
+                    "& .visibility-toggle": { opacity: 0 }
                 })}>
                 {hasChildren ? (
-                    <ToggleButton
-                        size="small"
-                        onClick={onToggle}>
+                    <ToggleButton size="small" onClick={onToggle}>
                         <ToggleIcon
                             initial={false}
                             animate={{ rotate: collapsed ? 0 : 90 }}
@@ -211,9 +205,7 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
                     <Box sx={{ width: "24px" }} />
                 )}
                 <Box sx={{ mr: .5 }}>
-                    <IconComponent
-                        color={color}
-                        size={14} />
+                    <IconComponent color={color} size={14} />
                 </Box>
                 <LabelField
                     sx={{ color: color || "inherit" }}
@@ -223,7 +215,7 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
                     onStartEditing={onStartNameEditing} />
 
                 <ToggleButton onClick={toggleVisibility} className="visibility-toggle" size="small" sx={{ ml: "auto", mr: 1 }}>
-                    {isVisible ? (<Eye size={12} />) : (<EyeOff size={12} style={{ opacity: 0.85 }} />)}
+                    {isVisible ? <Eye size={12} /> : <EyeOff size={12} style={{ opacity: 0.85 }} />}
                 </ToggleButton>
 
             </ItemContainer>
@@ -237,10 +229,12 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
                         transition={{ duration: 0.2, ease: "easeInOut" }}
                         sx={{ overflow: "hidden" }}>
                         {childNodes.map(child => (
+                            // IMPORTANT: Call the Wrapper component, NOT the visual component directly
                             <Tree
                                 key={child.id}
                                 node={child}
                                 depth={depth + 1}
+                                defaultOpen={!childrenHasTextnode}
                                 color={childrenColor}
                                 isNodeVisible={isVisible}
                             />
@@ -250,12 +244,50 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
             </AnimatePresence>
         </TreeContainer>
     );
+}, (prevProps, nextProps) => {
+    // Custom equality check: only re-render if THESE specific things change.
+    // This stops hover/select events on sibling nodes from causing re-renders here.
+    return (
+        prevProps.node === nextProps.node &&
+        prevProps.isSelected === nextProps.isSelected &&
+        prevProps.isHovered === nextProps.isHovered &&
+        prevProps.isNodeVisible === nextProps.isNodeVisible &&
+        prevProps.color === nextProps.color &&
+        prevProps.defaultOpen === nextProps.defaultOpen &&
+        prevProps.depth === nextProps.depth &&
+        // Shallow compare array references to prevent false renders from hook recreations
+        prevProps.childNodes.length === nextProps.childNodes.length &&
+        prevProps.childNodes.every((child, idx) => child === nextProps.childNodes[idx])
+    );
+});
+
+// 2. The Context Wrapper
+// This lightweight component subscribes to the context but passes isolated values down.
+const Tree = (props: TreeProps) => {
+    const { state, dispatch } = useNodesReducer();
+    const { node } = props;
+
+    // Isolate the exact boolean states this specific node cares about
+    const isSelected = state.selected.has(node.id);
+    const isHovered = state.hovered.has(node.id);
+    const childNodes = useNodeChildren(node);
+
+    return (
+        <TreeVisual
+            {...props}
+            isSelected={isSelected}
+            isHovered={isHovered}
+            childNodes={childNodes}
+            dispatch={dispatch}
+        />
+    );
 };
 
 interface TreeManagerProps { }
 
 export default function TreeManager({ }: TreeManagerProps) {
     const { state } = useNodesReducer();
+    
     const rootNode = useMemo(() => {
         return state.collection.get("root") || null;
     }, [state.collection]);
@@ -273,5 +305,5 @@ export default function TreeManager({ }: TreeManagerProps) {
                 {rootNode && <Tree key={rootNode.id} node={rootNode} />}
             </ScrollContainer>
         </Box>
-    )
+    );
 }

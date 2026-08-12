@@ -5,7 +5,7 @@ import { useStudio } from "@/contexts/StudioProvider";
 
 type Props = {
     target: HTMLElement;
-    position: "before" | "after";
+    position: "before" | "after" | "inside";
     direction: "horizontal" | "vertical";
 };
 
@@ -13,8 +13,7 @@ const LINE_THICKNESS = 4;
 const HALF_THICKNESS = LINE_THICKNESS / 2;
 
 // Minimum fraction of overlap (relative to the smaller element's cross-axis size)
-// required to consider two rects "aligned" on the same row/column. Guards against
-// treating a wrapped grid item (next row/column) as an in-row/column neighbor.
+// required to consider two rects "aligned" on the same row/column.
 const ALIGNMENT_OVERLAP_RATIO = 0.3;
 
 type Rect = {
@@ -50,29 +49,21 @@ export default function DropIndicator({ target, position, direction }: Props) {
         return toRect(target);
     }, [target, scrollX, scrollY]);
 
-    // Checks whether `candidate` sits on the same row (for horizontal flow) or
-    // same column (for vertical flow) as `rect` — i.e. shares meaningful
-    // cross-axis overlap. Prevents grabbing a sibling from a different
-    // wrapped row/column just because it's adjacent in DOM order.
     const isCrossAxisAligned = (a: Rect, b: Rect, isHorizontal: boolean): boolean => {
         if (isHorizontal) {
-            // cross axis = vertical (top/bottom)
             const overlap = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
             const minHeight = Math.min(a.height, b.height, 1);
             return overlap / minHeight >= ALIGNMENT_OVERLAP_RATIO;
         } else {
-            // cross axis = horizontal (left/right)
             const overlap = Math.min(a.right, b.right) - Math.max(a.left, b.left);
             const minWidth = Math.min(a.width, b.width, 1);
             return overlap / minWidth >= ALIGNMENT_OVERLAP_RATIO;
         }
     };
 
-    // 2. Get adjacent sibling bounding rect (if available AND actually aligned
-    //    on the cross axis — otherwise it's a different row/column in a wrap
-    //    layout and shouldn't be used to size the indicator).
+    // 2. Get adjacent sibling bounding rect for "before" / "after" positioning
     const nextRect = useMemo(() => {
-        if (!target || !rect) return null;
+        if (!target || !rect || position === "inside") return null;
 
         const isHorizontal = direction === "horizontal";
         const nextElement = position === "before" ? target.previousElementSibling : target.nextElementSibling;
@@ -87,14 +78,23 @@ export default function DropIndicator({ target, position, direction }: Props) {
         return elRect;
     }, [target, rect, position, direction, scrollX, scrollY]);
 
-    // 3. Calculate indicator line coordinates centered in the gap
+    // 3. Calculate indicator coordinates (line for before/after, container frame for inside)
     const indicatorCoords = useMemo(() => {
         if (!rect) return null;
+
+        if (position === "inside") {
+            const MIN_SIZE = 24;
+            const width = Math.max(rect.width, MIN_SIZE);
+            const height = Math.max(rect.height, MIN_SIZE);
+            const left = rect.width < MIN_SIZE ? rect.left - (MIN_SIZE - rect.width) / 2 : rect.left;
+            const top = rect.height < MIN_SIZE ? rect.top - (MIN_SIZE - rect.height) / 2 : rect.top;
+
+            return { left, top, width, height };
+        }
 
         const isHorizontal = direction === "horizontal";
 
         if (isHorizontal) {
-            // Horizontal flow -> vertical indicator line
             let x: number;
 
             if (position === "before") {
@@ -103,8 +103,6 @@ export default function DropIndicator({ target, position, direction }: Props) {
                 x = nextRect ? (rect.right + nextRect.left) / 2 : rect.right;
             }
 
-            // Only span across both elements when they're actually aligned
-            // (nextRect is null otherwise) — so this never bridges rows.
             const top = nextRect ? Math.min(rect.top, nextRect.top) : rect.top;
             const bottom = nextRect ? Math.max(rect.bottom, nextRect.bottom) : rect.bottom;
 
@@ -115,7 +113,6 @@ export default function DropIndicator({ target, position, direction }: Props) {
                 height: bottom - top,
             };
         } else {
-            // Vertical flow -> horizontal indicator line
             let y: number;
 
             if (position === "before") {
@@ -124,8 +121,6 @@ export default function DropIndicator({ target, position, direction }: Props) {
                 y = nextRect ? (rect.bottom + nextRect.top) / 2 : rect.bottom;
             }
 
-            // Only span across both elements when they're actually aligned
-            // (nextRect is null otherwise) — so this never bridges columns.
             const left = nextRect ? Math.min(rect.left, nextRect.left) : rect.left;
             const right = nextRect ? Math.max(rect.right, nextRect.right) : rect.right;
 
@@ -139,6 +134,8 @@ export default function DropIndicator({ target, position, direction }: Props) {
     }, [rect, nextRect, position, direction]);
 
     if (!indicatorCoords) return null;
+
+    const isInside = position === "inside";
 
     return (
         <Box
@@ -160,9 +157,13 @@ export default function DropIndicator({ target, position, direction }: Props) {
                 position: "absolute",
                 pointerEvents: "none",
                 zIndex: 9999,
-                backgroundColor: "#cc19d2",
-                boxShadow: "0 0 4px rgba(25, 118, 210, 0.26)",
-                borderRadius: '5px',
+                backgroundColor: isInside ? "rgba(204, 25, 210, 0.12)" : "#cc19d2",
+                border: isInside ? "2px dashed #cc19d2" : "none",
+                boxShadow: isInside
+                    ? "inset 0 0 8px rgba(204, 25, 210, 0.25)"
+                    : "0 0 4px rgba(25, 118, 210, 0.26)",
+                borderRadius: "5px",
+                boxSizing: "border-box",
             }}
         />
     );

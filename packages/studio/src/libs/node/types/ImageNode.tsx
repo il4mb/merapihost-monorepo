@@ -35,8 +35,8 @@ export const ImageNode = createType(({ node, ref }) => {
         }
     };
 
-    const width = node.props?.width || 100;
-    const height = node.props?.height || 100;
+    const width = node.props?.width || "100%";
+    const height = node.props?.height || "100%";
 
     return (
         <Box
@@ -46,7 +46,8 @@ export const ImageNode = createType(({ node, ref }) => {
                 width,
                 height,
                 ...node.props?.sx,
-            }}>
+            }}
+            ref={ref}>
             {isLoading && (
                 <Box
                     sx={{
@@ -77,7 +78,7 @@ export const ImageNode = createType(({ node, ref }) => {
                     objectFit: node.props?.objectFit || "cover",
                     display: "block",
                 }}
-                ref={ref}
+
             />
         </Box>
     );
@@ -90,25 +91,16 @@ export const ImageNode = createType(({ node, ref }) => {
         }
         return false;
     },
+    accepts: [],
     draggable: true,
     default: {
-        name() {
-            return this.node.tagName || "Element";
-        },
-        events: [
-            "onClick",
-            "onMouseEnter",
-            "onMouseLeave",
-            "onMouseOver",
-            "onMouseOut",
-            "onMouseMove",
-            "onMouseDown",
-            "onMouseUp",
-            "onKeyDown",
-            "onKeyUp",
-            "onKeyPress",
-            "onLoad",
-            "onError",
-        ]
+        name: "Image",
+        tagName: "img",
+        props: {
+            src: EMPTY_IMAGE,
+            alt: "Image",
+            width: 200,
+            height: 200,
+        }
     }
 });
