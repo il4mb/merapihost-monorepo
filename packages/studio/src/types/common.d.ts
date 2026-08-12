@@ -2,14 +2,13 @@ import React from "react";
 import { FC, RefObject } from "react";
 import { NodeObject, NodeVariable } from "./node";
 import { AssetObject } from "./asset";
+import type { NodeContext } from "@/libs/node/NodeModel";
 
 export interface ShortcutHandler {
     /** List of keys required to trigger the action (e.g. ["Control", "s"]) */
     keys: string[];
     /** Callback executed when shortcut matches */
     action: (event: KeyboardEvent) => void;
-    /** Prevent browser default behavior (defaults to true) */
-    preventDefault?: boolean;
 }
 
 export type RelativeRect = {
@@ -81,11 +80,6 @@ export type ModifierSet = {
     nodeIds: string[];
 };
 
-export type TypeContext<T> = {
-    node: NodeObject<T> | undefined
-    dom: HTMLElement | null
-    type: TypeComponent<T> | undefined
-}
 
 export type TypeModel<T = any> = {
     name: string;
@@ -118,8 +112,8 @@ export type TypeModel<T = any> = {
     accepts?: string[] | ((node: NodeObject<T>) => string[]) | ((node: NodeObject<T>) => boolean);
 
     default?: {
-        name?: string | ((this: TypeContext<T>) => string);
-        events?: string[] | ((this: TypeContext<T>) => string[]);
+        name?: string | ((ctx: NodeContext) => string);
+        events?: string[] | ((ctx: NodeContext) => string[]);
         props?: T;
     };
 }

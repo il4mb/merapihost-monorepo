@@ -1,16 +1,16 @@
 import { Box } from "@mui/material";
 import { BinaryIcon, TypeIcon } from "lucide-react";
-import { NodeObject, TypeContext } from "@/types";
 import { createType } from "../tools";
 import { JSX } from "react/jsx-runtime";
-import { Children, Fragment, useRef, useState, useEffect } from "react";
+import { Children, Fragment, useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useStudio } from "@/contexts/StudioProvider";
 import { nanoid } from "nanoid";
+import { useGlobalKeyListener } from "@/contexts/GlobalKeyListenerProvider";
 
 /***
  * TextNode is a type for raw text content. It is used to represent text nodes in the DOM.
  */
-export const TextNode = createType(({ node, children, ref }) => {
+export const TextNode = createType(({ node, children }) => {
     const childrenLength = Children.count(children);
     return (
         <Fragment>
@@ -32,11 +32,43 @@ export const TextNode = createType(({ node, children, ref }) => {
  */
 export const Text = createType(({ node, children, ref }) => {
 
-    const { dispatch } = useStudio();
+    const { state, dispatch } = useStudio();
+    const { registerShortcuts } = useGlobalKeyListener();
+    const [isSelected, setIsSelected] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
     const childrenLength = Children.count(children);
     const tagName = (node.tagName || "span") as keyof JSX.IntrinsicElements;
     const hasInvalidStructure = typeof node.props?.children === "string" || typeof node.content === "string"; // where should not text
     const isPushTextNode = useRef(false);
+
+    const handleDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (isSelected) {
+            setIsEditing(true);
+        }
+    }, [isSelected]);
+
+
+    const shortcutHandlers = useMemo(() => [
+        {
+            keys: ["*"],
+            preventDefault: true,
+            action: (e: KeyboardEvent, keys: string[]) => {
+                e.preventDefault();
+
+                console.log("Shortcut triggered:", keys);
+            }
+        }
+    ], []);
+
+
+    useEffect(() => {
+        if (!isEditing) return;
+        // Sticky shortcuts for text editing to prevent them from being overridden by other components
+        const unregister = registerShortcuts(shortcutHandlers, true);
+        return () => {
+            unregister();
+        };
+    }, [shortcutHandlers, isEditing]);
 
     useEffect(() => {
         if (isPushTextNode.current) return;
@@ -74,12 +106,25 @@ export const Text = createType(({ node, children, ref }) => {
 
     }, [hasInvalidStructure, dispatch, node.content, node.id, node.props?.children]);
 
+
+    useEffect(() => {
+        const nextSelected = state.nodes.selected.has(node.id);
+        if (nextSelected !== isSelected) {
+            setIsSelected(nextSelected);
+        } else {
+            setIsEditing(false);
+            setIsSelected(nextSelected);
+        }
+    }, [isSelected, state.nodes.selected, node.id]);
+
     return (
         <Box
             component={tagName}
             {...node.props}
-            contentEditable={true}
+            onDoubleClick={handleDoubleClick}
+            contentEditable={isEditing}
             suppressContentEditableWarning={true}
+            draggable={!isEditing}
             ref={ref}>
             {childrenLength > 0 ? children : node.props?.children || node.content || null}
         </Box>
@@ -93,10 +138,8 @@ export const Text = createType(({ node, children, ref }) => {
         return supportedTags.includes(String(target.tagName).toLowerCase());
     },
     default: {
-        name: () => {
-            console.log(this);
-            // @ts-ignore
-            return String(this?.node?.tagName || "span");
+        name: (ctx) => {
+            return String(ctx?.node?.tagName || "span");
         }
     }
 });

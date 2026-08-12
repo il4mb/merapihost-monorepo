@@ -11,24 +11,28 @@ export const useMainShortcutListener = () => {
         selectedRef.current = state.selected;
     }, [state.selected]);
 
-    const handleSave = () => {
+    const handleSave = (e: KeyboardEvent) => {
         console.log("Save action triggered");
-
+        e.preventDefault();
     }
 
-    const handleUndo = () => {
+    const handleUndo = (e: KeyboardEvent) => {
         console.log("Undo action triggered");
+        e.preventDefault();
     }
 
-    const handleRedo = () => {
+    const handleRedo = (e: KeyboardEvent) => {
         console.log("Redo action triggered");
+        e.preventDefault();
     }
 
-    const handleReload = () => {
+    const handleReload = (e: KeyboardEvent) => {
         console.warn("Reload is restricted.");
+        e.preventDefault();
     }
 
-    const handleDelete = () => {
+    const handleDelete = (e: KeyboardEvent) => {
+        e.preventDefault();
         const selected = Array.from(selectedRef.current);
         if (selected.length <= 0) return;
 
@@ -36,7 +40,7 @@ export const useMainShortcutListener = () => {
             type: "DELETE_NODE",
             payload: id
         }));
-        
+
         dispatch({
             type: "BULK",
             payload: payload as any

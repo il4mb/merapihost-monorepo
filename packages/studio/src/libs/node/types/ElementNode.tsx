@@ -85,8 +85,8 @@ export const ElementNode = createType(({ node, children, ref }) => {
     draggable: true,
 
     default: {
-        name() {
-            return this.node.tagName || "Element";
+        name(ctx) {
+            return ctx?.node?.tagName || "Element";
         },
         events: [
             "onClick",

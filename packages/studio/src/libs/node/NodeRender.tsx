@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useEffect, useState } from "react";
 import { NodeObject } from "@/types";
-import { useStudio } from "@/contexts/StudioProvider";
+import { useNodesReducer, useStudio } from "@/contexts/StudioProvider";
 import { REGISTRY } from "./index";
 
 type NodeRenderProps = {
@@ -10,7 +10,7 @@ type NodeRenderProps = {
 
 export default function NodeRender({ node }: NodeRenderProps) {
 
-    const { state, dispatch } = useStudio();
+    const { state, dispatch } = useNodesReducer();
     const [dom, setDom] = useState<HTMLElement | null>(null);
 
     const Component = useMemo(() => {
@@ -27,10 +27,10 @@ export default function NodeRender({ node }: NodeRenderProps) {
 
     const childrenNode = useMemo(() => {
         const id = node.id;
-        return Array.from(state.nodes.values())
+        return Array.from(state.collection.values())
             .filter(n => n.parent === id)
             .sort((a, b) => (a.order || 0) - (b.order || 0));
-    }, [state.nodes]);
+    }, [state.collection, node.id]);
 
     const children = childrenNode.map(n => <NodeRender key={n.id} node={n} />);
 

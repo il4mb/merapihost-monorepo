@@ -1,15 +1,15 @@
 import { createType } from "../tools";
 import PageIcon from "@/components/icons/PageIcon";
 import { Fragment, useEffect } from "react";
-import { useStudio } from "@/contexts/StudioProvider";
+import { useNodesReducer, useStudio } from "@/contexts/StudioProvider";
 import { NodeRender } from "..";
 
 type RootProps = {
     dom?: HTMLIFrameElement | null;
 }
 export const RootNode = createType<RootProps>(({ dom }) => {
-    const { state, dispatch } = useStudio();
-    const nodes = Array.from(state.nodes.values());
+    const { state, dispatch } = useNodesReducer();
+    const nodes = Array.from(state.collection.values());
     const rootNodes = nodes.filter(n => !n.parent);
 
     useEffect(() => {

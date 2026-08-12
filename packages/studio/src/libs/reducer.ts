@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { AssetObject, EditorAction, EditorState, NodeObject, Variable, PageObject, BlockNodeObject } from "@/types";
 import { REGISTRY } from "./node";
 import { merge } from "lodash";
+import { nodeReducer } from "./node/nodeReducer";
 
 export const ROOT_NODE = {
     id: "root",
@@ -30,11 +31,14 @@ export const initialState: EditorState = {
         edge: { top: 0, left: 0, bottom: 0, right: 0 },
         iframe: null
     },
-    nodes: new Map<string, NodeObject>(),
-    variables: new Map<string, Map<string, Variable>>(),
-    doms: new Map<string, HTMLElement>(),
-    hovered: new Set<string>(),
-    selected: new Set<string>(),
+    nodes: {
+        collection: new Map<string, NodeObject>([[ROOT_NODE.id, ROOT_NODE]]),
+        variables: new Map<string, Map<string, Variable>>(),
+        doms: new Map<string, HTMLElement>(),
+        hovered: new Set<string>(),
+        selected: new Set<string>(),
+    },
+
     devices: [
         { id: "desktop", name: "Desktop", width: 1600, height: 1080 },
         { id: "tablet", name: "Tablet", width: 768, height: 1024 },
@@ -132,306 +136,6 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
             }
         }
 
-        // --- NODE MANAGEMENT ---
-        case "ADD_NODE": {
-            const newNodes = new Map(state.nodes);
-            newNodes.set(action.payload.id, {
-                ...action.payload,
-                type: getValidNodeType(action.payload)
-            });
-            return { ...state, nodes: newNodes }
-        }
-
-        case "INSERT_BLOCK": {
-            const { block, targetId, position } = action.payload;
-
-            // 1. Get target reference
-            const targetNode = state.nodes.get(targetId);
-            if (!targetNode) {
-                console.warn(`Target node not found for INSERT_BLOCK action.`);
-                return state;
-            }
-
-            const newNodes = new Map(state.nodes);
-            const targetParentId = targetNode.parent;
-
-            // 2. Build root node and all recursive children under target's parent
-            const { rootNode, nodesMap: blockNodes } = buildBlockContent(block.content, targetParentId);
-
-            console.log(Array.from(blockNodes.values()));
-            // 3. Merge all generated nodes into the state Map
-            blockNodes.forEach((node, id) => {
-                newNodes.set(id, node);
-            });
-
-            // 4. Get existing siblings under the parent (excluding the new root)
-            const targetSiblings = Array.from(newNodes.values())
-                .filter((node) => node.parent === targetParentId && node.id !== rootNode.id)
-                .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-            // 5. Find target's index
-            const targetIndex = targetSiblings.findIndex((node) => node.id === targetId);
-            if (targetIndex === -1) return state; // Failsafe
-
-            // 6. Calculate insertion index strictly for before | after
-            const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
-
-            // 7. Insert the root node into siblings list
-            targetSiblings.splice(insertIndex, 0, rootNode);
-
-            // 8. Reassign sequential order numbers (0, 1, 2, 3...)
-            targetSiblings.forEach((node, index) => {
-                newNodes.set(node.id, {
-                    ...node,
-                    order: index,
-                });
-            });
-
-            return {
-                ...state,
-                nodes: newNodes,
-                selected: new Set([rootNode.id]),
-                hovered: new Set()
-            };
-        }
-
-        case "MOVE_NODE": {
-            const { sourceId, targetId, position } = action.payload;
-
-            // 1. Get references
-            const sourceNode = state.nodes.get(sourceId);
-            const targetNode = state.nodes.get(targetId);
-
-            if (!sourceNode || !targetNode) {
-                console.warn(`Source or target node not found for MOVE_NODE action.`);
-                return state;
-            }
-
-            const newNodes = new Map(state.nodes);
-            const targetParentId = targetNode.parent; // Add fallback if needed: || ROOT_NODE.id
-            const oldParentId = sourceNode.parent;
-
-            // 2. Get the target's siblings, EXCLUDING the dragged node, and sort them by current order
-            const targetSiblings = Array.from(newNodes.values())
-                .filter(node => node.parent === targetParentId && node.id !== sourceId)
-                .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-            // 3. Find the target's index in this clean list
-            const targetIndex = targetSiblings.findIndex(node => node.id === targetId);
-            if (targetIndex === -1) return state; // Failsafe
-
-            // 4. Calculate exact insertion point
-            const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
-
-            // 5. Update the source node's parent (order is handled below)
-            const updatedSourceNode = {
-                ...sourceNode,
-                parent: targetParentId
-            };
-
-            // 6. Insert the source node into the siblings array at the calculated index
-            targetSiblings.splice(insertIndex, 0, updatedSourceNode);
-
-            // 7. Iterate through the modified array and reassign sequential `order` numbers (0, 1, 2, 3...)
-            targetSiblings.forEach((node, index) => {
-                newNodes.set(node.id, {
-                    ...node,
-                    order: index
-                });
-            });
-
-            // 8. (Optional but recommended) If the node was moved to a DIFFERENT parent, 
-            // re-index the old parent's children to remove the gap left behind.
-            if (oldParentId !== targetParentId) {
-                const oldSiblings = Array.from(newNodes.values())
-                    .filter(node => node.parent === oldParentId)
-                    .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-                oldSiblings.forEach((node, index) => {
-                    newNodes.set(node.id, {
-                        ...node,
-                        order: index
-                    });
-                });
-            }
-
-            // 9. Return updated state
-            return {
-                ...state,
-                nodes: newNodes
-            };
-        }
-
-        case "UPDATE_NODE": {
-            const node = state.nodes.get(action.payload.id)
-            if (!node) return state
-
-            const newNodes = new Map(state.nodes)
-            const newNode = {
-                ...node,
-                ...action.payload,
-                id: node.id, // Ensure ID remains unchanged 
-                props: {
-                    ...node.props,
-                    ...action.payload.props
-                }
-            };
-            newNodes.set(action.payload.id, fallbackNodeValidType(newNode));
-            return { ...state, nodes: newNodes }
-        }
-
-        case "UPDATE_NODE_PROPS": {
-            const node = state.nodes.get(action.payload.id);
-            if (!node) return state;
-
-            const newNodes = new Map(state.nodes);
-            newNodes.set(action.payload.id, {
-                ...node,
-                props: {
-                    ...node.props,
-                    ...action.payload.props
-                }
-            });
-            return { ...state, nodes: newNodes };
-        }
-
-        case "DELETE_NODE": {
-            const targetNode = state.nodes.get(action.payload)
-            if (!targetNode) return state
-
-            const newNodes = new Map(state.nodes);
-
-            const getDescendants = (parentId: string): string[] => {
-                let ids: string[] = []
-                newNodes.forEach((node, id) => {
-                    if (node.parent === parentId) {
-                        ids.push(id)
-                        ids.push(...getDescendants(id))
-                    }
-                })
-                return ids
-            }
-
-            const descendantsToDelete = getDescendants(action.payload)
-            const allDeletedIds = [action.payload, ...descendantsToDelete]
-
-            allDeletedIds.forEach(id => newNodes.delete(id))
-
-
-            const newHovered = new Set(state.hovered)
-            const newSelected = new Set(state.selected)
-
-            allDeletedIds.forEach(id => {
-                newHovered.delete(id)
-                newSelected.delete(id)
-            })
-
-            return {
-                ...state,
-                nodes: newNodes,
-                hovered: newHovered,
-                selected: newSelected
-            }
-        }
-
-        case "SET_NODES": {
-            const sourceNodes = new Map(action.payload);
-            const newNodes = new Map();
-            newNodes.set(ROOT_NODE.id, ROOT_NODE);
-
-            // 3. Make all other parentless nodes children of the Root
-            for (const [id, node] of sourceNodes.entries()) {
-                if (id !== ROOT_NODE.id && !node.parent) {
-                    newNodes.set(id, fallbackNodeValidType({
-                        ...node,
-                        parent: ROOT_NODE.id
-                    }));
-                } else {
-                    newNodes.set(id, fallbackNodeValidType(node));
-                }
-            }
-
-            return { ...state, nodes: newNodes };
-        }
-
-        case "ADD_VARIABLE": {
-            const { nodeId, variable } = action.payload;
-            const newVariables = new Map(state.variables);
-
-            if (!newVariables.has(nodeId)) {
-                newVariables.set(nodeId, new Map());
-            }
-
-            const nodeVariables = newVariables.get(nodeId)!;
-            nodeVariables.set(variable.name, variable);
-
-            return { ...state, variables: newVariables };
-        }
-
-        case "REMOVE_VARIABLE": {
-            const { nodeId, variableName } = action.payload;
-            const newVariables = new Map(state.variables);
-
-            if (newVariables.has(nodeId)) {
-                const nodeVariables = new Map(newVariables.get(nodeId));
-                nodeVariables.delete(variableName);
-                newVariables.set(nodeId, nodeVariables);
-            }
-
-            return { ...state, variables: newVariables };
-        }
-
-        case "UPDATE_VARIABLE": {
-            const { nodeId, variable } = action.payload;
-            const newVariables = new Map(state.variables);
-
-            if (newVariables.has(nodeId)) {
-                const nodeVariables = new Map(newVariables.get(nodeId));
-                nodeVariables.set(variable.name, variable);
-                newVariables.set(nodeId, nodeVariables);
-            }
-
-            return { ...state, variables: newVariables };
-        }
-
-        case "SET_DOM": {
-            const newDoms = new Map(state.doms);
-            newDoms.set(action.payload.id, action.payload.dom);
-            return { ...state, doms: newDoms };
-        }
-
-        case "REMOVE_DOM": {
-            const newDoms = new Map(state.doms);
-            newDoms.delete(action.payload);
-            return { ...state, doms: newDoms };
-        }
-
-        // --- INTERACTION STATES ---
-        case "ADD_HOVERED":
-            return { ...state, hovered: new Set(state.hovered).add(action.payload) }
-        case "SET_HOVERED":
-            return { ...state, hovered: new Set([action.payload]) }
-        case "CLEAR_HOVERED":
-            return { ...state, hovered: new Set() }
-        case "REMOVE_HOVERED": {
-            const newSet = new Set(state.hovered)
-            newSet.delete(action.payload)
-            return { ...state, hovered: newSet }
-        }
-
-        case "ADD_SELECTED":
-            return { ...state, selected: new Set(state.selected).add(action.payload) }
-        case "SET_SELECTED":
-            return { ...state, selected: new Set([action.payload]) }
-        case "CLEAR_SELECTED":
-            return { ...state, selected: new Set() }
-        case "REMOVE_SELECTED": {
-            const newSet = new Set(state.selected)
-            newSet.delete(action.payload)
-            return { ...state, selected: newSet }
-        }
-
-     
         case "SET_DEVICE": {
             const deviceExists = state.devices.some(
                 device => device.id === action.payload
@@ -585,6 +289,9 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
         }
 
         default:
-            return state
+            return {
+                ...state,
+                nodes: nodeReducer(state.nodes, action)
+            }
     }
 }

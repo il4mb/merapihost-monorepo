@@ -1,15 +1,16 @@
 "use client";
 import { studioReducer, initialState } from "@/libs/reducer";
-import { createContext, useContext, ReactNode, useReducer, memo } from "react";
-import type { EditorAction, EditorState } from "@/types";
+import { createContext, useContext, ReactNode, useReducer, memo, Dispatch, useMemo } from "react";
+import type { EditorAction, EditorState, NodeState, GenericAction, NodeActions } from "@/types";
 import AssetsProvider from "./AssetsProvider";
 import PagesProvider from "./PagesProvider";
-import { useGlobalKeyListener, useMainShortcutListener } from "@/hooks";
+import { useRegisterShortcuts, useMainShortcutListener } from "@/hooks";
+import GlobalKeyListenerProvider from "./GlobalKeyListenerProvider";
 
 
 interface StudioContextType {
     state: EditorState;
-    dispatch: React.Dispatch<EditorAction>;
+    dispatch: Dispatch<EditorAction>;
 
 }
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
@@ -21,6 +22,17 @@ export const useStudio = () => {
     return context;
 }
 
+export const useNodesReducer = () => {
+    const { state, dispatch } = useStudio();
+    return useMemo(() => ({
+        state: state.nodes,
+        dispatch
+    } as {
+        state: NodeState;
+        dispatch: Dispatch<GenericAction<NodeActions>>;
+    }), [state.nodes]);
+}
+
 
 interface StudioProviderProps {
     children: ReactNode;
@@ -30,19 +42,21 @@ export default function StudioProvider({ children }: StudioProviderProps) {
     const value = { state, dispatch };
     return (
         <StudioContext.Provider value={value}>
-            <SelfClients>
-                <AssetsProvider>
-                    <PagesProvider>
-                        {children}
-                    </PagesProvider>
-                </AssetsProvider>
-            </SelfClients>
+            <GlobalKeyListenerProvider>
+                <RegisterMainShortcuts>
+                    <AssetsProvider>
+                        <PagesProvider>
+                            {children}
+                        </PagesProvider>
+                    </AssetsProvider>
+                </RegisterMainShortcuts>
+            </GlobalKeyListenerProvider>
         </StudioContext.Provider>
     );
 }
 
-const SelfClients = memo(({ children }: { children: ReactNode }) => {
+const RegisterMainShortcuts = memo(({ children }: { children: ReactNode }) => {
     const shortcuts = useMainShortcutListener();
-    useGlobalKeyListener(typeof window !== "undefined" ? window : null, shortcuts);
+    useRegisterShortcuts(shortcuts);
     return children;
 }); 

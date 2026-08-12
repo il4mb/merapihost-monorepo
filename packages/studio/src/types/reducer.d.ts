@@ -19,6 +19,17 @@ export type Viewport = {
     iframe: HTMLIFrameElement | null;
 }
 
+
+export interface NodeState {
+    collection: Map<string, NodeObject>;
+    doms: Map<string, HTMLElement>;
+    variables: Map<string, Map<string, NodeVariable>>;
+    hovered: Set<string>;
+    selected: Set<string>;
+}
+
+
+
 export interface EditorState {
     devices: {
         id: string;
@@ -27,11 +38,7 @@ export interface EditorState {
         height?: number | string;
     }[];
     viewport: Viewport;
-    nodes: Map<string, NodeObject>;
-    doms: Map<string, HTMLElement>;
-    variables: Map<string, Map<string, NodeVariable>>;
-    hovered: Set<string>;
-    selected: Set<string>;
+    nodes: NodeState;
     device: string;
 
     assets: {
@@ -47,8 +54,7 @@ export interface EditorState {
     };
 }
 
-export type CoreActionMap = {
-    UPDATE_VIEWPORT: Partial<EditorState["viewport"]>;
+export type NodeActions = {
     ADD_NODE: NodeObject;
     INSERT_BLOCK: {
         block: Block;
@@ -101,16 +107,14 @@ export type CoreActionMap = {
     SET_SELECTED: string;
     REMOVE_SELECTED: string;
     CLEAR_SELECTED: never;
+}
 
-    ADD_DRAGGED: string;
-    REMOVE_DRAGGED: string;
-
+export type CoreActionMap = {
+    UPDATE_VIEWPORT: Partial<EditorState["viewport"]>;
     SET_DEVICE: string;
-
     SET_ASSETS: Map<string, AssetObject>;
     SET_SELECTED_ASSET: AssetObject | null;
     SET_OPENED_ASSET: AssetObject | null;
-
     SET_PAGES: Map<string, PageObject>;
     ADD_PAGE: PageObject;
     UPDATE_PAGE: {
@@ -120,22 +124,32 @@ export type CoreActionMap = {
     REMOVE_PAGE: string;
     SET_SELECTED_PAGE: PageObject | null;
     SET_OPENED_PAGE: PageObject;
-}
+};
 
-export type StrictActionUnion = {
-    [K in keyof CoreActionMap]: CoreActionMap[K] extends never
+
+// 1. Convert any action payload map into a Discriminated Union of Actions
+export type ActionUnion<T extends Record<string, any>> = {
+    [K in keyof T]: T[K] extends never
     ? { type: K }
-    : { type: K; payload: CoreActionMap[K] };
-}[keyof CoreActionMap];
+    : undefined extends T[K]
+    ? { type: K; payload?: T[K] }
+    : { type: K; payload: T[K] };
+}[keyof T];
 
-export type ActionMap = CoreActionMap & {
-    BULK: StrictActionUnion[];
-}
+// 2. Generic Action that includes all actions from map T + the BULK action
+export type GenericAction<T extends Record<string, any>> =
+    | ActionUnion<T>
+    | { type: "BULK"; payload: GenericAction<T>[] };
 
-export type EditorAction = {
-    [Key in keyof ActionMap]: [ActionMap[Key]] extends [never]
-    ? { type: Key }
-    : undefined extends ActionMap[Key]
-    ? { type: Key; payload?: ActionMap[Key] }
-    : { type: Key; payload: ActionMap[Key] }
-}[keyof ActionMap]
+// 3. Concrete action unions for your editor
+export type CoreEditorAction = GenericAction<CoreActionMap>;
+export type NodeEditorAction = GenericAction<NodeActions>;
+
+// Combined action union if your editor handles both node and core actions
+export type EditorAction = GenericAction<CoreActionMap & NodeActions>;
+
+// 4. Generic Reducer definition
+export type GenericReducer<S, A extends Record<string, any>> = (
+    state: S,
+    action: GenericAction<A>
+) => S;

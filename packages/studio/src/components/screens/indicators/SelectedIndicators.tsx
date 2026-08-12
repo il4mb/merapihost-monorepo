@@ -1,7 +1,7 @@
 import { NodeObject } from "@/types";
 import { useCallback, useEffect, useState, useMemo, memo, Fragment } from "react";
 import { Box, Typography } from "@mui/material";
-import { useStudio } from "@/contexts/StudioProvider";
+import { useNodesReducer, useStudio } from "@/contexts/StudioProvider";
 import { getLayoutBoxes } from "@/libs/tools/layout";
 import type { Edge, LayoutBoxes } from "@/types";
 import { REGISTRY } from "@/libs/node";
@@ -203,15 +203,15 @@ const Indicator = memo(({ element, node }: IndicatorProps) => {
 });
 
 export default function SelectedIndicators() {
-    const { state: { selected, doms, nodes } } = useStudio();
+    const { state: { selected, doms, collection } } = useNodesReducer();
     const pairs = useMemo(() => {
         return Array.from(selected).map((id) => {
             const node = doms.get(id);
-            const nodeObject = nodes.get(id);
+            const nodeObject = collection.get(id);
             if (!node || !nodeObject) return null;
             return { element: node, node: nodeObject };
         }).filter((item): item is { element: HTMLElement; node: NodeObject } => item !== null);
-    }, [selected, doms, nodes]);
+    }, [selected, doms, collection]);
 
     return (
         <Fragment>

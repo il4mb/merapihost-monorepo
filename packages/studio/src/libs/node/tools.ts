@@ -1,14 +1,21 @@
 import { TypeModel, TypeComponent, NodeObject } from "@/types";
-import { FC } from "react";
+import { FC, RefObject } from "react";
+import { NodeModel } from "./NodeModel";
 
 type FCProps = {
     node: NodeObject;
     children: React.ReactNode;
-    ref: React.Ref<HTMLElement | null>;
+    ref: RefObject<HTMLElement | null>;
 }
-type CreateTypeFC = FC<FCProps>;
+type CreateTypeFC<T> = FC<FCProps & T>;
 
-export const createType = <T>(fc: CreateTypeFC, model: TypeModel<T>): TypeComponent<T> => {
+export const createType = <T>(fc: CreateTypeFC<T>, model: TypeModel<T>): TypeComponent<T> => {
     // @ts-ignore
     return Object.assign(fc, { model });
 }
+
+
+export const getNodeModel = <T>(node: NodeObject) => {
+    return new NodeModel(node);
+}
+

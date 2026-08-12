@@ -6,3 +6,4 @@ export interface LayoutBoxes {
     padding: Edge;
     content: Edge;
 }
+

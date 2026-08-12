@@ -13,7 +13,7 @@ import { RootNode } from "@/libs/node";
 import { Block, NodeObject } from "@/types";
 import { debounce } from "lodash";
 import SpotsContainer from "./SpotsContainer";
-import { useGlobalKeyListener, useMainShortcutListener } from '@/hooks';
+import { useGlobalKeyListener } from '@/contexts/GlobalKeyListenerProvider';
 
 const getGeometry = (el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
@@ -230,6 +230,7 @@ type EditorCanvasProps = {
 
 export default function EditorCanvas({ nodes }: EditorCanvasProps) {
 
+    const { registerClient } = useGlobalKeyListener(); // Ensure the global key listener is initialized
     const { state, dispatch } = useStudio();
     const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null);
     const [isReady, setIsReady] = useState(false); // Track iframe load state
@@ -238,10 +239,6 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
     const arrayNodeRef = useRef<NodeObject[]>([]); // Store the array of nodes for comparison
     const dropTargetRef = useRef<DropTarget | null>(null); // Store the current drop target for comparison
     const draggedBlockRef = useRef<Block | null>(null);
-
-    const shortcuts = useMainShortcutListener();
-
-    useGlobalKeyListener(iframe?.contentWindow, shortcuts); // Listen for global key events in the iframe
 
     const handleNodeMoving = (sourceNodeId: string, event: DragEvent) => {
         event.preventDefault();
@@ -295,6 +292,13 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
         draggedBlockRef.current = null;
     };
 
+    useEffect(() => {
+        const iframeWindow = iframe?.contentWindow;
+        if (!iframeWindow) return;
+        const unregister = registerClient(iframeWindow);
+        return unregister;
+    }, [registerClient, iframe]);
+
     // Keep dropTargetRef in sync for event handlers to access
     useEffect(() => {
         dropTargetRef.current = dropTarget;
@@ -302,13 +306,13 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
 
     // Keep domsRef synced for event listeners
     useEffect(() => {
-        domsRef.current = state.doms;
-    }, [state.doms]);
+        domsRef.current = state.nodes.doms;
+    }, [state.nodes.doms]);
 
     // Keep a ref to the latest nodes array for event handlers to access
     useEffect(() => {
-        arrayNodeRef.current = Array.from(state.nodes.values());
-    }, [state.nodes]);
+        arrayNodeRef.current = Array.from(state.nodes.collection.values());
+    }, [state.nodes.collection]);
 
     // Wait for the iframe's document to fully initialize
     useEffect(() => {

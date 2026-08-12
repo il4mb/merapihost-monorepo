@@ -3,11 +3,12 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { NodeObject } from "@/types/node";
 import { ChevronRight, CircleQuestionMark, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useStudio } from "@/contexts/StudioProvider";
+import { useNodesReducer, useStudio } from "@/contexts/StudioProvider";
 import { REGISTRY } from "@/libs/node";
 import { useTypeContext } from "@/hooks/useNodes";
 import LabelField from "@/components/ui/fields/LabelField";
 import ScrollContainer from "@/components/ui/ScrollContainer";
+import { NodeModel } from "@/libs/node/NodeModel";
 
 const TreeContainer = styled("div")({
     display: "flex",
@@ -53,37 +54,27 @@ type TreeProps = {
 const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNodeVisible }: TreeProps) => {
 
     const ignoreInteractionRef = useRef(false);
-    const { state, dispatch } = useStudio();
+    const { state, dispatch } = useNodesReducer();
+    const model = useMemo(() => new NodeModel(node), [node]);
 
     const [collapsed, setCollapsed] = useState(!defaultOpen);
     const isSelected = state.selected.has(node.id);
     const isHovered = state.hovered.has(node.id);
-    const typeContext = useTypeContext(node.id);
 
-    const getDefaultName = useCallback(() => {
-        if (!typeContext.type?.model.default?.name) return node.name || node.type || node.tagName || "Unknown";
-        if (typeof typeContext.type.model.default.name === "string") {
-            return typeContext.type.model.default.name;
-        }
-        return typeContext.type.model.default.name.call(typeContext);
-    }, [typeContext]);
-
-    const type = node.type ? REGISTRY[node.type] : undefined;
-    const name = (typeof node.name === "string" ? node.name : "") || getDefaultName();
-    const color = extendedColor || type?.model?.color;
-    const childrenColor = extendedColor || type?.model?.childrenColor;
+    const color = extendedColor || model.type?.color;
+    const childrenColor = extendedColor || model.type?.childrenColor;
     const parentVisible = isNodeVisible ?? true;
     const isVisible = parentVisible && (node.visible ?? true);
 
     const childNodes = useMemo(() => {
-        return Array.from(state.nodes.values()).filter(n => {
+        return Array.from(state.collection.values()).filter(n => {
             const type = n.type ? REGISTRY[n.type] : undefined;
             if (type?.model?.visibleOnTree === false) {
                 return false;
             }
             return n.parent === node.id;
         }).sort((a, b) => (a.order || 0) - (b.order || 0));
-    }, [state.nodes, node.id]);
+    }, [state.collection, node.id]);
     const hasChildren = childNodes.length > 0;
 
     const onToggle = useCallback((e: React.MouseEvent) => {
@@ -141,10 +132,10 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
     }, [node.id, dispatch]);
 
     const onFinishNameChange = useCallback((finalName: string) => {
-        const processedName = finalName || getDefaultName();
+        const processedName = finalName || model.type.getDefaultName(model);
         dispatch({ type: "UPDATE_NODE", payload: { id: node.id, name: processedName } });
         ignoreInteractionRef.current = false;
-    }, [node.id, dispatch, getDefaultName]);
+    }, [node.id, dispatch, model.type]);
 
     const onStartNameEditing = useCallback(() => {
         ignoreInteractionRef.current = true;
@@ -163,11 +154,11 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
         dispatch({ type: "UPDATE_NODE", payload: { id: node.id, visible: !isVisible } });
     }, [node.id, dispatch, isVisible]);
 
-    if (type?.model?.visibleOnTree === false) {
+    if (model.type?.visibleOnTree === false) {
         return null;
     }
 
-    const IconComponent = type?.model?.icon || CircleQuestionMark;
+    const IconComponent = model.type?.icon || CircleQuestionMark;
 
     return (
         <TreeContainer>
@@ -228,7 +219,7 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
                 </Box>
                 <LabelField
                     sx={{ color: color || "inherit" }}
-                    value={name}
+                    value={model.name}
                     onChange={setName}
                     onFinish={onFinishNameChange}
                     onStartEditing={onStartNameEditing} />
@@ -266,10 +257,10 @@ const Tree = ({ node, defaultOpen = true, depth = 0, color: extendedColor, isNod
 interface TreeManagerProps { }
 
 export default function TreeManager({ }: TreeManagerProps) {
-    const { state } = useStudio();
+    const { state } = useNodesReducer();
     const rootNode = useMemo(() => {
-        return state.nodes.get("root") || null;
-    }, [state.nodes]);
+        return state.collection.get("root") || null;
+    }, [state.collection]);
 
     return (
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
