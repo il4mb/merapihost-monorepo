@@ -22,7 +22,7 @@ export type Viewport = {
 
 
 export interface NodeState {
-    status: "idle" | "editing" | "dragging" | "resizing" | "saving";
+    status: "idle" | "editing" | "preview";
     collection: Map<string, NodeModel>;
     variables: Map<string, Map<string, NodeVariable>>;
     hovered: Set<string>;

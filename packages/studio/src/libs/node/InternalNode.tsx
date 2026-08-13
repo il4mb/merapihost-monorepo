@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useState, useMemo, SetStateAction, Dispatch } from "react";
 import { NodeModel } from "./NodeModel";
 
 type InternalNodeProps = {
@@ -9,22 +9,31 @@ type InternalNodeProps = {
 };
 
 export default function InternalNode({ children, node }: InternalNodeProps) {
+    const [data, setData] = useState<Record<string, unknown>>(node.type.data);
+    const values = useMemo(() => ({
+        node,
+        data,
+        setData
+    }), [node, data]);
+
     return (
-        <Context.Provider value={{ node }}>
+        <Context.Provider value={values}>
             {children}
         </Context.Provider>
     );
 }
 
-type InternalNodeContextType = {
+type InternalNodeContextType<T extends Record<string, unknown>> = {
     node: NodeModel;
+    data: T;
+    setData: Dispatch<SetStateAction<T>>;
 }
-const Context = createContext<InternalNodeContextType | undefined>(undefined);
+const Context = createContext<InternalNodeContextType<any> | undefined>(undefined);
 
-export function useInternalNode() {
+export function useInternalNode<T extends Record<string, unknown>>() {
     const context = useContext(Context);
     if (!context) {
-        throw new Error("useInternalNode must be used within an InternalNodeProvider");
+        throw new Error("useInternalNode must be used within an InternalNode component");
     }
-    return context;
+    return context as InternalNodeContextType<T>;
 }

@@ -7,7 +7,7 @@ import { NodeRender } from "..";
 type RootProps = {
     dom?: HTMLIFrameElement | null;
 }
-export const RootNode = createType<RootProps>(({ dom }) => {
+export const RootType = createType<RootProps>(({ dom }) => {
     const { state, dispatch } = useNodesReducer();
     const nodes = Array.from(state.collection.values());
     const rootNodes = nodes.filter(n => !n.parent);

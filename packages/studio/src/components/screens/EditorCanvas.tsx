@@ -9,11 +9,12 @@ import { CssBaseline } from "@mui/material";
 import DropIndicator from "./DropIndicator";
 import createCache from "@emotion/cache";
 import { createPortal } from "react-dom";
-import { RootNode, NodeModel } from "@/libs/node";
+import { NodeModel } from "@/libs/node";
 import { Block, NodeObject } from "@/types";
 import { debounce } from "lodash";
 import SpotsContainer from "./SpotsContainer";
 import { useGlobalKeyListener } from '@/contexts/GlobalKeyListenerProvider';
+import { RootType } from '@/libs/node/types/RootType';
 
 const getGeometry = (el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
@@ -661,7 +662,7 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
                         modeStorageKey={"theme-mode"}
                         disableTransitionOnChange>
                         <CssBaseline />
-                        <RootNode dom={iframe} />
+                        <RootType dom={iframe} />
                         {dropTarget && (
                             <DropIndicator
                                 target={dropTarget.target}

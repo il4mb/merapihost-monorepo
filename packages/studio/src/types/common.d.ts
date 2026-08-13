@@ -83,7 +83,7 @@ export type ModifierSet = {
 };
 
 
-export type TypeModel<T = any> = {
+export type TypeModel<T extends Record<string, unknown> = Record<string, unknown>> = {
     name: string;
     extends?: string;
     icon?: FC<{ size?: number, color?: string }>;
@@ -97,27 +97,33 @@ export type TypeModel<T = any> = {
     };
     visibleOnTree?: boolean;
 
+    data?: T;
+
     /**
      * Defines whether the node is an instance of this type.
      */
-    isInstance?: (target: NodeObject<T>) => boolean;
+    isInstance?: (target: NodeObject) => boolean;
 
     /**
      * Defines whether the node can be dragged.
      * Used for drag-and-drop operations to determine if a node can be dragged.
+     * this as the node passed to the type model as the dragging object.
      */
-    draggable?: boolean | ((node: NodeObject<T>) => boolean);
+    draggable?: boolean | ((node: NodeModel) => boolean);
 
     /**
      * Defines whether the node can accept children.
+     * Used for drag-and-drop operations to determine if a node can accept children of a certain type.
+     * this type model as the dragging object and the target node as the parent.
      */
-    droppable?: string[] | boolean | ((node: NodeObject<T>) => boolean);
+    droppable?: string[] | boolean | ((target: NodeModel) => boolean);
 
     /**
      * Defines whether the node can be accepted by this type.
      * Used for drag-and-drop operations to determine if a node can be dropped onto another node of this type.
+     * this type model as the parent where the node is being dropped.
      */
-    accepts?: string[] | ((node: NodeObject<T>) => string[]) | ((node: NodeObject<T>) => boolean);
+    accepts?: string[] | ((source: NodeModel) => string[]) | ((source: NodeModel) => boolean);
 
     onCreate?: (node: NodeModel) => void;
     onChildAdded?: (child: NodeModel) => void;
@@ -129,7 +135,7 @@ export type TypeModel<T = any> = {
         props?: T;
     };
 }
-export type TypeComponent<T = any> = React.FC<T> & {
+export type TypeComponent<T extends Record<string, unknown> = Record<string, unknown>> = React.FC<T> & {
     model: TypeModel<T>;
 }
 

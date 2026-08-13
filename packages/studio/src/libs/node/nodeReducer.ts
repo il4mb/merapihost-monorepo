@@ -4,7 +4,7 @@ import { NodeModel } from "./NodeModel";
 
 export const ROOT_NODE = {
     id: "root",
-    type: "Root",
+    type: "root",
     props: {
         style: {
             width: "100%",
@@ -28,25 +28,25 @@ export const initialNodesState: NodeState = {
     selected: new Set<string>()
 }
 
-const buildBlockContent = (content: BlockNodeObject, parentId: string, nodesMap = new Map<string, NodeModel>()) => {
-    const { children, ...rest } = content;
+// const buildBlockContent = (content: BlockNodeObject, parentId: string, nodesMap = new Map<string, NodeModel>()) => {
+//     const { children, ...rest } = content;
 
-    // 1. Create the new node
-    const newNode = new NodeModel({
-        ...rest,
-        id: nanoid(),
-        parent: parentId,
-    });
-    nodesMap.set(newNode.id, newNode);
-    // 3. Process children recursively using the same Map accumulator
-    if (Array.isArray(children) && children.length > 0) {
-        children.forEach((childBlock) => {
-            buildBlockContent(childBlock, newNode.id, nodesMap);
-        });
-    }
+//     // 1. Create the new node
+//     const newNode = new NodeModel({
+//         ...rest,
+//         id: nanoid(),
+//         parent: parentId,
+//     });
+//     nodesMap.set(newNode.id, newNode);
+//     // 3. Process children recursively using the same Map accumulator
+//     if (Array.isArray(children) && children.length > 0) {
+//         children.forEach((childBlock) => {
+//             buildBlockContent(childBlock, newNode.id, nodesMap);
+//         });
+//     }
 
-    return { rootNode: newNode, nodesMap };
-};
+//     return { rootNode: newNode, nodesMap };
+// };
 
 export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>): NodeState => {
     switch (action.type) {

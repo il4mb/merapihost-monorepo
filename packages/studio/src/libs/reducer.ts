@@ -1,27 +1,8 @@
 import { nanoid } from "nanoid";
-import { AssetObject, EditorAction, EditorState, NodeObject, Variable, PageObject, BlockNodeObject } from "@/types";
+import { AssetObject, EditorAction, EditorState, NodeObject, PageObject, BlockNodeObject } from "@/types";
 import { REGISTRY } from "./node";
 import { merge } from "lodash";
 import { initialNodesState, nodeReducer } from "./node/nodeReducer";
-import { NodeModel } from "./node/NodeModel";
-
-export const ROOT_NODE = new NodeModel({
-    id: "root",
-    type: "Root",
-    props: {
-        style: {
-            width: "100%",
-            height: "100%",
-            position: "relative",
-            padding: 0,
-            margin: 0,
-            boxSizing: "border-box",
-            display: "flow-root",
-            overflow: "auto"
-        }
-    },
-    parent: null
-});
 
 export const initialState: EditorState = {
     viewport: {

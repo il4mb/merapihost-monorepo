@@ -1,50 +1,30 @@
-import { Box } from "@mui/material";
-import { BinaryIcon, TypeIcon } from "lucide-react";
+import { Typography } from "@mui/material";
+import { TypeIcon } from "lucide-react";
 import { createType } from "../tools";
 import { JSX } from "react/jsx-runtime";
-import { Fragment, useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNodesReducer } from "@/contexts/StudioProvider";
 import { useGlobalKeyListener } from "@/contexts/GlobalKeyListenerProvider";
-
-/***
- * TextNode is a type for raw text content. It is used to represent text nodes in the DOM.
- */
-export const TextNode = createType(({ node }) => {
-    return (
-        <Fragment>
-            {node.content}
-        </Fragment>
-    );
-}, {
-    name: "TextNode",
-    icon: BinaryIcon,
-    draggable: true, // TextNode can be dragged
-    droppable: ["Text"], // TextNode can only drop to Text type nodes
-    accepts: [], // TextNode cannot accept any children
-    default: {
-        name: "textnode"
-    }
-});
+import { useInternalNode } from "../InternalNode";
 
 /***
  * Text is a type for element where the content can be edited. It is used to represent text elements in the DOM.
  * It can be used to represent paragraphs, headings, spans, etc.
  */
-export const Text = createType(({ node, children, ref }) => {
+export const TextType = createType(({ node, children, ref }) => {
 
+    const { data, setData } = useInternalNode<{ editing: boolean }>();
     const { state } = useNodesReducer();
     const { registerShortcuts } = useGlobalKeyListener();
     const [isSelected, setIsSelected] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const tagName = (node.tagName || "span") as keyof JSX.IntrinsicElements;
 
-
     const handleDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (isSelected) {
             setIsEditing(true);
         }
     }, [isSelected]);
-
 
     const shortcutHandlers = useMemo(() => [
         {
@@ -57,7 +37,6 @@ export const Text = createType(({ node, children, ref }) => {
             }
         }
     ], []);
-
 
     useEffect(() => {
         if (!isEditing) return;
@@ -78,24 +57,33 @@ export const Text = createType(({ node, children, ref }) => {
         }
     }, [isSelected, state.selected, node.id]);
 
+    useEffect(() => {
+        console.log("TextType data changed:", data);
+    }, [data]);
+
     return (
-        <Box
+        <Typography
             component={tagName}
             {...node.props}
             onDoubleClick={handleDoubleClick}
             ref={ref}>
             {children}
-        </Box>
+        </Typography>
     );
 }, {
     name: "Text",
+    extends: "Element",
     icon: TypeIcon,
     draggable: true,
+    accepts: ["TextNode"], // Text can accept TextNode as children
+    data: {
+        editing: false
+    },
     isInstance(target) {
         const supportedTags = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "span", "a"];
         return supportedTags.includes(String(target.tagName).toLowerCase());
     },
-    accepts: ["TextNode"], // Text can accept TextNode as children
+
     default: {
         name: (ctx) => {
             return String(ctx?.node?.tagName || "span");

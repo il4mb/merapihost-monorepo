@@ -9,13 +9,13 @@ type FCProps = {
 }
 type CreateTypeFC<T> = FC<FCProps & T>;
 
-export const createType = <T>(fc: CreateTypeFC<T>, model: TypeModel<T>): TypeComponent<T> => {
+export const createType = <T extends Record<string, unknown>>(fc: CreateTypeFC<T>, model: TypeModel<T>): TypeComponent<T> => {
     // @ts-ignore
     return Object.assign(fc, { model });
 }
 
 
-export const getNodeModel = <T>(node: NodeObject) => {
+export const getNodeModel = <T extends Record<string, unknown>>(node: NodeObject) => {
     return new NodeModel(node);
 }
 

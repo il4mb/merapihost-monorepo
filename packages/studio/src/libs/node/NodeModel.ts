@@ -1,5 +1,5 @@
-import type { NodeObject, Block, BlockNodeObject } from "@/types";
-import { ElementNode, REGISTRY } from ".";
+import type { NodeObject, BlockNodeObject } from "@/types";
+import { REGISTRY } from ".";
 import { ModelProxy } from "./ModelProxy";
 import { merge } from "lodash";
 import { nanoid } from "nanoid";
@@ -17,13 +17,14 @@ export class NodeModel implements NodeContext {
     private _dom: HTMLElement | null = null;
 
     private findType(node: NodeObject): ModelProxy {
-        if ("type" in node && node.type && node.type in REGISTRY) {
-            return new ModelProxy(REGISTRY[node.type]);
+        const typeName = String(node.type || "").toLowerCase();
+        if (typeName.trim() != "" && typeName in REGISTRY) {
+            return new ModelProxy(REGISTRY[typeName]);
         }
         const match = Object.values(REGISTRY).find(
             (item) => item.model.isInstance?.(node)
         );
-        return match ? new ModelProxy(match) : new ModelProxy(ElementNode);
+        return match ? new ModelProxy(match) : new ModelProxy(REGISTRY["element"]);
     }
 
     private mergeDefaultProps() {

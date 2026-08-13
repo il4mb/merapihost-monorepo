@@ -21,9 +21,10 @@ type SaveActionProps = {};
 export default function SaveAction({ }: SaveActionProps) {
     const page = useCurrentPage();
     const { setAction, fireEvent } = useStudioEvents();
-    const { state, dispatch } = useNodesReducer();
+    const { state } = useNodesReducer();
     const [isSaving, setIsSaving] = useState(false);
     const isRunningRef = useRef(false);
+    const isEditing = useMemo(() => state.status === "editing", [state.status]);
 
     useEffect(() => {
         isRunningRef.current = isSaving;
@@ -75,6 +76,8 @@ export default function SaveAction({ }: SaveActionProps) {
             unregister?.();
         };
     }, [setAction, saveHandler]);
+
+    if (!isEditing) return null;
 
     return (
         <Tooltip title="Save (Ctrl+S)" placement="top">

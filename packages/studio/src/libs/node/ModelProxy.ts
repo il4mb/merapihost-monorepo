@@ -1,6 +1,7 @@
 import type { NodeModel, TypeComponent, TypeModel } from "@/types";
 import { NodeContext } from "./NodeModel";
 import { REGISTRY } from ".";
+import { merge } from "lodash";
 
 /**
  * A proxy class that wraps a TypeModel and provides access to its properties, including inherited properties from parent models.
@@ -16,6 +17,26 @@ export class ModelProxy {
         this.model = type.model;
     }
 
+    get data() {
+        let currentModel: TypeModel | undefined = this.model;
+        let mergedData: Record<string, unknown> = {};
+        while (currentModel) {
+            mergedData = merge({}, currentModel.data, mergedData);
+            const parentTypeName = currentModel.extends;
+            if (parentTypeName) {
+                const parentModel = REGISTRY[parentTypeName.toLowerCase()];
+                if (parentModel) {
+                    currentModel = parentModel.model;
+                } else {
+                    currentModel = undefined;
+                }
+            } else {
+                currentModel = undefined;
+            }
+        }
+        return mergedData as Record<string, unknown>;
+    }
+
     get name() {
         return String(this.model?.name);
     }
@@ -23,7 +44,7 @@ export class ModelProxy {
     get extends() {
         const extendsType = this.model?.extends;
         if (!extendsType) return null;
-        const parentModel = REGISTRY[extendsType];
+        const parentModel = REGISTRY[extendsType.toLowerCase()];
         if (!parentModel) return null;
         return new ModelProxy(parentModel);
     }
@@ -79,7 +100,7 @@ export class ModelProxy {
         if (!target || !target.type) return false;
         const droppable = this.model?.droppable ?? this.extends?.model?.droppable ?? true;
         if (typeof droppable === "function") {
-            return droppable(target.node);
+            return droppable(target);
         }
         if (Array.isArray(droppable)) {
             return droppable.includes(target?.type?.name);
@@ -96,7 +117,7 @@ export class ModelProxy {
         if (!source || !source.type) return false;
         const accepts = this.model?.accepts ?? this.extends?.model?.accepts ?? true;
         if (typeof accepts === "function") {
-            return accepts(source.node);
+            return accepts(source);
         }
         if (Array.isArray(accepts)) {
             return accepts.includes(source.type.name);
