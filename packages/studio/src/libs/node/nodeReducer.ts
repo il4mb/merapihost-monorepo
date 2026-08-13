@@ -20,7 +20,8 @@ export const ROOT_NODE = {
     parent: null
 } as NodeObject;
 
-export const initialState: NodeState = {
+export const initialNodesState: NodeState = {
+    status: "idle",
     collection: new Map<string, NodeModel>(),
     variables: new Map<string, Map<string, Variable>>(),
     hovered: new Set<string>(),
@@ -49,8 +50,11 @@ const buildBlockContent = (content: BlockNodeObject, parentId: string, nodesMap 
 
 export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>): NodeState => {
     switch (action.type) {
-        case "SET_NODES": {
+        case "SET_NODE_STATE_STATUS": {
+            return { ...state, status: action.payload };
+        }
 
+        case "SET_NODES": {
             let newNodes = new Map<string, NodeModel>();
             newNodes.set(ROOT_NODE.id, new NodeModel(ROOT_NODE));
 
@@ -75,6 +79,8 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
         // --- NODE MANAGEMENT ---
         case "ADD_NODE": {
+            // editing protection: only allow block insertion when in "editing" mode
+            if (state.status !== "editing") return state;
             const newNodes = new Map(state.collection);
             const newNode = new NodeModel(action.payload);
             newNodes.set(newNode.id, newNode);
@@ -84,6 +90,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "INSERT_BLOCK": {
+            // editing protection: only allow block insertion when in "editing" mode
+            if (state.status !== "editing") return state;
+
             const { block, targetId, position } = action.payload;
 
             // 1. Get target reference
@@ -99,7 +108,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             const targetParentId = position === "inside" ? targetNode.id : targetNode.parent;
 
             // 3. Build root node and all recursive children under the determined parent
-            const { rootNode, nodesMap: blockNodes } = buildBlockContent(block.content, targetParentId);
+            const { root: rootNode, collection: blockNodes } = NodeModel.build(block.content, targetParentId, new Map<string, NodeModel>());
 
             // 4. Merge all generated nodes into the state Map
             blockNodes.forEach((node, id) => {
@@ -144,6 +153,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "MOVE_NODE": {
+            // editing protection: only allow block insertion when in "editing" mode
+            if(state.status !== "editing") return state;
+
             const { sourceId, targetId, position } = action.payload;
 
             // 1. Get references
@@ -214,6 +226,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "UPDATE_NODE": {
+            // editing protection: only allow block insertion when in "editing" mode
+            if(state.status !== "editing") return state;
+
             const node = state.collection.get(action.payload.id) ? new NodeModel(state.collection.get(action.payload.id)!) : null;
             if (!node) return state
 
@@ -250,6 +265,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "UPDATE_NODE_PROPS": {
+            // editing protection: only allow block insertion when in "editing" mode
+            if(state.status !== "editing") return state;
+
             const updateNode = state.collection.get(action.payload.id) ? new NodeModel(state.collection.get(action.payload.id)!) : null;
             if (!updateNode) return state;
 
@@ -263,6 +281,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "DELETE_NODE": {
+            // editing protection: only allow block insertion when in "editing" mode
+            if(state.status !== "editing") return state;
+
             const targetNode = state.collection.get(action.payload)
             if (!targetNode) return state;
             if (String(targetNode.type.model.name).toLowerCase() === "root") {
@@ -305,9 +326,10 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             }
         }
 
-
-
         case "ADD_VARIABLE": {
+            // editing protection: only allow block insertion when in "editing" mode
+            if(state.status !== "editing") return state;
+
             const { nodeId, variable } = action.payload;
             const newVariables = new Map(state.variables);
 
@@ -322,6 +344,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "REMOVE_VARIABLE": {
+            // editing protection: only allow block insertion when in "editing" mode
+            if(state.status !== "editing") return state;
+
             const { nodeId, variableName } = action.payload;
             const newVariables = new Map(state.variables);
 
@@ -335,6 +360,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "UPDATE_VARIABLE": {
+            // editing protection: only allow block insertion when in "editing" mode
+            if(state.status !== "editing") return state;
+
             const { nodeId, variable } = action.payload;
             const newVariables = new Map(state.variables);
 
@@ -348,6 +376,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "SET_DOM": {
+
             const node = state.collection.get(action.payload.id) ? new NodeModel(state.collection.get(action.payload.id)!) : null;
             if (!node) return state;
 
@@ -362,6 +391,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "REMOVE_DOM": {
+            // editing protection: only allow block insertion when in "editing" mode
+            if(state.status !== "editing") return state;
+
             const node = state.collection.get(action.payload) ? new NodeModel(state.collection.get(action.payload)!) : null;
             if (!node) return state;
 
@@ -374,6 +406,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
                 collection: newNodes
             }
         }
+
         // --- INTERACTION STATES ---
         case "ADD_HOVERED":
             return { ...state, hovered: new Set(state.hovered).add(action.payload) }

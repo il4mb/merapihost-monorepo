@@ -1,6 +1,7 @@
 import { Stack, Tooltip } from "@mui/material";
 import DeviceSwitch from "./actions/DeviceSwitch";
 import DarkModeToggle from "@/theme/DarkModeToggle";
+import SaveAction from "./actions/SaveAction";
 
 export default function Toolbar() {
 
@@ -43,6 +44,7 @@ export default function Toolbar() {
                     gap: 1,
                     paddingRight: 2
                 }}>
+                <SaveAction />
                 <Tooltip title="Toggle dark mode">
                     <DarkModeToggle />
                 </Tooltip>

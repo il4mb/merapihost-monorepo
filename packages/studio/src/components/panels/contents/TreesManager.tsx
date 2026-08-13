@@ -7,6 +7,7 @@ import { useNodeChildren } from "@/hooks/useNodes";
 import LabelField from "@/components/ui/fields/LabelField";
 import ScrollContainer from "@/components/ui/ScrollContainer";
 import { NodeModel } from "@/libs/node/NodeModel";
+import { useIsDark } from "@/theme";
 
 const TreeContainer = styled("div")({
     display: "flex",
@@ -69,10 +70,17 @@ const TreeVisual = memo(({
     dispatch
 }: TreeVisualProps) => {
 
+    const isDark = useIsDark();
     const ignoreInteractionRef = useRef(false);
 
-    const color = extendedColor || node.type?.color;
-    const childrenColor = extendedColor || node.type?.childrenColor;
+    const color = useMemo(() => {
+        return extendedColor || node.type?.getColor(isDark) || undefined;
+    }, [isDark, extendedColor, node.type]);
+    
+    const childrenColor = useMemo(() => {
+        return extendedColor || node.type?.getChildrenColor(isDark) || undefined;
+    }, [isDark, extendedColor, node.type]);
+
     const parentVisible = isNodeVisible ?? true;
     const isVisible = parentVisible && (node.visible ?? true);
 
@@ -100,7 +108,7 @@ const TreeVisual = memo(({
     const onClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (ignoreInteractionRef.current) return;
         e.stopPropagation();
-        
+
         if (isSelected) {
             dispatch({ type: "REMOVE_SELECTED", payload: node.id });
         } else {
@@ -109,7 +117,7 @@ const TreeVisual = memo(({
             } else {
                 dispatch({ type: "SET_SELECTED", payload: node.id });
             }
-            
+
             const dom = node.dom;
             const win = dom?.ownerDocument?.defaultView;
 
@@ -287,7 +295,7 @@ interface TreeManagerProps { }
 
 export default function TreeManager({ }: TreeManagerProps) {
     const { state } = useNodesReducer();
-    
+
     const rootNode = useMemo(() => {
         return state.collection.get("root") || null;
     }, [state.collection]);

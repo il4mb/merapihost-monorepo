@@ -36,7 +36,7 @@ export default function NodeRender({ node }: NodeRenderProps) {
     }, [dom, node.id, dispatch]);
 
     useEffect(() => {
-        if (!dom || !node.type || !isSelected) return;
+        if (!dom || !node.type || !isSelected || state.status !== "editing") return;
         const isDraggable = typeof node.type.draggable === "function" ? node.type.draggable(node) : node.type.draggable;
         const handleDragStart = (e: DragEvent) => {
             e.stopPropagation();
@@ -57,8 +57,9 @@ export default function NodeRender({ node }: NodeRenderProps) {
         return () => {
             dom.removeEventListener("dragstart", handleDragStart);
             dom.removeEventListener("dragend", handleDragEnd);
+            dom.removeAttribute("draggable");
         }
-    }, [dom, node.type, node, isSelected]);
+    }, [dom, node.type, node, isSelected, state.status]);
 
     if (node.visible === false) return null;
 

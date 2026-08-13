@@ -11,6 +11,8 @@ export interface ShortcutHandler {
     action: (event: KeyboardEvent) => void;
 }
 
+export type Void = () => void;
+
 export type RelativeRect = {
     top: number
     left: number
@@ -85,8 +87,14 @@ export type TypeModel<T = any> = {
     name: string;
     extends?: string;
     icon?: FC<{ size?: number, color?: string }>;
-    color?: string;
-    childrenColor?: string;
+    color?: string | {
+        light: string;
+        dark: string;
+    }
+    childrenColor?: string | {
+        light: string;
+        dark: string;
+    };
     visibleOnTree?: boolean;
 
     /**

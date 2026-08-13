@@ -22,6 +22,7 @@ export type Viewport = {
 
 
 export interface NodeState {
+    status: "idle" | "editing" | "dragging" | "resizing" | "saving";
     collection: Map<string, NodeModel>;
     variables: Map<string, Map<string, NodeVariable>>;
     hovered: Set<string>;
@@ -55,6 +56,7 @@ export interface EditorState {
 }
 
 export type NodeActions = {
+    SET_NODE_STATE_STATUS: NodeState["status"];
     ADD_NODE: NodeObject;
     INSERT_BLOCK: {
         block: Block;

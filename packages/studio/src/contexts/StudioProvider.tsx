@@ -6,6 +6,7 @@ import AssetsProvider from "./AssetsProvider";
 import PagesProvider from "./PagesProvider";
 import { useRegisterShortcuts, useMainShortcutListener } from "@/hooks";
 import GlobalKeyListenerProvider from "./GlobalKeyListenerProvider";
+import StudioEventsProvider from "./StudioEventsProvider";
 
 
 interface StudioContextType {
@@ -43,13 +44,15 @@ export default function StudioProvider({ children }: StudioProviderProps) {
     return (
         <StudioContext.Provider value={value}>
             <GlobalKeyListenerProvider>
-                <RegisterMainShortcuts>
-                    <AssetsProvider>
-                        <PagesProvider>
-                            {children}
-                        </PagesProvider>
-                    </AssetsProvider>
-                </RegisterMainShortcuts>
+                <StudioEventsProvider>
+                    <RegisterMainShortcuts>
+                        <AssetsProvider>
+                            <PagesProvider>
+                                {children}
+                            </PagesProvider>
+                        </AssetsProvider>
+                    </RegisterMainShortcuts>
+                </StudioEventsProvider>
             </GlobalKeyListenerProvider>
         </StudioContext.Provider>
     );

@@ -83,9 +83,6 @@ export const Text = createType(({ node, children, ref }) => {
             component={tagName}
             {...node.props}
             onDoubleClick={handleDoubleClick}
-            contentEditable={isEditing}
-            suppressContentEditableWarning={true}
-            draggable={!isEditing}
             ref={ref}>
             {children}
         </Box>

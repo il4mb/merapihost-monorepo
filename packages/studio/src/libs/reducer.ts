@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 import { AssetObject, EditorAction, EditorState, NodeObject, Variable, PageObject, BlockNodeObject } from "@/types";
 import { REGISTRY } from "./node";
 import { merge } from "lodash";
-import { nodeReducer } from "./node/nodeReducer";
+import { initialNodesState, nodeReducer } from "./node/nodeReducer";
 import { NodeModel } from "./node/NodeModel";
 
 export const ROOT_NODE = new NodeModel({
@@ -32,13 +32,7 @@ export const initialState: EditorState = {
         edge: { top: 0, left: 0, bottom: 0, right: 0 },
         iframe: null
     },
-    nodes: {
-        collection: new Map<string, NodeModel>([[ROOT_NODE.id, ROOT_NODE]]),
-        variables: new Map<string, Map<string, Variable>>(),
-        hovered: new Set<string>(),
-        selected: new Set<string>(),
-    },
-
+    nodes: initialNodesState,
     devices: [
         { id: "desktop", name: "Desktop", width: 1600, height: 1080 },
         { id: "tablet", name: "Tablet", width: 768, height: 1024 },
@@ -263,6 +257,10 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
         case "SET_OPENED_PAGE": {
             return {
                 ...state,
+                nodes: {
+                    ...state.nodes,
+                    status: "idle"
+                },
                 pages: {
                     ...state.pages,
                     opened: action.payload,

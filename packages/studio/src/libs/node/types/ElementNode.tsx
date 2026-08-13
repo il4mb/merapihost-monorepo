@@ -16,57 +16,6 @@ export const ElementNode = createType(({ node, children, ref }) => {
 
     const tagName = (node.tagName || "div").toLowerCase() as keyof JSX.IntrinsicElements;
     const isVoidTag = VOID_ELEMENTS.has(tagName);
-    // const content = children || node.props?.content || node.content || null;
-
-    // const hasInvalidStructure = typeof node.props?.children === "string" || typeof node.content === "string"; // where should not text
-    // const isPushTextNode = useRef(false);
-
-    // useEffect(() => {
-    //     if (isPushTextNode.current) return;
-    //     if (hasInvalidStructure) {
-    //         isPushTextNode.current = true;
-    //         const textNodeId = nanoid();
-    //         dispatch({
-    //             type: "BULK",
-    //             payload: [
-    //                 {
-    //                     type: "UPDATE_NODE",
-    //                     payload: {
-    //                         id: node.id,
-    //                         type: "Element",
-    //                         content: undefined,
-    //                         props: {
-    //                             ...node.props,
-    //                             children: undefined
-    //                         }
-    //                     }
-    //                 },
-    //                 {
-    //                     // Wrapper Editable Text
-    //                     type: "ADD_NODE",
-    //                     payload: {
-    //                         id: textNodeId,
-    //                         type: "Text",
-    //                         tagName: "span",
-    //                         parent: node.id
-    //                     }
-    //                 },
-    //                 {
-    //                     type: "ADD_NODE",
-    //                     payload: {
-    //                         id: nanoid(),
-    //                         type: "textnode",
-    //                         content: node.content || node.props?.children || "",
-    //                         parent: textNodeId
-    //                     }
-    //                 }
-    //             ]
-    //         });
-
-    //     }
-
-    // }, [hasInvalidStructure, dispatch, node.content, node.id, node.props?.children]);
-
 
     if (isVoidTag) {
         return (

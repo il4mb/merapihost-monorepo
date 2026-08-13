@@ -534,6 +534,7 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
 
         const onDragOver = (e: DragEvent) => {
             e.preventDefault();
+            if (state.nodes.status !== "editing") return;
             const dataTransfer = e.dataTransfer;
             if (!dataTransfer) return;
 
@@ -550,6 +551,8 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
 
         const onDrop = (e: DragEvent) => {
             e.preventDefault();
+            if (state.nodes.status !== "editing") return;
+
             const dataTransfer = e.dataTransfer;
             if (!dataTransfer) return;
 
@@ -623,7 +626,7 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             onMouseEnter.cancel();
             onMouseLeave.cancel();
         };
-    }, [iframe, dispatch, isReady]);
+    }, [iframe, dispatch, isReady, state.nodes.status]);
 
     const cache = useMemo(() => {
         if (!isReady || !iframe?.contentDocument?.head) return null;

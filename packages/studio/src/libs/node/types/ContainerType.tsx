@@ -15,7 +15,10 @@ export const ContainerType = createType(({ node, children, ref }) => {
     extends: "Element",
     icon: Proportions,
     draggable: true,
-    color: "#618deb",
+    color: {
+        light: "#0a58b1",
+        dark: "#b7ceff"
+    },
     default: {
         name(ctx) {
             return ctx?.node?.tagName || "Container";

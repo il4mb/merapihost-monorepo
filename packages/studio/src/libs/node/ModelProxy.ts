@@ -56,6 +56,20 @@ export class ModelProxy {
         return this.type; // Return the component itself for rendering
     }
 
+    getColor(isDarkMode: boolean) {
+        const color = this.color;
+        if (!color) return undefined;
+        if (typeof color === "string") return color;
+        return isDarkMode ? color.dark : color.light;
+    }
+
+    getChildrenColor(isDarkMode: boolean) {
+        const childrenColor = this.childrenColor;
+        if (!childrenColor) return undefined;
+        if (typeof childrenColor === "string") return childrenColor;
+        return isDarkMode ? childrenColor.dark : childrenColor.light;
+    }
+
     /**
      * Determines if the current model can be dropped onto the target model.
      * @param target The target NodeModel to check against.

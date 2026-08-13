@@ -118,6 +118,33 @@ export class NodeModel implements NodeContext {
     }
 
 
+    /**
+     * Converts the NodeModel instance back to a plain NodeObject.
+     * @returns A plain NodeObject representation of the NodeModel.
+     */
+    toJSON(): NodeObject {
+        const typeName = String(this.type?.model?.name).toLowerCase();
+        if (typeName === "textnode") {
+            return {
+                id: this.node.id,
+                type: this.node.type,
+                name: this.node.name,
+                content: this.node.content,
+                parent: this.node.parent || null,
+            };
+        }
+        return {
+            id: this.node.id,
+            type: this.node.type,
+            tagName: this.node.tagName,
+            name: this.node.name,
+            props: { ...this.node.props },
+            parent: this.node.parent || null,
+            order: this.node.order
+        };
+    }
+
+
     // Overloads
     static build(
         content: BlockNodeObject,
