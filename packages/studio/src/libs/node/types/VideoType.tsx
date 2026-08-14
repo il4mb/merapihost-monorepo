@@ -2,8 +2,10 @@ import { useState, useEffect, SyntheticEvent } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import { Video as VideoIcon } from "lucide-react";
 import { createType } from "../tools";
+import { useInternalNode } from "../InternalNode";
 
 export const VideoType = createType(({ node, ref }) => {
+    const { data } = useInternalNode();
     const rawSrc = node.props?.src;
     const [videoSrc, setVideoSrc] = useState<string>(rawSrc || "");
     const [isLoading, setIsLoading] = useState<boolean>(!!rawSrc);
@@ -71,7 +73,7 @@ export const VideoType = createType(({ node, ref }) => {
                     height: "100%",
                     objectFit: node.props?.objectFit || "cover",
                     display: "block",
-                    pointerEvents: "none"
+                    pointerEvents: data.isSelected ? "auto" : "none"
                 }}
             />
         </Box>

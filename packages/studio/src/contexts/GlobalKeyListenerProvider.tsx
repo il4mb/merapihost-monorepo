@@ -1,6 +1,5 @@
 "use client";
 import { createContext, useEffect, useRef, useCallback, useMemo, useContext } from "react";
-import { nanoid } from "nanoid";
 
 export interface ShortcutHandler {
     /** List of keys required to trigger the action (e.g. ["Control", "s"] or ["*"]) */
@@ -13,12 +12,17 @@ export interface ShortcutHandler {
     action: (event: KeyboardEvent, pressedKeys: string[]) => void;
 }
 
+interface ProcessedShortcutHandler extends ShortcutHandler {
+    normalizedKeys: string[];
+    isGlobalWildcard: boolean;
+}
+
 type TheClient = HTMLElement | Window | null | undefined;
 
 type Subscriber = {
-    id: string;
+    id: number;
     timestamp: number;
-    shortcuts: ShortcutHandler[];
+    shortcuts: ProcessedShortcutHandler[];
     sticky: boolean;
 };
 
@@ -34,8 +38,9 @@ type GlobalKeyListenerProviderProps = {
 };
 
 export default function GlobalKeyListenerProvider({ children }: GlobalKeyListenerProviderProps) {
-    const handlersRef = useRef<Map<string, Subscriber>>(new Map());
+    const subscribersRef = useRef<Subscriber[]>([]);
     const keysRef = useRef<Set<string>>(new Set());
+    const subscriberIdCounter = useRef(0);
 
     // Normalize keys (handle Space bar & Case sensitivity for letter keys)
     const normalizeKey = useCallback((key: string) => {
@@ -49,38 +54,40 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
         }
     }, []);
 
-    const findMatchingHandlers = useCallback((): ShortcutHandler[] => {
-        const subscribers = Array.from(handlersRef.current.values());
+    const findMatchingHandlers = useCallback((): ProcessedShortcutHandler[] => {
+        const subscribers = subscribersRef.current;
+        if (subscribers.length === 0) return [];
 
-        // 1. Sort by sticky first, then LIFO (newest timestamp first)
-        subscribers.sort((a, b) => {
-            if (a.sticky !== b.sticky) return a.sticky ? -1 : 1;
-            return b.timestamp - a.timestamp;
-        });
-
-        const matchedHandlers: ShortcutHandler[] = [];
+        const matchedHandlers: ProcessedShortcutHandler[] = [];
         const currentKeysSize = keysRef.current.size;
 
-        for (const subscriber of subscribers) {
-            // 2. Loop BACKWARDS through shortcuts to maintain strict LIFO order
-            for (let i = subscriber.shortcuts.length - 1; i >= 0; i--) {
-                const handler = subscriber.shortcuts[i];
-                const normalizedTargetKeys = handler.keys.map(normalizeKey);
+        for (let s = 0; s < subscribers.length; s++) {
+            const subscriber = subscribers[s];
+            const shortcuts = subscriber.shortcuts;
 
-                const isGlobalWildcard = normalizedTargetKeys.length === 1 && normalizedTargetKeys[0] === "*";
+            // Loop BACKWARDS through shortcuts to maintain strict LIFO order
+            for (let i = shortcuts.length - 1; i >= 0; i--) {
+                const handler = shortcuts[i];
+                const { normalizedKeys, isGlobalWildcard } = handler;
 
-                // 3. If it's a global wildcard ["*"], it matches ANY key press
+                // 1. Global wildcard ["*"] matches ANY key press
                 if (isGlobalWildcard && currentKeysSize > 0) {
                     matchedHandlers.push(handler);
                     continue;
                 }
 
-                // 4. For combinations (with or without wildcard), check length first
-                if (normalizedTargetKeys.length === currentKeysSize) {
-                    // Filter out the wildcard character to only check explicit required keys
-                    const requiredKeys = normalizedTargetKeys.filter(k => k !== "*");
+                // 2. Combination matching using high-performance loop
+                if (normalizedKeys.length === currentKeysSize) {
+                    let matches = true;
+                    for (let k = 0; k < normalizedKeys.length; k++) {
+                        const targetKey = normalizedKeys[k];
+                        if (targetKey !== "*" && !keysRef.current.has(targetKey)) {
+                            matches = false;
+                            break;
+                        }
+                    }
 
-                    if (requiredKeys.every((k) => keysRef.current.has(k))) {
+                    if (matches) {
                         matchedHandlers.push(handler);
                     }
                 }
@@ -88,7 +95,7 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
         }
 
         return matchedHandlers;
-    }, [normalizeKey]);
+    }, []);
 
     const handleKeyDown = useCallback((event: Event) => {
         const e = event as KeyboardEvent;
@@ -103,15 +110,16 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
         }
 
         const handlers = findMatchingHandlers();
+        if (handlers.length === 0) return;
 
-        // Snapshot the currently pressed keys to pass to the callback
+        // Lazy snapshot: Allocate key array ONLY if valid handlers were matched
         const currentPressedKeys = Array.from(keysRef.current);
 
-        for (const handler of handlers) {
+        for (let i = 0; i < handlers.length; i++) {
+            const handler = handlers[i];
             if (e.defaultPrevented) {
                 continue; // Skip if default action has already been prevented
             }
-            // Prevent OS key auto-repeat continuous triggers
             if (!e.repeat) {
                 handler.action(e, currentPressedKeys);
             }
@@ -127,10 +135,15 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
         }
     }, [normalizeKey]);
 
-    // Handle blur event globally to prevent keys getting "stuck"
+    // Clear stuck keys on window blur or tab switch
     useEffect(() => {
-        window.addEventListener("blur", clearKeys);
-        return () => window.removeEventListener("blur", clearKeys);
+        const handleReset = () => clearKeys();
+        window.addEventListener("blur", handleReset);
+        document.addEventListener("visibilitychange", handleReset);
+        return () => {
+            window.removeEventListener("blur", handleReset);
+            document.removeEventListener("visibilitychange", handleReset);
+        };
     }, [clearKeys]);
 
     const registerClient = useCallback((client: TheClient) => {
@@ -145,26 +158,42 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
         };
     }, [handleKeyDown, handleKeyUp]);
 
-    /**
-     * Registers a shortcut handler for the global key listener.    
-     * @param handlers - An array of shortcut handlers to register.
-     * @param sticky - If true, the handler will be always at the top of the stack, when new handlers are registered.
-     * @returns A function to unregister the handler.
-     */
-    const registerShortcuts = useCallback((handlers: ShortcutHandler[], sticky = false) => {
-        const id = nanoid();
-        const subscriber: Subscriber = { id, timestamp: Date.now(), shortcuts: handlers, sticky };
-        handlersRef.current.set(id, subscriber);
-        return () => {
-            handlersRef.current.delete(id);
-        };
+    const sortSubscribers = useCallback(() => {
+        subscribersRef.current.sort((a, b) => {
+            if (a.sticky !== b.sticky) return a.sticky ? -1 : 1;
+            return b.timestamp - a.timestamp;
+        });
     }, []);
 
-    // Register the global key listener on mount and unregister on unmount
+    const registerShortcuts = useCallback((handlers: ShortcutHandler[], sticky = false) => {
+        const id = ++subscriberIdCounter.current;
+
+        // Pre-normalize keys and pre-evaluate wildcards once on registration
+        const processedShortcuts: ProcessedShortcutHandler[] = handlers.map((h) => ({
+            ...h,
+            normalizedKeys: h.keys.map(normalizeKey),
+            isGlobalWildcard: h.keys.length === 1 && h.keys[0] === "*",
+        }));
+
+        const subscriber: Subscriber = {
+            id,
+            timestamp: Date.now(),
+            shortcuts: processedShortcuts,
+            sticky,
+        };
+
+        subscribersRef.current.push(subscriber);
+        sortSubscribers();
+
+        return () => {
+            subscribersRef.current = subscribersRef.current.filter((s) => s.id !== id);
+        };
+    }, [normalizeKey, sortSubscribers]);
+
+    // Register global listener on mount
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const unregister = registerClient(window);
-        return unregister;
+        return registerClient(window);
     }, [registerClient]);
 
     const values = useMemo(() => ({

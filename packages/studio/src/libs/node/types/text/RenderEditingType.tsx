@@ -28,7 +28,6 @@ export default function RenderEditingType({ node }: RenderEditingTypeProps) {
     }, [orderedNodes]);
 
     const setRef = useCallback((dom: HTMLElement | null) => {
-        if (!dom) return;
         dispatch({ type: "SET_DOM", payload: { id: node.id, dom } });
     }, [node.id]);
 

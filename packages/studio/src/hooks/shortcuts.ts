@@ -5,6 +5,7 @@ import { useNodesReducer } from "@/contexts/StudioProvider";
 export const useMainShortcutListener = () => {
 
     const { state, dispatch } = useNodesReducer();
+    const nodesRef = useRef(state.collection);
     const selectedRef = useRef(state.selected);
     const statusRef = useRef(state.status);
 
@@ -16,21 +17,17 @@ export const useMainShortcutListener = () => {
         statusRef.current = state.status;
     }, [state.status]);
 
+    useEffect(() => {
+        nodesRef.current = state.collection;
+    }, [state.collection]);
+
     const handleSave = useCallback((e: KeyboardEvent) => {
         e.preventDefault();
-
-        // Prevent save if already saving or not in editing mode
-        if (statusRef.current === "saving") {
-            console.warn("Save action is already in progress.");
-            return;
-        }
         // Prevent save if not in editing mode
         if (statusRef.current !== "editing") {
             console.warn("Save action is only allowed in 'editing' mode.");
             return;
         }
-
-        dispatch({ type: "SET_NODE_STATE_STATUS", payload: "saving" });
         const nodes = Array.from(state.collection.values()).map(node => node.toJSON());
         setTimeout(() => {
             console.log("Saving nodes to server:", nodes);
@@ -58,8 +55,11 @@ export const useMainShortcutListener = () => {
         e.preventDefault();
         const selected = Array.from(selectedRef.current);
         if (selected.length <= 0) return;
+        const selectedNodes = Array.from(nodesRef.current.values())
+            .filter(n => selected.includes(n.id) && n.deletable);
+        const selectedIds = selectedNodes.map(e => e.id);
 
-        const payload = selected.map(id => ({
+        const payload = selectedIds.map(id => ({
             type: "DELETE_NODE",
             payload: id
         }));

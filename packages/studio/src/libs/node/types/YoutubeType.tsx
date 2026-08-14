@@ -2,6 +2,7 @@ import { useState, useEffect, SyntheticEvent } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import YoutubeIcon from "@/components/icons/YoutubeIcon";
 import { createType } from "../tools";
+import { useInternalNode } from "../InternalNode";
 
 // Helper to convert watch/short URLs into standard YouTube embed URLs
 const getYoutubeEmbedUrl = (url: string = "") => {
@@ -14,6 +15,7 @@ const getYoutubeEmbedUrl = (url: string = "") => {
 };
 
 export const YoutubeType = createType(({ node, ref }) => {
+    const { data } = useInternalNode();
     const rawSrc = node.props?.src;
     const [embedUrl, setEmbedUrl] = useState<string>(getYoutubeEmbedUrl(rawSrc));
     const [isLoading, setIsLoading] = useState<boolean>(!!rawSrc);
@@ -73,7 +75,7 @@ export const YoutubeType = createType(({ node, ref }) => {
                     height: "100%",
                     border: 0,
                     display: "block",
-                    pointerEvents: "none"
+                    pointerEvents: data.isSelected ? "auto" : "none"
                 }}
             />
         </Box>
@@ -84,7 +86,7 @@ export const YoutubeType = createType(({ node, ref }) => {
     accepts: [],
     isInstance(target) {
         if ("tagName" in target && String(target.tagName).toLowerCase() === "iframe") {
-            const src = target.getAttribute?.("src") || "";
+            const src = target.props.src || "";
             return src.includes("youtube.com") || src.includes("youtu.be");
         }
         return false;

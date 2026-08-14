@@ -31,7 +31,7 @@ export const useNodesReducer = () => {
     } as {
         state: NodeState;
         dispatch: Dispatch<GenericAction<NodeActions>>;
-    }), [state.nodes]);
+    }), [state.nodes, dispatch]);
 }
 
 
@@ -40,7 +40,7 @@ interface StudioProviderProps {
 }
 export default function StudioProvider({ children }: StudioProviderProps) {
     const [state, dispatch] = useReducer(studioReducer, initialState);
-    const value = { state, dispatch };
+    const value = useMemo(() => ({ state, dispatch }), [state, dispatch]);
     return (
         <StudioContext.Provider value={value}>
             <GlobalKeyListenerProvider>

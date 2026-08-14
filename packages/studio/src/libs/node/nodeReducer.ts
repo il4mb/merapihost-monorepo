@@ -28,16 +28,43 @@ export const initialNodesState: NodeState = {
     selected: new Set<string>()
 }
 
-const getDescendants = (collection: Map<string, NodeModel>, parentId: string): string[] => {
-    let ids: string[] = [];
-    collection.forEach((node, id) => {
-        if (node.parent === parentId) {
-            ids.push(id);
-            ids.push(...getDescendants(collection, id));
+
+
+
+const getDescendant = (collection: Map<string, NodeModel>, rootId: string): Map<string, NodeModel> => {
+    const result = new Map<string, NodeModel>();
+    const stack = [rootId];
+
+    while (stack.length > 0) {
+        const currentId = stack.pop()!;
+        for (const [id, node] of collection) {
+            if (node.parent === currentId) {
+                result.set(id, node);
+                stack.push(id);
+            }
         }
-    });
-    return ids;
+    }
+    return result;
 }
+
+function getDescendantIds(collection: Map<string, NodeModel>, rootId: string): IterableIterator<string> {
+    return getDescendant(collection, rootId).keys();
+}
+
+const getDescendantsArray = (collection: Map<string, NodeModel>, rootId: string): NodeModel[] => {
+    const descendantsMap = getDescendant(collection, rootId);
+    return Array.from(descendantsMap.values());
+}
+
+
+const cleanOrphanedNodes = (collection: Map<string, NodeModel>) => {
+    for (const [id, node] of collection) {
+        if (node.parent && !collection.has(node.parent)) {
+            collection.delete(id);
+        }
+    }
+}
+
 
 export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>): NodeState => {
     switch (action.type) {
@@ -255,6 +282,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             if ("hoverable" in action.payload && action.payload.hoverable !== undefined) {
                 node.hoverable = Boolean(action.payload.hoverable);
             }
+            if ("deletable" in action.payload && action.payload.deletable !== undefined) {
+                node.deletable = Boolean(action.payload.deletable);
+            }
 
             newNodes.set(action.payload.id, node);
 
@@ -326,51 +356,28 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
         case "SET_NODE_CHILDREN": {
             if (state.status !== "editing") return state;
+            const target = state.collection.get(action.payload.id) ? new NodeModel(state.collection.get(action.payload.id)!) : null;
+            if (!target) {
+                console.warn(`REDUCER SET_NODE_CHILDREN: Target node not found for action.`);
+                return state;
+            }
 
-            const targetId = action.payload.id;
-            if (!state.collection.has(targetId)) return state;
+            let newNodes = new Map(state.collection);
 
-            const newNodes = new Map(state.collection);
-
-            // 1. Remove old descendants of target container
-            const descendantsToDelete = getDescendants(state.collection, targetId);
-            descendantsToDelete.forEach(id => {
+            // 1. Collect ALL descendants (including nested ones)
+            const oldDescendantIds = getDescendantIds(newNodes, target.id);
+            for (const id of oldDescendantIds) {
                 newNodes.delete(id);
-            });
+            }
 
-            // 2. Add new children (handles both Map and Array payloads)
-            const childrenPayload = action.payload.children;
-            const childrenList = childrenPayload instanceof Map
-                ? Array.from(childrenPayload.values())
-                : childrenPayload;
-
-            childrenList.forEach(child => {
+            action.payload.children.forEach((child) => {
                 const childNode = new NodeModel(child);
                 if (childNode.parent == null) {
-                    childNode.parent = targetId;
+                    childNode.parent = target.id;
                 }
                 newNodes.set(childNode.id, childNode);
             });
-
-            // 3. PURGE ORPHANS: Delete any node whose parent no longer exists
-            let orphanFound = true;
-            while (orphanFound) {
-                orphanFound = false;
-                for (const [id, node] of newNodes.entries()) {
-                    if (node.id !== targetId && node.parent != null && !newNodes.has(node.parent)) {
-                        newNodes.delete(id);
-                        orphanFound = true;
-                    }
-                }
-            }
-
-            // debug 
-            const descendantsAfter = getDescendants(newNodes, targetId);
-            const arrayItems = Array.from(newNodes.values())
-                .filter(n => descendantsAfter.includes(n.id) || n.id === targetId)
-                .map(n => n.toJSON());
-            console.debug("SET_NODE_CHILDREN: Updated node collection:", JSON.stringify(arrayItems, null, 2));
-
+            cleanOrphanedNodes(newNodes);
             return { ...state, collection: newNodes };
         }
 
@@ -495,6 +502,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
             }, state);
         }
+
 
         default:
             return state

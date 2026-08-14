@@ -19,6 +19,7 @@ export class NodeModel implements NodeContext {
 
     public selectable: boolean = true;
     public hoverable: boolean = true;
+    public deletable: boolean = true;
 
     private findType(node: NodeObject): ModelProxy {
         const typeName = String(node.type || "").toLowerCase();
@@ -124,10 +125,11 @@ export class NodeModel implements NodeContext {
     }
 
     clone(): NodeModel {
-        const clonedNode = merge({}, this.node);
+        const clonedNode = merge({}, { ...this.node });
         clonedNode.id = nanoid(); // Assign a new unique ID for the cloned node
         return new NodeModel(clonedNode);
     }
+
 
     /**
      * Converts the NodeModel instance back to a plain NodeObject.

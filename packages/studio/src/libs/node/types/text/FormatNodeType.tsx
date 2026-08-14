@@ -15,15 +15,15 @@ export const FormatNodeType = createType(({ node, children, ref }) => {
 
     return createElement(FinalTagName, { ref, ...node.props }, children);
 }, {
-    name: "FormatNode",
+    name: "Formatted",
     icon: BoldIcon,
     draggable: false, // structural, ikut parent-nya, tidak didrag manual
     droppable: [],
-    accepts: ["TextNode", "FormatNode"], // bisa nested
+    accepts: ["textnode", "formatted"], // bisa nested
     isInstance(target) {
         return String(target.type || "").toLowerCase() === "formatnode";
     },
     default: {
-        name: "formatnode",
+        name: "formatted",
     }
 });

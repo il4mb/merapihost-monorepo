@@ -15,7 +15,7 @@ export const REGISTRY = {
     "root": RootType,
     "textnode": TextNodeType,
     "text": TextType,
-    "formatnode": FormatNodeType,
+    "formatted": FormatNodeType,
 
     // other types
     "container": ContainerType,

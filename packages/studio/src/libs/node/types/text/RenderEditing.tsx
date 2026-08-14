@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useEffect, useLayoutEffect, Fragment } from "react";
 import { NodeModel } from "../..";
 import RenderEditingType from "./RenderEditingType";
-import { cloneChainSlice, findNode, getAncestorChain, getFrameContext, getGlobalCharOffsets, getTreeOrderedNodes, isSameFormatTag, mergeAdjacentFormatNodes, mergeAdjacentTextNodes, setGlobalCharOffsets } from "./tools";
+import { cloneChainSlice, findNode, getAncestorChain, getFrameContext, getGlobalCharOffsets, getTreeOrderedNodes, isSameFormatTag, normalizeTree, setGlobalCharOffsets } from "./tools";
 import { useNodesReducer } from "@/contexts/StudioProvider";
 import { useNodeDescendants } from "@/hooks";
 import { ShortcutHandler, useGlobalKeyListener } from "@/contexts/GlobalKeyListenerProvider";
@@ -16,6 +16,7 @@ export default function RenderEditing({ root }: RenderEditingProps) {
     const { registerShortcuts } = useGlobalKeyListener();
     const { dispatch } = useNodesReducer();
     const pendingSelectionRef = useRef<SelectionRange | null>(null);
+    const isFormattingRef = useRef(false);
 
     const descendants = useNodeDescendants(root);
     const nodeChildren = useMemo(() => {
@@ -111,24 +112,28 @@ export default function RenderEditing({ root }: RenderEditingProps) {
         };
     }, [root.dom, root.id, getRelativeOffsets]);
 
+
     const insertFormattedText = useCallback((format: "bold" | "italic" | "underline") => {
+        if (isFormattingRef.current) return;
+        isFormattingRef.current = true;
+
         const selectionData = getSelection();
         if (!selectionData || !selectionData.ctx || !root.dom) return;
 
-        // Save global character offsets before mutating the node tree
         pendingSelectionRef.current = getGlobalCharOffsets(root.dom, selectionData.range);
 
         const { activeNodes } = selectionData;
         const formattedTagName = format === "bold" ? "strong" : format === "italic" ? "em" : "u";
         const newContents = new Map(descendantsRef.current);
 
-        // Selection Intent: REMOVE formatting ONLY if ALL selected nodes are already formatted
         const isAllFormatted = activeNodes.every(({ node: targetNode }) => {
             const chain = getAncestorChain(targetNode, newContents, root.id);
             return chain.some((w) => isSameFormatTag(w.tagName, format));
         });
-
         const targetAction: "APPLY" | "REMOVE" = isAllFormatted ? "REMOVE" : "APPLY";
+
+        // Track format wrappers we touched so we can force-merge them later
+        const touchedWrapperIds = new Set<string>();
 
         activeNodes.forEach(({ node: targetNode, startOffset, endOffset, overlapLength }, nodeIdx) => {
             if (overlapLength === 0) return;
@@ -139,7 +144,6 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             const after = originalContent.slice(endOffset);
             const hasBefore = before.length > 0;
             const hasAfter = after.length > 0;
-
             const baseOrder = targetNode.order || 0;
             const originalParentId = targetNode.parent;
 
@@ -147,8 +151,43 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             const matchedIdx = chain.findIndex((w) => isSameFormatTag(w.tagName, format));
 
             if (targetAction === "APPLY") {
-                if (matchedIdx !== -1) return;
+                // ── Case A: Node is ALREADY inside the target format ──
+                if (matchedIdx !== -1) {
+                    if (!hasBefore && !hasAfter) {
+                        touchedWrapperIds.add(chain[matchedIdx].id);
+                        return;
+                    }
 
+                    const parentWrapper = chain[matchedIdx];
+                    touchedWrapperIds.add(parentWrapper.id);
+
+                    newContents.delete(targetNode.id);
+
+                    if (hasBefore) {
+                        const beforeNode = targetNode.clone();
+                        beforeNode.content = before;
+                        beforeNode.parent = parentWrapper.id;
+                        beforeNode.order = baseOrder - 0.01;
+                        newContents.set(beforeNode.id, beforeNode);
+                    }
+                    if (hasAfter) {
+                        const afterNode = targetNode.clone();
+                        afterNode.content = after;
+                        afterNode.parent = parentWrapper.id;
+                        afterNode.order = baseOrder + 0.01;
+                        newContents.set(afterNode.id, afterNode);
+                    }
+                    if (selectedText.length > 0) {
+                        const selectedNode = targetNode.clone();
+                        selectedNode.content = selectedText;
+                        selectedNode.parent = parentWrapper.id;
+                        selectedNode.order = baseOrder;
+                        newContents.set(selectedNode.id, selectedNode);
+                    }
+                    return;
+                }
+
+                // ── Case B: Node is NOT formatted → create new wrapper ──
                 const beforeNode = targetNode.clone();
                 beforeNode.content = before;
                 beforeNode.order = baseOrder;
@@ -156,8 +195,8 @@ export default function RenderEditing({ root }: RenderEditingProps) {
 
                 const selectedNode = targetNode.clone();
                 selectedNode.content = selectedText;
-                selectedNode.parent = originalParentId;
                 selectedNode.order = baseOrder + 0.01 + nodeIdx * 0.001;
+                selectedNode.parent = originalParentId;
 
                 const afterNode = targetNode.clone();
                 afterNode.content = after;
@@ -172,7 +211,7 @@ export default function RenderEditing({ root }: RenderEditingProps) {
                     newContents.set(selectedNode.id, selectedNode);
                     const newWrapper = new NodeModel({
                         id: nanoid(),
-                        type: "formatnode",
+                        type: "formatted",
                         tagName: formattedTagName,
                         parent: originalParentId,
                         order: selectedNode.order,
@@ -180,8 +219,10 @@ export default function RenderEditing({ root }: RenderEditingProps) {
                     newContents.set(newWrapper.id, newWrapper);
                     selectedNode.parent = newWrapper.id;
                     selectedNode.order = 0;
+                    touchedWrapperIds.add(newWrapper.id);
                 }
             } else {
+                // ── REMOVE formatting (keep your existing logic) ──
                 if (matchedIdx === -1) return;
 
                 const beforeNode = targetNode.clone();
@@ -238,48 +279,15 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             }
         });
 
-        // Clean orphan FormatNodes
-        let orphanRemoved = true;
-        while (orphanRemoved) {
-            orphanRemoved = false;
-            Array.from(newContents.values()).forEach((n) => {
-                if (n.type.name.toLowerCase() === "formatnode") {
-                    const hasChild = Array.from(newContents.values()).some((c) => c.parent === n.id);
-                    if (!hasChild) {
-                        newContents.delete(n.id);
-                        orphanRemoved = true;
-                    }
-                }
-            });
-        }
-
-        // Merge adjacent format wrappers
-        mergeAdjacentFormatNodes(newContents);
-
-        // Merge adjacent text nodes
-        mergeAdjacentTextNodes(newContents);
-
-        // Normalize ordering per parent container
-        const parentIds = new Set(Array.from(newContents.values()).map((n) => n.parent));
-        parentIds.forEach((parentId) => {
-            if (!parentId) return;
-            const siblings = Array.from(newContents.values())
-                .filter((n) => n.parent === parentId)
-                .sort((a, b) => (a.order || 0) - (b.order || 0));
-            siblings.forEach((n, idx) => {
-                n.order = idx;
-            });
-        });
-
-        // debug 
-        const itemArray = Array.from(newContents.values()).map((n) => n.toJSON());
-        console.log("Updated node tree:", JSON.stringify(itemArray, null, 2));
-
+        normalizeTree(newContents, root.id);
         dispatch({ type: "SET_NODE_CHILDREN", payload: { id: root.id, children: newContents } });
-    }, [getSelection, root.id, root.dom, dispatch]);
+        setTimeout(() => { isFormattingRef.current = false; }, 50);
+    }, [getSelection, dispatch, root.id, root.dom]);
+
 
     const toggleFormat = useCallback((e: KeyboardEvent, command: "bold" | "italic" | "underline") => {
         e.preventDefault();
+        if (isFormattingRef.current) return;
         insertFormattedText(command);
     }, [insertFormattedText]);
 
@@ -290,16 +298,21 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             { keys: ["Control", "i"], action: (e) => toggleFormat(e, "italic") },
             { keys: ["Meta", "i"], action: (e) => toggleFormat(e, "italic") },
             { keys: ["Control", "u"], action: (e) => toggleFormat(e, "underline") },
-            { keys: ["Meta", "u"], action: (e) => toggleFormat(e, "underline") },
-            { keys: ["*"], action: () => { } },
+            { keys: ["Meta", "u"], action: (e) => toggleFormat(e, "underline") }
         ],
         [toggleFormat]
     );
+    const handlersRef = useRef(shortcutHandlers);
+    useEffect(() => {
+        handlersRef.current = shortcutHandlers;
+    }, [shortcutHandlers]);
 
     useEffect(() => {
-        const unregister = registerShortcuts(shortcutHandlers, true);
-        return () => unregister();
-    }, [shortcutHandlers, registerShortcuts]);
+        const unregister = registerShortcuts(handlersRef.current, true);
+        return () => {
+            unregister();
+        }
+    }, []);
 
     return (
         <Fragment>
