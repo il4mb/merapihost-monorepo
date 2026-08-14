@@ -36,6 +36,11 @@ export class ModelProxy {
         }
         return mergedData as Record<string, unknown>;
     }
+    set data(newData: Record<string, unknown>) {
+        if (this.model) {
+            this.model.data = newData;
+        }
+    }
 
     get name() {
         return String(this.model?.name);
@@ -91,6 +96,15 @@ export class ModelProxy {
         return isDarkMode ? childrenColor.dark : childrenColor.light;
     }
 
+    isDraggable(node: NodeModel) {
+        if (!node || !node.type) return false;
+        const draggable = this.model?.draggable ?? this.extends?.model?.draggable ?? true;
+        if (typeof draggable === "function") {
+            return draggable(node);
+        }
+        return Boolean(draggable);
+    }
+
     /**
      * Determines if the current model can be dropped onto the target model.
      * @param target The target NodeModel to check against.
@@ -103,7 +117,8 @@ export class ModelProxy {
             return droppable(target);
         }
         if (Array.isArray(droppable)) {
-            return droppable.includes(target?.type?.name);
+            return droppable.map(e => String(e).toLocaleLowerCase())
+                .includes(String(target.type.name).toLocaleLowerCase());
         }
         return Boolean(droppable);
     }
@@ -120,7 +135,8 @@ export class ModelProxy {
             return accepts(source);
         }
         if (Array.isArray(accepts)) {
-            return accepts.includes(source.type.name);
+            return accepts.map(e => String(e).toLocaleLowerCase())
+                .includes(String(source.type.name).toLocaleLowerCase());
         }
         return Boolean(accepts);
     }
@@ -142,7 +158,7 @@ export class ModelProxy {
         if (typeof this.model?.default?.tagName === "function") {
             return this.model.default.tagName(nm);
         }
-        return this.extends?.getDefaultTagName(nm) || "div";
+        return this.extends?.getDefaultTagName(nm);
     }
 
     getDefaultEvents(nm: NodeContext) {

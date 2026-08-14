@@ -492,12 +492,15 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
                     }
                 }
             }
-
+            if (targetNode && !targetNode.hoverable) {
+                return; // Ignore hover on non-hoverable nodes
+            }
             if (targetNode) {
                 dispatch({ type: "SET_HOVERED", payload: targetNode.id });
             } else {
                 dispatch({ type: "CLEAR_HOVERED" });
             }
+
         }, 100);
 
         const onMouseLeave = debounce(() => {
@@ -521,6 +524,9 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
                     }
                 }
             }
+            if (targetNode && !targetNode.selectable) {
+                return; // Ignore clicks on non-selectable nodes
+            }
 
             if (targetNode) {
                 if (e.shiftKey || e.ctrlKey || e.metaKey) {
@@ -531,6 +537,7 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             } else {
                 dispatch({ type: "CLEAR_SELECTED" });
             }
+
         };
 
         const onDragOver = (e: DragEvent) => {

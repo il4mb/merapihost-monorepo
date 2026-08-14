@@ -1,20 +1,20 @@
 "use client";
 
-import { createContext, ReactNode, useContext, useState, useMemo, SetStateAction, Dispatch } from "react";
+import { createContext, ReactNode, useContext, useMemo, SetStateAction, Dispatch } from "react";
 import { NodeModel } from "./NodeModel";
+import { TypeModelData } from "@/types/common";
 
 type InternalNodeProps = {
     children: ReactNode;
     node: NodeModel;
+    data: TypeModelData;
+    setData?: Dispatch<SetStateAction<TypeModelData>>;
 };
 
-export default function InternalNode({ children, node }: InternalNodeProps) {
-    const [data, setData] = useState<Record<string, unknown>>(node.type.data);
+export default function InternalNode({ children, node, data, setData }: InternalNodeProps) {
     const values = useMemo(() => ({
-        node,
-        data,
-        setData
-    }), [node, data]);
+        node, data, setData
+    }), [node, data, setData]);
 
     return (
         <Context.Provider value={values}>
@@ -25,8 +25,8 @@ export default function InternalNode({ children, node }: InternalNodeProps) {
 
 type InternalNodeContextType<T extends Record<string, unknown>> = {
     node: NodeModel;
-    data: T;
-    setData: Dispatch<SetStateAction<T>>;
+    data: TypeModelData<T>;
+    setData?: Dispatch<SetStateAction<T>>;
 }
 const Context = createContext<InternalNodeContextType<any> | undefined>(undefined);
 

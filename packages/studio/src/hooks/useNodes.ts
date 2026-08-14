@@ -1,195 +1,112 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { NodeModel } from "@/types";
 import { useNodesReducer } from "@/contexts/StudioProvider";
 
-
 export const useNodeChildren = (node: NodeModel) => {
+    const { state } = useNodesReducer();
+    return useMemo(() => {
+        return Array.from(state.collection.values()).filter(n => n.parent === node.id).sort((a, b) => (a.order || 0) - (b.order || 0));
+    }, [state.collection, node.id]);
+}
+/**
+ * Get the children of a given node in the node tree.  
+ * @param node the node for which to find children
+ * @returns an array of child nodes
+ */
+export const useVisibleNodeChildren = (node: NodeModel) => {
+    return useNodeChildren(node).filter(n => n.visible !== false);
+}
+
+/**
+ * Get the descendants of a given node in the node tree.
+ * @param node the node for which to find descendants
+ * @returns a map of descendant nodes keyed by their id
+ */
+export const useNodeDescendants = (node: NodeModel) => {
     const { state } = useNodesReducer();
 
     return useMemo(() => {
-        return Array.from(state.collection.values()).filter(n => {
-            if (n.type?.model?.visibleOnTree === false) {
-                return false;
+        const childrenMap = new Map<string, NodeModel[]>();
+
+        for (const child of state.collection.values()) {
+            if (!child.parent) continue;
+
+            const children = childrenMap.get(child.parent);
+
+            if (children) {
+                children.push(child);
+            } else {
+                childrenMap.set(child.parent, [child]);
             }
-            return n.parent === node.id;
-        }).sort((a, b) => (a.order || 0) - (b.order || 0));
+        }
+
+        const descendants = new Map<string, NodeModel>();
+
+        const walk = (parentId: string) => {
+            for (const child of childrenMap.get(parentId) ?? []) {
+                descendants.set(child.id, child);
+                walk(child.id);
+            }
+        };
+
+        walk(node.id);
+
+        return descendants;
     }, [state.collection, node.id]);
+};
+
+/**
+ * Get a ref containing the descendants of a given node in the node tree.  
+ * @param node the node for which to find descendants
+ * @returns a ref containing a map of descendant nodes
+ */
+export const useNodeDescendantsRef = (node: NodeModel) => {
+    const descendantsRef = useRef<Map<string, NodeModel>>(new Map());
+    const descendants = useNodeDescendants(node);
+    useEffect(() => {
+        descendantsRef.current = descendants;
+    }, [descendants]);
+    return descendantsRef;
 }
 
-// export const useTypeContext = <T = any>(nodeId: string): TypeContext<T> => {
-//     const { state } = useStudio();
-//     const node = useMemo(() => {
-//         return state.nodes.get(nodeId);
-//     }, [state.nodes, nodeId]);
+/**
+ * Get the ancestors of a given node in the node tree.  
+ * @param node the node for which to find ancestors
+ * @returns an array of ancestor nodes
+ */
+export const useNodeAncestors = (node: NodeModel) => {
+    const { state } = useNodesReducer();
+    const ancestors = useMemo(() => {
+        const result: NodeModel[] = [];
+        let currentNode: NodeModel | undefined = node;
 
-//     return useMemo(() => {
-//         return {
-//             node,
-//             dom: state.doms.get(nodeId) || null,
-//             type: node?.type ? REGISTRY[node.type] : undefined
-//         } as TypeContext<T>;
-//     }, [node, state.doms, nodeId]);
-// }
+        while (currentNode.parent) {
+            const parentNode = state.collection.get(currentNode.parent);
+            if (!parentNode) break;
+            result.push(parentNode);
+            currentNode = parentNode;
+        }
+        return result;
+    }, [state.collection, node.parent]);
 
-// export const useSelectedNodes = () => {
-//     const { state } = useStudio();
-//     const [selectedNodes, setSelectedNodes] = useState<NodeObject[]>([]);
+    return ancestors;
+}
 
-//     useEffect(() => {
-//         const selectedIds = Array.from(state.selected.values());
-//         const arrayNodes = Array.from(state.nodes.values());
-//         const selectedNodes = arrayNodes.filter(node => selectedIds.includes(node.id));
-//         setSelectedNodes(prev => {
-//             if (isEqual(prev, selectedNodes)) return prev;
-//             return selectedNodes;
-//         });
-//     }, [state.selected, state.nodes]);
+export const useFindNodeParent = (node: NodeModel, iterate: (node: NodeModel) => boolean) => {
+    const { state } = useNodesReducer();
+    const parent = useMemo(() => {
+        let currentNode: NodeModel | undefined = node;
+        while (currentNode.parent) {
+            const parentNode = state.collection.get(currentNode.parent);
+            if (!parentNode) break;
+            if (iterate(parentNode)) {
+                return parentNode;
+            }
+            currentNode = parentNode;
+        }
+        return undefined;
+    }, [state.collection, node.parent, iterate]);
 
-//     return selectedNodes;
-// }
+    return parent;
+}
 
-
-// export const useNodeTreeLevel = (nodeId: string) => {
-//     const { state } = useStudio();
-
-//     return useMemo(() => {
-//         const traversal: NodeObject[] = [];
-
-//         let current = state.nodes.get(nodeId);
-
-//         while (current) {
-//             traversal.unshift(current);
-
-//             current = current.parent
-//                 ? state.nodes.get(current.parent)
-//                 : undefined;
-//         }
-
-//         return traversal;
-//     }, [state.nodes, nodeId]);
-// };
-
-// export const useNodeName = (nodeId: string) => {
-//     const { state, dispatch } = useStudio();
-//     const node = useMemo(() => {
-//         return state.nodes.get(nodeId);
-//     }, [state.nodes, nodeId]);
-
-//     const setName = (name: string) => {
-//         dispatch({
-//             type: "UPDATE_NODE",
-//             payload: {
-//                 id: nodeId,
-//                 name
-//             }
-//         });
-//     }
-
-//     return [node.name || '', setName] as const;
-// }
-
-// export const useNodeVisibility = (nodeId: string) => {
-
-//     const { state, dispatch } = useStudio();
-//     const node = useMemo(() => state.nodes.get(nodeId), [state.nodes, nodeId]);
-
-//     const isParentVisible = useMemo(() => {
-//         if (!node?.parent) return true;
-
-//         let current = state.nodes.get(node.parent);
-
-//         while (current) {
-//             if (current.visible === false) {
-//                 return false;
-//             }
-
-//             if (!current.parent) {
-//                 break;
-//             }
-
-//             current = state.nodes.get(current.parent);
-//         }
-
-//         return true;
-//     }, [state.nodes, node]);
-
-//     const canToggle = !!node && isParentVisible;
-
-//     const setVisibility = (visible: boolean) => {
-//         if (!canToggle) return;
-
-//         dispatch({
-//             type: "UPDATE_NODE",
-//             payload: {
-//                 id: nodeId,
-//                 visible
-//             }
-//         });
-//     };
-
-//     return {
-//         visible: node?.visible ?? true,
-//         setVisibility,
-//         canToggle,
-//         isParentVisible
-//     };
-// }
-
-// type NodeVariable = Variable & {
-//     nodeId: string;
-// }
-
-// export const useNodeVariables = (nodeId: string) => {
-
-//     const { state, dispatch } = useStudio();
-//     const nodeLevel = useNodeTreeLevel(nodeId);
-//     const variables = useMemo(() => {
-//         const collections = new Map<string, NodeVariable>();
-//         nodeLevel.forEach(node => {
-//             const nodeVariables = state.variables.get(node.id);
-//             if (nodeVariables) {
-//                 nodeVariables.forEach(variable => {
-//                     collections.set(variable.name, {
-//                         ...variable,
-//                         nodeId: node.id
-//                     });
-//                 });
-//             }
-//         });
-//         return Array.from(collections.values());
-//     }, [nodeLevel, state.variables]);
-
-//     const setVariable = useCallback((variable: Variable) => {
-//         dispatch({
-//             type: "ADD_VARIABLE",
-//             payload: {
-//                 nodeId,
-//                 variable
-//             }
-//         });
-//     }, [dispatch, nodeId]);
-
-//     const removeVariable = useCallback((variableName: string) => {
-//         dispatch({
-//             type: "REMOVE_VARIABLE",
-//             payload: {
-//                 nodeId,
-//                 variableName
-//             }
-//         });
-//     }, [dispatch, nodeId]);
-
-//     const updateVariable = useCallback((variable: Variable) => {
-//         dispatch({
-//             type: "UPDATE_VARIABLE",
-//             payload: {
-//                 nodeId,
-//                 variable
-//             }
-//         });
-//     }, [dispatch, nodeId]);
-
-//     return useMemo(() => ({
-//         variables, setVariable, removeVariable, updateVariable
-//     }), [variables, setVariable, removeVariable, updateVariable]);
-// };

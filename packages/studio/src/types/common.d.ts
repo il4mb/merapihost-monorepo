@@ -82,7 +82,11 @@ export type ModifierSet = {
     nodeIds: string[];
 };
 
-
+export type TypeModelData<T extends Record<string, unknown> = Record<string, unknown>> = {
+    isSelected: boolean;
+    isDraggable: boolean;
+    isVisible: boolean;
+} & T;
 export type TypeModel<T extends Record<string, unknown> = Record<string, unknown>> = {
     name: string;
     extends?: string;

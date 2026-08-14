@@ -1,17 +1,30 @@
 "use client";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import { useNodesReducer } from "@/contexts/StudioProvider";
 import { NodeModel } from "./NodeModel";
 import InternalNode from "./InternalNode";
+import { TypeModelData } from "@/types";
+import { isEqual, merge } from "lodash";
 
+const INITIAL_DATA: TypeModelData = {
+    isSelected: false,
+    isDraggable: false,
+    isVisible: true
+};
 type NodeRenderProps = {
     node: NodeModel;
+    data?: TypeModelData;
 }
 
-export default function NodeRender({ node }: NodeRenderProps) {
+export default function NodeRender({ node, data: initialData }: NodeRenderProps) {
 
     const { state, dispatch } = useNodesReducer();
+    const elementRef = useRef<HTMLElement | null>(null);
     const [dom, setDom] = useState<HTMLElement | null>(null);
+    const [data, setData] = useState<TypeModelData>(() => merge({}, INITIAL_DATA, initialData || {}));
+    const isVisible = useMemo(() => {
+        return node.visible !== false;
+    }, [node.visible]);
     const isSelected = useMemo(() => {
         return state.selected.has(node.id);
     }, [node.id, state.selected]);
@@ -28,6 +41,21 @@ export default function NodeRender({ node }: NodeRenderProps) {
     const children = childrenNode.map(n => <NodeRender key={n.id} node={n} />);
 
     useEffect(() => {
+        setData(prevData => {
+            const nextData: TypeModelData = {
+                ...node.type.data,
+                isSelected,
+                isDraggable: node.type.isDraggable(node),
+                isVisible
+            };
+            if (!isEqual(prevData, nextData)) {
+                return nextData;
+            }
+            return prevData;
+        });
+    }, [isSelected, isVisible, node.type, node]);
+
+    useEffect(() => {
         if (!dom) return;
         dispatch({ type: "SET_DOM", payload: { id: node.id, dom } });
         return () => {
@@ -36,8 +64,7 @@ export default function NodeRender({ node }: NodeRenderProps) {
     }, [dom, node.id, dispatch]);
 
     useEffect(() => {
-        if (!dom || !node.type || !isSelected || state.status !== "editing") return;
-        const isDraggable = typeof node.type.draggable === "function" ? node.type.draggable(node) : node.type.draggable;
+        if (!dom || state.status !== "editing" || !data.isDraggable || !data.isSelected) return;
         const handleDragStart = (e: DragEvent) => {
             e.stopPropagation();
             e.dataTransfer?.setData("studio/node", node.id);
@@ -45,23 +72,22 @@ export default function NodeRender({ node }: NodeRenderProps) {
         const handleDragEnd = (e: DragEvent) => {
             e.stopPropagation();
         };
-        if (isDraggable) {
-            dom.setAttribute("draggable", "true");
-            dom.addEventListener("dragstart", handleDragStart);
-            dom.addEventListener("dragend", handleDragEnd);
-        } else {
-            dom.removeAttribute("draggable");
-            dom.removeEventListener("dragstart", handleDragStart);
-            dom.removeEventListener("dragend", handleDragEnd);
-        }
+        dom.setAttribute("draggable", "true");
+        dom.addEventListener("dragstart", handleDragStart);
+        dom.addEventListener("dragend", handleDragEnd);
+
         return () => {
             dom.removeEventListener("dragstart", handleDragStart);
             dom.removeEventListener("dragend", handleDragEnd);
             dom.removeAttribute("draggable");
         }
-    }, [dom, node.type, node, isSelected, state.status]);
+    }, [dom, data.isDraggable, data.isSelected, node.id, state.status]);
 
-    if (node.visible === false) return null;
+    useEffect(() => {
+        setDom(elementRef.current);
+    }, [elementRef.current]);
+
+    if (!isVisible) return null;
 
     // if "Root", render its children directly without any wrapper
     if (node.type.name === "Root") {
@@ -70,8 +96,8 @@ export default function NodeRender({ node }: NodeRenderProps) {
 
     if (Component) {
         return (
-            <InternalNode node={node}>
-                <Component node={node} ref={setDom}>
+            <InternalNode node={node} data={data} setData={setData}>
+                <Component node={node} ref={elementRef} childrenNode={childrenNode}>
                     {children}
                 </Component>
             </InternalNode>

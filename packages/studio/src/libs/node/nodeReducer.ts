@@ -21,32 +21,23 @@ export const ROOT_NODE = {
 } as NodeObject;
 
 export const initialNodesState: NodeState = {
-    status: "idle",
+    status: "editing",
     collection: new Map<string, NodeModel>(),
     variables: new Map<string, Map<string, Variable>>(),
     hovered: new Set<string>(),
     selected: new Set<string>()
 }
 
-// const buildBlockContent = (content: BlockNodeObject, parentId: string, nodesMap = new Map<string, NodeModel>()) => {
-//     const { children, ...rest } = content;
-
-//     // 1. Create the new node
-//     const newNode = new NodeModel({
-//         ...rest,
-//         id: nanoid(),
-//         parent: parentId,
-//     });
-//     nodesMap.set(newNode.id, newNode);
-//     // 3. Process children recursively using the same Map accumulator
-//     if (Array.isArray(children) && children.length > 0) {
-//         children.forEach((childBlock) => {
-//             buildBlockContent(childBlock, newNode.id, nodesMap);
-//         });
-//     }
-
-//     return { rootNode: newNode, nodesMap };
-// };
+const getDescendants = (collection: Map<string, NodeModel>, parentId: string): string[] => {
+    let ids: string[] = [];
+    collection.forEach((node, id) => {
+        if (node.parent === parentId) {
+            ids.push(id);
+            ids.push(...getDescendants(collection, id));
+        }
+    });
+    return ids;
+}
 
 export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>): NodeState => {
     switch (action.type) {
@@ -154,7 +145,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
         case "MOVE_NODE": {
             // editing protection: only allow block insertion when in "editing" mode
-            if(state.status !== "editing") return state;
+            if (state.status !== "editing") return state;
 
             const { sourceId, targetId, position } = action.payload;
 
@@ -227,7 +218,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
         case "UPDATE_NODE": {
             // editing protection: only allow block insertion when in "editing" mode
-            if(state.status !== "editing") return state;
+            if (state.status !== "editing") return state;
 
             const node = state.collection.get(action.payload.id) ? new NodeModel(state.collection.get(action.payload.id)!) : null;
             if (!node) return state
@@ -258,6 +249,12 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             if ("visible" in action.payload && action.payload.visible !== undefined) {
                 node.visible = action.payload.visible;
             }
+            if ("selectable" in action.payload && action.payload.selectable !== undefined) {
+                node.selectable = Boolean(action.payload.selectable);
+            }
+            if ("hoverable" in action.payload && action.payload.hoverable !== undefined) {
+                node.hoverable = Boolean(action.payload.hoverable);
+            }
 
             newNodes.set(action.payload.id, node);
 
@@ -266,7 +263,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
         case "UPDATE_NODE_PROPS": {
             // editing protection: only allow block insertion when in "editing" mode
-            if(state.status !== "editing") return state;
+            if (state.status !== "editing") return state;
 
             const updateNode = state.collection.get(action.payload.id) ? new NodeModel(state.collection.get(action.payload.id)!) : null;
             if (!updateNode) return state;
@@ -282,7 +279,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
         case "DELETE_NODE": {
             // editing protection: only allow block insertion when in "editing" mode
-            if(state.status !== "editing") return state;
+            if (state.status !== "editing") return state;
 
             const targetNode = state.collection.get(action.payload)
             if (!targetNode) return state;
@@ -302,16 +299,17 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
                     }
                 })
                 return ids
-            }
+            };
 
-            const descendantsToDelete = getDescendants(action.payload)
-            const allDeletedIds = [action.payload, ...descendantsToDelete]
+            const descendantsToDelete = getDescendants(action.payload);
+            const allDeletedIds = [action.payload, ...descendantsToDelete];
+            allDeletedIds.forEach(id => {
+                newNodes.delete(id)
+            });
 
-            allDeletedIds.forEach(id => newNodes.delete(id))
 
-
-            const newHovered = new Set(state.hovered)
-            const newSelected = new Set(state.selected)
+            const newHovered = new Set(state.hovered);
+            const newSelected = new Set(state.selected);
 
             allDeletedIds.forEach(id => {
                 newHovered.delete(id)
@@ -326,9 +324,59 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             }
         }
 
+        case "SET_NODE_CHILDREN": {
+            if (state.status !== "editing") return state;
+
+            const targetId = action.payload.id;
+            if (!state.collection.has(targetId)) return state;
+
+            const newNodes = new Map(state.collection);
+
+            // 1. Remove old descendants of target container
+            const descendantsToDelete = getDescendants(state.collection, targetId);
+            descendantsToDelete.forEach(id => {
+                newNodes.delete(id);
+            });
+
+            // 2. Add new children (handles both Map and Array payloads)
+            const childrenPayload = action.payload.children;
+            const childrenList = childrenPayload instanceof Map
+                ? Array.from(childrenPayload.values())
+                : childrenPayload;
+
+            childrenList.forEach(child => {
+                const childNode = new NodeModel(child);
+                if (childNode.parent == null) {
+                    childNode.parent = targetId;
+                }
+                newNodes.set(childNode.id, childNode);
+            });
+
+            // 3. PURGE ORPHANS: Delete any node whose parent no longer exists
+            let orphanFound = true;
+            while (orphanFound) {
+                orphanFound = false;
+                for (const [id, node] of newNodes.entries()) {
+                    if (node.id !== targetId && node.parent != null && !newNodes.has(node.parent)) {
+                        newNodes.delete(id);
+                        orphanFound = true;
+                    }
+                }
+            }
+
+            // debug 
+            const descendantsAfter = getDescendants(newNodes, targetId);
+            const arrayItems = Array.from(newNodes.values())
+                .filter(n => descendantsAfter.includes(n.id) || n.id === targetId)
+                .map(n => n.toJSON());
+            console.debug("SET_NODE_CHILDREN: Updated node collection:", JSON.stringify(arrayItems, null, 2));
+
+            return { ...state, collection: newNodes };
+        }
+
         case "ADD_VARIABLE": {
             // editing protection: only allow block insertion when in "editing" mode
-            if(state.status !== "editing") return state;
+            if (state.status !== "editing") return state;
 
             const { nodeId, variable } = action.payload;
             const newVariables = new Map(state.variables);
@@ -345,7 +393,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
         case "REMOVE_VARIABLE": {
             // editing protection: only allow block insertion when in "editing" mode
-            if(state.status !== "editing") return state;
+            if (state.status !== "editing") return state;
 
             const { nodeId, variableName } = action.payload;
             const newVariables = new Map(state.variables);
@@ -361,7 +409,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
         case "UPDATE_VARIABLE": {
             // editing protection: only allow block insertion when in "editing" mode
-            if(state.status !== "editing") return state;
+            if (state.status !== "editing") return state;
 
             const { nodeId, variable } = action.payload;
             const newVariables = new Map(state.variables);
@@ -392,7 +440,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
         case "REMOVE_DOM": {
             // editing protection: only allow block insertion when in "editing" mode
-            if(state.status !== "editing") return state;
+            if (state.status !== "editing") return state;
 
             const node = state.collection.get(action.payload) ? new NodeModel(state.collection.get(action.payload)!) : null;
             if (!node) return state;

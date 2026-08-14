@@ -3,7 +3,7 @@ import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { ChevronRight, CircleQuestionMark, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNodesReducer } from "@/contexts/StudioProvider";
-import { useNodeChildren } from "@/hooks/useNodes";
+import { useVisibleNodeChildren } from "@/hooks/useNodes";
 import LabelField from "@/components/ui/fields/LabelField";
 import ScrollContainer from "@/components/ui/ScrollContainer";
 import { NodeModel } from "@/libs/node/NodeModel";
@@ -278,7 +278,7 @@ const Tree = (props: TreeProps) => {
     // Isolate the exact boolean states this specific node cares about
     const isSelected = state.selected.has(node.id);
     const isHovered = state.hovered.has(node.id);
-    const childNodes = useNodeChildren(node);
+    const childNodes = useVisibleNodeChildren(node);
 
     return (
         <TreeVisual

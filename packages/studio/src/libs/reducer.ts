@@ -19,7 +19,7 @@ export const initialState: EditorState = {
         { id: "tablet", name: "Tablet", width: 768, height: 1024 },
         { id: "mobile", name: "Mobile", width: 420, height: 916 }
     ],
-    device: "desktop",
+    device: "tablet",
     assets: {
         collection: new Map<string, AssetObject>(),
         selected: null,
@@ -239,8 +239,7 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
             return {
                 ...state,
                 nodes: {
-                    ...state.nodes,
-                    status: "idle"
+                    ...state.nodes
                 },
                 pages: {
                     ...state.pages,

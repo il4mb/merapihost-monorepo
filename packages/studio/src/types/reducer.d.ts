@@ -77,6 +77,11 @@ export type NodeActions = {
         props: Record<string, any>
     };
 
+    SET_NODE_CHILDREN: {
+        id: string;
+        children: (NodeObject | NodeModel)[] | Map<string, NodeModel>;
+    };
+
     DELETE_NODE: string;
     SET_NODES: Map<string, NodeObject>;
     SET_DOM: {

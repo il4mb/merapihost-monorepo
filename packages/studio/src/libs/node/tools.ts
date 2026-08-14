@@ -5,6 +5,7 @@ import { NodeModel } from "./NodeModel";
 type FCProps = {
     node: NodeModel;
     children: React.ReactNode;
+    childrenNode: NodeModel[];
     ref: RefObject<HTMLElement | null>;
 }
 type CreateTypeFC<T> = FC<FCProps & T>;

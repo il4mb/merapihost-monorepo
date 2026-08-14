@@ -34,6 +34,7 @@ export const webpageQuerySchema = z.object({
 export const nodeSchema = z.strictObject({
     id: z.coerce.string(),
     tagName: z.string().min(1).optional(),
+    name: z.string().optional(),    
     type: z.string().optional(),
     props: z.record(z.string(), z.any()).optional(),
     content: z.string().optional(),
