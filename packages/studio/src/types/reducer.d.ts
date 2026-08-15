@@ -70,7 +70,12 @@ export type NodeActions = {
     };
     UPDATE_NODE: {
         id: string
-    } & DeepPartial<Omit<NodeObject, "id">>;
+    } & DeepPartial<
+        Omit<NodeObject, "id"> & {
+            data: NodeData<Record<string, any>>;
+            dom: HTMLElement | null;
+        }
+    >;
 
     UPDATE_NODE_PROPS: {
         id: string

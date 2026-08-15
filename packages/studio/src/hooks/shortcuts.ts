@@ -21,21 +21,6 @@ export const useMainShortcutListener = () => {
         nodesRef.current = state.collection;
     }, [state.collection]);
 
-    const handleSave = useCallback((e: KeyboardEvent) => {
-        e.preventDefault();
-        // Prevent save if not in editing mode
-        if (statusRef.current !== "editing") {
-            console.warn("Save action is only allowed in 'editing' mode.");
-            return;
-        }
-        const nodes = Array.from(state.collection.values()).map(node => node.toJSON());
-        setTimeout(() => {
-            console.log("Saving nodes to server:", nodes);
-            dispatch({ type: "SET_NODE_STATE_STATUS", payload: "editing" });
-        }, 1000);
-
-    }, [state.collection, state.status]);
-
     const handleUndo = useCallback((e: KeyboardEvent) => {
         console.log("Undo action triggered");
         e.preventDefault();
@@ -71,55 +56,37 @@ export const useMainShortcutListener = () => {
     }, [dispatch]);
 
     return useMemo<ShortcutHandler[]>(() => [
-        // {
-        //     keys: ["Control", "s"],
-        //     preventDefault: true,
-        //     action: handleSave
-        // },
         {
             keys: ["Delete"],
-            preventDefault: true,
             action: handleDelete
         },
         {
             keys: ["Backspace"],
-            preventDefault: true,
             action: handleDelete
         },
-        // {
-        //     keys: ["Control", "Shift", "s"],
-        //     preventDefault: true,
-        //     action: handleSave
-        // },
         {
             keys: ["Control", "z"],
-            preventDefault: true,
             action: handleUndo
         },
         {
             keys: ["Control", "Shift", "z"],
-            preventDefault: true,
             action: handleUndo
         },
         {
             keys: ["Control", "y"],
-            preventDefault: true,
             action: handleRedo
         },
         {
             keys: ["Control", "Shift", "y"],
-            preventDefault: true,
             action: handleRedo
         },
         {
             keys: ["Control", "r"],
-            preventDefault: true,
             action: handleReload
         },
         {
             keys: ["Control", "Shift", "r"],
-            preventDefault: true,
             action: handleReload
         }
-    ], [handleSave, handleDelete, handleUndo, handleRedo, handleReload]);
+    ], [handleDelete, handleUndo, handleRedo, handleReload]);
 }

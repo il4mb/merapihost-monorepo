@@ -2,32 +2,27 @@
 import { useMemo, useEffect, useState, useRef } from "react";
 import { useNodesReducer } from "@/contexts/StudioProvider";
 import { NodeModel } from "./NodeModel";
-import InternalNode from "./InternalNode";
-import { TypeModelData } from "@/types";
-import { isEqual, merge } from "lodash";
 
-const INITIAL_DATA: TypeModelData = {
-    isSelected: false,
-    isDraggable: false,
-    isVisible: true
-};
 type NodeRenderProps = {
     node: NodeModel;
-    data?: TypeModelData;
 }
-
-export default function NodeRender({ node, data: initialData }: NodeRenderProps) {
+export default function NodeRender({ node }: NodeRenderProps) {
 
     const { state, dispatch } = useNodesReducer();
     const elementRef = useRef<HTMLElement | null>(null);
     const [dom, setDom] = useState<HTMLElement | null>(null);
-    const [data, setData] = useState<TypeModelData>(() => merge({}, INITIAL_DATA, initialData || {}));
+
     const isVisible = useMemo(() => {
         return node.visible !== false;
     }, [node.visible]);
+
     const isSelected = useMemo(() => {
         return state.selected.has(node.id);
     }, [node.id, state.selected]);
+
+    const isHovered = useMemo(() => {
+        return state.hovered.has(node.id)
+    }, [state.hovered, node.id]);
 
     const Component = useMemo(() => node.type.render, [node.type]);
 
@@ -41,30 +36,8 @@ export default function NodeRender({ node, data: initialData }: NodeRenderProps)
     const children = childrenNode.map(n => <NodeRender key={n.id} node={n} />);
 
     useEffect(() => {
-        setData(prevData => {
-            const nextData: TypeModelData = {
-                ...node.type.data,
-                isSelected,
-                isDraggable: node.type.isDraggable(node),
-                isVisible
-            };
-            if (!isEqual(prevData, nextData)) {
-                return nextData;
-            }
-            return prevData;
-        });
-    }, [isSelected, isVisible, node.type, node]);
-
-    useEffect(() => {
-        if (!dom) return;
-        dispatch({ type: "SET_DOM", payload: { id: node.id, dom } });
-        return () => {
-            dispatch({ type: "REMOVE_DOM", payload: node.id });
-        }
-    }, [dom, node.id, dispatch]);
-
-    useEffect(() => {
-        if (!dom || state.status !== "editing" || !data.isDraggable || !data.isSelected) return;
+        const isDraggable = node.type.isDraggable(node);
+        if (!dom || state.status !== "editing" || !isDraggable || !node.data.isSelected) return;
         const handleDragStart = (e: DragEvent) => {
             e.stopPropagation();
             e.dataTransfer?.setData("studio/node", node.id);
@@ -81,7 +54,19 @@ export default function NodeRender({ node, data: initialData }: NodeRenderProps)
             dom.removeEventListener("dragend", handleDragEnd);
             dom.removeAttribute("draggable");
         }
-    }, [dom, data.isDraggable, data.isSelected, node.id, state.status]);
+    }, [dom, node.data.isSelected, node, state.status]);
+
+
+    useEffect(() => {
+        dispatch({
+            type: "UPDATE_NODE",
+            payload: {
+                id: node.id,
+                dom,
+                data: { isSelected, isVisible, isHovered }
+            }
+        });
+    }, [isSelected, isVisible, isHovered, dom, node.id])
 
     useEffect(() => {
         setDom(elementRef.current);
@@ -96,11 +81,9 @@ export default function NodeRender({ node, data: initialData }: NodeRenderProps)
 
     if (Component) {
         return (
-            <InternalNode node={node} data={data} setData={setData}>
-                <Component node={node} ref={elementRef} childrenNode={childrenNode}>
-                    {children}
-                </Component>
-            </InternalNode>
+            <Component node={node} ref={elementRef} childrenNode={childrenNode}>
+                {children}
+            </Component>
         );
     }
 

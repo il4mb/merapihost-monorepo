@@ -41,7 +41,8 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
     const subscribersRef = useRef<Subscriber[]>([]);
     const keysRef = useRef<Set<string>>(new Set());
     const subscriberIdCounter = useRef(0);
-
+    const clientRefCounts = useRef<Map<TheClient, number>>(new Map());
+    
     // Normalize keys (handle Space bar & Case sensitivity for letter keys)
     const normalizeKey = useCallback((key: string) => {
         if (key === " ") return "Space";
@@ -149,12 +150,28 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
     const registerClient = useCallback((client: TheClient) => {
         if (!client) return () => { };
 
-        client.addEventListener("keydown", handleKeyDown);
-        client.addEventListener("keyup", handleKeyUp);
+        // Increment the reference count for this specific client
+        const currentCount = clientRefCounts.current.get(client) || 0;
+
+        // ONLY add the native listener if this is the first time this client is registered
+        if (currentCount === 0) {
+            client.addEventListener("keydown", handleKeyDown as EventListener);
+            client.addEventListener("keyup", handleKeyUp as EventListener);
+        }
+
+        clientRefCounts.current.set(client, currentCount + 1);
 
         return () => {
-            client.removeEventListener("keydown", handleKeyDown);
-            client.removeEventListener("keyup", handleKeyUp);
+            const count = (clientRefCounts.current.get(client) || 0) - 1;
+
+            // ONLY remove the native listener if no components are using this client anymore
+            if (count <= 0) {
+                client.removeEventListener("keydown", handleKeyDown as EventListener);
+                client.removeEventListener("keyup", handleKeyUp as EventListener);
+                clientRefCounts.current.delete(client);
+            } else {
+                clientRefCounts.current.set(client, count);
+            }
         };
     }, [handleKeyDown, handleKeyUp]);
 

@@ -1,10 +1,8 @@
-import { NodeObject } from "@/types";
 import { useCallback, useEffect, useState, useMemo, memo, Fragment } from "react";
 import { Box, Typography } from "@mui/material";
 import { useNodesReducer, useStudio } from "@/contexts/StudioProvider";
 import { getLayoutBoxes } from "@/libs/tools/layout";
 import type { Edge, LayoutBoxes } from "@/types";
-import { REGISTRY } from "@/libs/node";
 import { NodeModel } from "@/libs/node/NodeModel";
 
 const COLORS = {

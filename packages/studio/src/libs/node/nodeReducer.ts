@@ -123,7 +123,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             const newNodes = new Map(state.collection);
 
             // 2. Determine the actual parent (if 'inside', the target itself becomes the parent)
-            const targetParentId = position === "inside" ? targetNode.id : targetNode.parent;
+            const targetParentId = position === "inside" ? targetNode.id : targetNode.parent || ROOT_NODE.id;
 
             // 3. Build root node and all recursive children under the determined parent
             const { root: rootNode, collection: blockNodes } = NodeModel.build(block.content, targetParentId, new Map<string, NodeModel>());
@@ -252,6 +252,9 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
             const newNodes = new Map(state.collection);
 
+            if ("dom" in action.payload && action.payload !== undefined) {
+                node.dom = action.payload.dom;
+            }
             if ("name" in action.payload && action.payload.name !== undefined) {
                 node.name = action.payload.name;
             }
@@ -285,9 +288,11 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             if ("deletable" in action.payload && action.payload.deletable !== undefined) {
                 node.deletable = Boolean(action.payload.deletable);
             }
+            if ("data" in action.payload && action.payload.data) {
+                node.data = action.payload.data;
+            }
 
             newNodes.set(action.payload.id, node);
-
             return { ...state, collection: newNodes }
         }
 

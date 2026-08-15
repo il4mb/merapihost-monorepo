@@ -315,10 +315,18 @@ export const normalizeOrders = (map: Map<string, NodeModel>, rootId: string) => 
     normalize(rootId);
 }
 
+export const disableInteractions = (map: Map<string, NodeModel>) => {
+    map.forEach(node => {
+        node.selectable = false;
+        node.hoverable = false;
+    });
+}
+
 export const normalizeTree = (map: Map<string, NodeModel>, rootId: string) => {
     purgeOrphanNodes(map, rootId);
     mergeSiblingTextNodes(map);
     mergeAdjacentFormatNodes(map);
     cleanupEmptyFormatNodes(map);
     normalizeOrders(map, rootId);
+    disableInteractions(map);
 };

@@ -1,6 +1,32 @@
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import { NodeModel } from "@/types";
 import { useNodesReducer } from "@/contexts/StudioProvider";
+import { NodeData } from "@/libs/node";
+
+export const useNodeData = <T extends Record<string, any>>(node: NodeModel<T>) => {
+
+    const { state, dispatch } = useNodesReducer();
+    const [data, setData] = useState<NodeData<T>>(node.data);
+    const dataRef = useRef(node.data);
+
+    useEffect(() => {
+        const currentNode = state.collection.get(node.id);
+        if (dataRef.current === currentNode.data) {
+            return;
+        }
+        dataRef.current = currentNode.data as NodeData<T>;
+        setData(currentNode.data as NodeData<T>);
+    }, [state.collection, node.id]);
+
+    const update = (id: string, data: Partial<NodeData<T>>) => {
+
+    }
+
+    return {
+        update,
+        data
+    }
+}
 
 export const useNodeChildren = (node: NodeModel) => {
     const { state } = useNodesReducer();

@@ -2,7 +2,6 @@ import { useState, useEffect, SyntheticEvent } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import { MapPin as MapIcon } from "lucide-react";
 import { createType } from "../tools";
-import { useInternalNode } from "../InternalNode";
 
 // Helper to handle full embed URLs or convert plain query strings (address, landmark) to embed URLs
 const getGoogleMapEmbedUrl = (urlOrQuery: string = "") => {
@@ -18,7 +17,6 @@ const getGoogleMapEmbedUrl = (urlOrQuery: string = "") => {
 };
 
 export const GoogleMapType = createType(({ node, ref }) => {
-    const { data } = useInternalNode();
     const rawSrc = node.props?.src;
     const [embedUrl, setEmbedUrl] = useState<string>(getGoogleMapEmbedUrl(rawSrc));
     const [isLoading, setIsLoading] = useState<boolean>(!!rawSrc);
@@ -79,7 +77,7 @@ export const GoogleMapType = createType(({ node, ref }) => {
                     height: "100%",
                     border: 0,
                     display: "block",
-                    pointerEvents: data.isSelected ? "auto" : "none"
+                    pointerEvents: node.data.isSelected ? "auto" : "none"
                 }}
             />
         </Box>

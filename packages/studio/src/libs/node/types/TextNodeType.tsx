@@ -1,15 +1,13 @@
 import { BinaryIcon } from "lucide-react";
 import { createType } from "../tools";
-import { createElement, JSX, useCallback, useEffect } from "react";
+import { createElement, JSX, useCallback } from "react";
 import { useNodesReducer } from "@/contexts/StudioProvider";
-import { useInternalNode } from "../InternalNode";
 
 // TextNode sekarang HANYA leaf raw text — tagName di sini murni elemen HTML pembungkus
 // default (biasanya "span"), BUKAN representasi format lagi.
 export const TEXT_NODE_TAGS = ["span"];
 
 export const TextNodeType = createType(({ node, ref }) => {
-    const { data } = useInternalNode<{ isEditing: boolean }>();
     const { state: { collection }, dispatch } = useNodesReducer();
 
     const findParentTextType = useCallback(() => {
@@ -26,7 +24,7 @@ export const TextNodeType = createType(({ node, ref }) => {
     }, [collection]);
 
     const onDoubleClick = useCallback((e: React.MouseEvent<HTMLSpanElement>) => {
-        if (data.isEditing) {
+        if (node.data.isEditing) {
             e.stopPropagation();
             return;
         }
@@ -37,7 +35,7 @@ export const TextNodeType = createType(({ node, ref }) => {
                 parentTextNode.dom?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
             }, 50);
         }
-    }, [findParentTextType, data]);
+    }, [findParentTextType, node.data.isEditing]);
 
     const TagName = (node.tagName || "span").toLowerCase() as keyof JSX.IntrinsicElements;
     const FinalTagName = TEXT_NODE_TAGS.includes(TagName) ? TagName : "span";
@@ -48,7 +46,7 @@ export const TextNodeType = createType(({ node, ref }) => {
     name: "TextNode",
     icon: BinaryIcon,
     draggable: true,
-    droppable: ["TextNode"],
+    droppable: ["textnode"],
     accepts: [], // tetap tidak menerima children apapun
     isInstance(target) {
         return String(target.type || "").toLowerCase() === "textnode";

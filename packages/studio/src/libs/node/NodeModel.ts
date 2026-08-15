@@ -3,7 +3,12 @@ import { REGISTRY } from ".";
 import { ModelProxy } from "./ModelProxy";
 import { merge } from "lodash";
 import { nanoid } from "nanoid";
-import { TEXT_NODE_TAGS } from "./types/TextNodeType";
+
+export type NodeData<T extends Record<string, any>> = {
+    isSelected: boolean;
+    isHovered: boolean;
+    isVisible: boolean;
+} & T;
 
 export interface NodeContext {
     node: NodeObject | null;
@@ -11,10 +16,12 @@ export interface NodeContext {
     dom: HTMLElement | null;
 }
 
-export class NodeModel implements NodeContext {
+export class NodeModel<T extends Record<string, any> = Record<string, any>> implements NodeContext {
 
     readonly node: NodeObject;
     readonly type: ModelProxy;
+
+    private _data: NodeData<T>;
     private _dom: HTMLElement | null = null;
 
     public selectable: boolean = true;
@@ -38,20 +45,27 @@ export class NodeModel implements NodeContext {
         this.node.props = mergedProps;
     }
 
-    constructor(node: NodeObject | NodeModel) {
+    constructor(node: NodeObject | NodeModel<T>) {
         if (node instanceof NodeModel) {
             // existing NodeModel
             this.node = node.node;
             this.type = node.type;
+            this._data = node.data;
             this._dom = node.dom;
             this.selectable = node.selectable;
             this.hoverable = node.hoverable;
+            this.deletable = node.deletable;
         } else {
             // new NodeModel
             this.node = node;
             this.type = this.findType(node);
             // Merge default props for new nodes only, not for existing NodeModel instances
             this.mergeDefaultProps();
+            this._data = {
+                isSelected: false,
+                isVisible: true,
+                ... this.type.data
+            } as NodeData<T>;
         }
     }
 
@@ -64,6 +78,13 @@ export class NodeModel implements NodeContext {
     }
     set dom(value: HTMLElement | null) {
         this._dom = value;
+    }
+
+    get data() {
+        return this._data;
+    }
+    set data(value: NodeData<T>) {
+        this._data = merge({}, this._data, value);
     }
 
     /**

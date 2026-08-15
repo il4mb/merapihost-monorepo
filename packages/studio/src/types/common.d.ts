@@ -138,6 +138,9 @@ export type TypeModel<T extends Record<string, unknown> = Record<string, unknown
         events?: string[] | ((ctx: NodeContext) => string[]);
         props?: T;
     };
+    actions?: {
+        [key: string]: FC<any>
+    }
 }
 export type TypeComponent<T extends Record<string, unknown> = Record<string, unknown>> = React.FC<T> & {
     model: TypeModel<T>;

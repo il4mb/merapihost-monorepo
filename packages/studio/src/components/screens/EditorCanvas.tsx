@@ -447,6 +447,7 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
         if (!iframeWindow || !iframeDocument) return;
 
         iframeWindow.document.documentElement.style.minHeight = "100vh";
+        let isDragging = false;
 
         const preventAnchorNavigation = (event: MouseEvent) => {
             const target = event.target as HTMLElement;
@@ -506,39 +507,6 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
         const onMouseLeave = debounce(() => {
             dispatch({ type: "CLEAR_HOVERED" });
         }, 100);
-
-        const onMouseDown = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-            const arrayNode = arrayNodeRef.current;
-            let targetNode = arrayNode.find((node) => node.dom === target);
-
-            if (!targetNode) {
-                let current: HTMLElement | null = target;
-                if (current === iframeDocument?.body) {
-                    targetNode = arrayNode.find((node) => node.id === "root") || undefined;
-                } else {
-                    while (current && current !== iframeDocument?.body) {
-                        targetNode = arrayNode.find((node) => node.dom === current);
-                        if (targetNode) break;
-                        current = current.parentElement as HTMLElement | null;
-                    }
-                }
-            }
-            if (targetNode && !targetNode.selectable) {
-                return; // Ignore clicks on non-selectable nodes
-            }
-
-            if (targetNode) {
-                if (e.shiftKey || e.ctrlKey || e.metaKey) {
-                    dispatch({ type: "ADD_SELECTED", payload: targetNode.id });
-                } else {
-                    dispatch({ type: "SET_SELECTED", payload: targetNode.id });
-                }
-            } else {
-                dispatch({ type: "CLEAR_SELECTED" });
-            }
-
-        };
 
         const onDragOver = (e: DragEvent) => {
             e.preventDefault();
@@ -600,6 +568,52 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             handleClearDropTarget();
         };
 
+        const onMouseUp = (e: MouseEvent) => {
+            // If the user was dragging, abort the selection logic
+            if (isDragging) return;
+
+            const target = e.target as HTMLElement;
+            const arrayNode = arrayNodeRef.current;
+            let targetNode = arrayNode.find((node) => node.dom === target);
+
+            if (!targetNode) {
+                let current: HTMLElement | null = target;
+                if (current === iframeDocument?.body) {
+                    targetNode = arrayNode.find((node) => node.id === "root") || undefined;
+                } else {
+                    while (current && current !== iframeDocument?.body) {
+                        targetNode = arrayNode.find((node) => node.dom === current);
+                        if (targetNode) break;
+                        current = current.parentElement as HTMLElement | null;
+                    }
+                }
+            }
+
+            if (targetNode && !targetNode.selectable) {
+                return;
+            }
+
+            if (targetNode) {
+                if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                    dispatch({ type: "ADD_SELECTED", payload: targetNode.id });
+                } else {
+                    dispatch({ type: "SET_SELECTED", payload: targetNode.id });
+                }
+            } else {
+                dispatch({ type: "CLEAR_SELECTED" });
+            }
+        };
+
+        const onDragStart = () => {
+            isDragging = true;
+        };
+        const onDragEnd = () => {
+            // Use a small timeout so onMouseUp can read isDragging=true before it resets
+            setTimeout(() => {
+                isDragging = false;
+            }, 50);
+        };
+
         window.addEventListener("resize", updateViewport);
 
         const attachIframeListeners = () => {
@@ -608,7 +622,12 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             iframeWindow.addEventListener("click", preventAnchorNavigation, true);
             iframeWindow.addEventListener("mouseenter", onMouseEnter, true);
             iframeWindow.addEventListener("mouseleave", onMouseLeave, true);
-            iframeWindow.addEventListener("mousedown", onMouseDown, true);
+
+            // 4. Attach the new listeners
+            iframeWindow.addEventListener("mouseup", onMouseUp, true);
+            iframeWindow.addEventListener("dragstart", onDragStart, true);
+            iframeWindow.addEventListener("dragend", onDragEnd, true);
+
             iframeWindow.addEventListener("dragover", onDragOver, true);
             iframeWindow.addEventListener("dragleave", onDragLeave, true);
             iframeWindow.addEventListener("drop", onDrop, true);
@@ -620,7 +639,12 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
             iframeWindow.removeEventListener("click", preventAnchorNavigation, true);
             iframeWindow.removeEventListener("mouseenter", onMouseEnter, true);
             iframeWindow.removeEventListener("mouseleave", onMouseLeave, true);
-            iframeWindow.removeEventListener("mousedown", onMouseDown, true);
+
+            // 5. Cleanup new listeners
+            iframeWindow.removeEventListener("mouseup", onMouseUp, true);
+            iframeWindow.removeEventListener("dragstart", onDragStart, true);
+            iframeWindow.removeEventListener("dragend", onDragEnd, true);
+
             iframeWindow.removeEventListener("dragover", onDragOver, true);
             iframeWindow.removeEventListener("dragleave", onDragLeave, true);
             iframeWindow.removeEventListener("drop", onDrop, true);
