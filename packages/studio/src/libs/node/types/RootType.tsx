@@ -1,25 +1,26 @@
 import { createType } from "../tools";
 import PageIcon from "@/components/icons/PageIcon";
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useMemo, useRef } from "react";
 import { useNodesReducer } from "@/contexts/StudioProvider";
-import { NodeRender } from "..";
+import { NodeRender, ROOT_NODE } from "..";
 
 type RootProps = {
     dom?: HTMLIFrameElement | null;
 }
 export const RootType = createType<any, RootProps>(({ dom }) => {
     const { state, dispatch } = useNodesReducer();
-    const nodes = Array.from(state.collection.values());
-    const rootNodes = nodes.filter(n => !n.parent);
+    const nodes = useMemo(() => Array.from(state.collection.values()), [state.collection]);
+    const rootNodes = useMemo(() => nodes.filter(n => n.parent === ROOT_NODE.id), [nodes]);
 
     useEffect(() => {
         if (!dom) return;
-        const body = dom.contentDocument?.body;
-        if (!body) return;
+        const body = dom.contentDocument?.body as HTMLBodyElement;
+
         dispatch({ type: "SET_DOM", payload: { id: "root", dom: body } });
-        dom.style.height = "100%";
-        dom.style.width = "100%";
-        dom.style.minHeight = "100vh";
+        body.style.height = "100%";
+        body.style.width = "100%";
+        body.style.minHeight = "100vh";
+
         return () => {
             dispatch({ type: "REMOVE_DOM", payload: "root" });
         }

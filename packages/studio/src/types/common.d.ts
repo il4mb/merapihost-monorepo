@@ -3,6 +3,7 @@ import { FC, RefObject } from "react";
 import { NodeObject, NodeVariable } from "./node";
 import { AssetObject } from "./asset";
 import type { NodeContext, NodeModel } from "@/libs/node/NodeModel";
+import { SxProps } from "@mui/material";
 
 export interface ShortcutHandler {
     /** List of keys required to trigger the action (e.g. ["Control", "s"]) */
@@ -82,11 +83,26 @@ export type ModifierSet = {
     nodeIds: string[];
 };
 
-export type TypeModelData<T extends Record<string, unknown> = Record<string, unknown>> = {
+
+
+
+
+export type TypeModelDefault<T extends Record<string, unknown> = Record<string, unknown>> = {
+    name?: string | ((ctx: NodeContext) => string);
+    tagName?: string | ((ctx: NodeContext) => string);
+    events?: string[] | ((ctx: NodeContext) => string[]);
+    props?: {
+        sx?: SxProps;
+    }
+};
+
+export type NodeData<T extends Record<string, unknown> = Record<string, unknown>> = {
     isSelected: boolean;
-    isDraggable: boolean;
+    isHovered: boolean;
     isVisible: boolean;
+    isDragover: boolean;
 } & T;
+
 export type TypeModel<T extends Record<string, unknown> = Record<string, unknown>> = {
     name: string;
     extends?: string;
@@ -113,38 +129,50 @@ export type TypeModel<T extends Record<string, unknown> = Record<string, unknown
      * Used for drag-and-drop operations to determine if a node can be dragged.
      * this as the node passed to the type model as the dragging object.
      */
-    draggable?: boolean | ((node: NodeModel) => boolean);
+    draggable?: boolean | ((node: NodeModel<T>) => boolean);
 
     /**
      * Defines whether the node can accept children.
      * Used for drag-and-drop operations to determine if a node can accept children of a certain type.
      * this type model as the dragging object and the target node as the parent.
      */
-    droppable?: string[] | boolean | ((target: NodeModel) => boolean);
+    droppable?: string[] | boolean | ((target: NodeModel<T>) => boolean);
 
     /**
      * Defines whether the node can be accepted by this type.
      * Used for drag-and-drop operations to determine if a node can be dropped onto another node of this type.
      * this type model as the parent where the node is being dropped.
      */
-    accepts?: string[] | ((source: NodeModel) => string[]) | ((source: NodeModel) => boolean);
+    accepts?: string[] | ((source: NodeModel<T>) => string[]) | ((source: NodeModel<T>) => boolean);
 
-    onCreate?: (node: NodeModel) => void;
-    onChildAdded?: (child: NodeModel) => void;
+    onCreate?: (node: NodeModel<T>) => void;
+    onChildAdded?: (child: NodeModel<T>) => void;
 
-    default?: {
-        name?: string | ((ctx: NodeContext) => string);
-        tagName?: string | ((ctx: NodeContext) => string);
-        events?: string[] | ((ctx: NodeContext) => string[]);
-        props?: T;
-    };
-    actions?: {
-        [key: string]: FC<any>
+    default?: TypeModelDefault<T>;
+    actions?: TypeActionDefine | ((n: NodeModel<T>) => TypeActionDefine | undefined | void);
+    commands?: {
+        [k: string]: (node: NodeModel) => void
     }
 }
+export type TypeActionDefine = {
+    [key: string]: TypeAction | null | false
+}
+
+export type TypeAction = {
+    title?: string;
+    icon?: FC<{ size: number }>;
+    active?: boolean;
+    disabled?: boolean;
+    visible?: boolean;
+}
+
 export type TypeComponent<T extends Record<string, unknown> = Record<string, unknown>> = React.FC<T> & {
     model: TypeModel<T>;
 }
+
+
+
+
 
 
 export type BlockNodeObject = Omit<NodeObject, 'id' | 'parent'> & {

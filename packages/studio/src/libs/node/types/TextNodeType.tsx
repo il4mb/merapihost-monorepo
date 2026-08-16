@@ -46,10 +46,9 @@ export const TextNodeType = createType(({ node, ref }) => {
     name: "TextNode",
     icon: BinaryIcon,
     draggable: true,
-    droppable: ["textnode"],
     accepts: [], // tetap tidak menerima children apapun
     isInstance(target) {
-        return String(target.type || "").toLowerCase() === "textnode";
+        return typeof target.content === "string";
     },
     default: {
         name: "textnode",

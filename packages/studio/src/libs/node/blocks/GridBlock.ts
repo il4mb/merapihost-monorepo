@@ -19,12 +19,7 @@ export const GridBlock = {
                         props: {
                             style: { fontSize: "16px", lineHeight: "1.5" }
                         },
-                        children: [
-                            {
-                                type: "textnode",
-                                content: "This is a paragraph of text. You can edit this text to add your own content."
-                            }
-                        ]
+                        content: "This is a paragraph of text. You can edit this text to add your own content."
                     }
                 ]
             },
@@ -38,12 +33,7 @@ export const GridBlock = {
                         props: {
                             style: { fontSize: "16px", lineHeight: "1.5" }
                         },
-                        children: [
-                            {
-                                type: "textnode",
-                                content: "This is another paragraph of text. You can edit this text to add your own content."
-                            }
-                        ]
+                        content: "This is another paragraph of text. You can edit this text to add your own content."
                     }
                 ]
             }
@@ -64,12 +54,7 @@ export const GridItemBlock = {
                 props: {
                     style: { fontSize: "16px", lineHeight: "1.5" }
                 },
-                children: [
-                    {
-                        type: "textnode",
-                        content: "Grid Item"
-                    }
-                ]
+                content: "Grid Item"
             },
             {
                 tagName: "p",
@@ -77,12 +62,7 @@ export const GridItemBlock = {
                 props: {
                     style: { fontSize: "14px", lineHeight: "1.5" }
                 },
-                children: [
-                    {
-                        type: "textnode",
-                        content: "This is a grid item. You can add content here."
-                    }
-                ]
+                content: "This is a grid item. You can add content here."
             },
             {
                 tagName: "p",
@@ -90,12 +70,7 @@ export const GridItemBlock = {
                 props: {
                     style: { fontSize: "14px", lineHeight: "1.5" }
                 },
-                children: [
-                    {
-                        type: "textnode",
-                        content: "You can also add more elements inside this grid item."
-                    }
-                ]
+                content: "You can also add more elements inside this grid item."
             }
         ]
     }

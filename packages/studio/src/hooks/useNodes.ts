@@ -1,31 +1,30 @@
-import { useMemo, useRef, useEffect, useState } from "react";
-import { NodeModel } from "@/types";
+import { useMemo, useRef, useEffect, useCallback } from "react";
+import { NodeData, NodeModel } from "@/types";
 import { useNodesReducer } from "@/contexts/StudioProvider";
-import { NodeData } from "@/libs/node";
 
-export const useNodeData = <T extends Record<string, any>>(node: NodeModel<T>) => {
 
-    const { state, dispatch } = useNodesReducer();
-    const [data, setData] = useState<NodeData<T>>(node.data);
-    const dataRef = useRef(node.data);
+export const useMutateNodeData = <T extends Record<string, any> = Record<string, any>>(node: NodeModel<T>) => {
+    const { dispatch } = useNodesReducer();
+    const mutate = useCallback((data: Partial<NodeData<Record<string, any>>>) => {
+        dispatch({
+            type: "UPDATE_NODE",
+            payload: {
+                id: node.id,
+                data: data
+            }
+        });
+    }, [node.id]);
+    return mutate;
+}
 
+export const useArrayNodeRef = () => {
+    const { state } = useNodesReducer();
+    const arrayNodeRef = useRef<NodeModel[]>([]);
     useEffect(() => {
-        const currentNode = state.collection.get(node.id);
-        if (dataRef.current === currentNode.data) {
-            return;
-        }
-        dataRef.current = currentNode.data as NodeData<T>;
-        setData(currentNode.data as NodeData<T>);
-    }, [state.collection, node.id]);
+        arrayNodeRef.current = Array.from(state.collection.values());
+    }, [state.collection]);
 
-    const update = (id: string, data: Partial<NodeData<T>>) => {
-
-    }
-
-    return {
-        update,
-        data
-    }
+    return arrayNodeRef;
 }
 
 export const useNodeChildren = (node: NodeModel) => {

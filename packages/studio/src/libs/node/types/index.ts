@@ -1,4 +1,3 @@
-import { TextNodeType } from "./TextNodeType";
 import { FormatNodeType, TextType } from "./text";
 
 import { ContainerType } from "./ContainerType";
@@ -13,9 +12,8 @@ import { YoutubeType } from "./YoutubeType";
 export const REGISTRY = {
     // core types
     "root": RootType,
-    "textnode": TextNodeType,
     "text": TextType,
-    "formatted": FormatNodeType,
+    "spanned": FormatNodeType,
 
     // other types
     "container": ContainerType,

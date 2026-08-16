@@ -1,4 +1,4 @@
-import type { NodeModel, TypeComponent, TypeModel } from "@/types";
+import type { NodeModel, TypeActionDefine, TypeComponent, TypeModel } from "@/types";
 import { NodeContext } from "./NodeModel";
 import { REGISTRY } from ".";
 import { merge } from "lodash";
@@ -9,49 +9,94 @@ import { merge } from "lodash";
  */
 export class ModelProxy {
 
+    readonly node: NodeModel;
     readonly type: TypeComponent;
     readonly model: TypeModel;
 
-    constructor(type: TypeComponent) {
+    private get mergedActionsRecord(): TypeActionDefine {
+        // Get parent actions recursively
+        const parentActions = this.extends ? this.extends.mergedActionsRecord : {};
+
+        // Resolve current actions (handle both Function and Object variants)
+        let currentActions: TypeActionDefine = {};
+
+        if (typeof this.model.actions === "function") {
+            const evaluatedActions = this.model.actions;
+            if (evaluatedActions) {
+                let evaluated = evaluatedActions(this.node);
+                if (evaluated) {
+                    currentActions = evaluated;
+                }
+            }
+        } else if (this.model.actions) {
+            currentActions = this.model.actions;
+        }
+
+        // Merge them: child actions overwrite parent actions automatically
+        return {
+            ...parentActions,
+            ...currentActions
+        };
+    }
+
+    constructor(node: NodeModel, type: TypeComponent) {
+        this.node = node;
         this.type = type;
         this.model = type.model;
+    }
+
+    get isText(): boolean {
+        return String(this.model.name).toLowerCase() === "text" || (this.extends?.isText ?? false);
+    }
+
+    get extends(): ModelProxy | null {
+        // You could pass a Set of visited names into an overloaded or private constructor 
+        // to block circular instantiation completely. 
+        const extendsType = this.model?.extends;
+        if (!extendsType) return null;
+
+        // Basic self-reference check
+        if (extendsType.toLowerCase() === this.name.toLowerCase()) {
+            console.warn(`Model ${this.name} attempts to extend itself.`);
+            return null;
+        }
+
+        const parentModel = REGISTRY[extendsType.toLowerCase()];
+        if (!parentModel) return null;
+
+        return new ModelProxy(this.node, parentModel);
     }
 
     get data() {
         let currentModel: TypeModel | undefined = this.model;
         let mergedData: Record<string, unknown> = {};
+        const visited = new Set<string>(); // Keep track of visited models
+
         while (currentModel) {
+            const modelName = String(currentModel.name).toLowerCase();
+
+            // Prevent infinite loop on circular dependency
+            if (visited.has(modelName)) {
+                console.warn(`Circular dependency detected in model data chain at: ${modelName}`);
+                break;
+            }
+            visited.add(modelName);
+
             mergedData = merge({}, currentModel.data, mergedData);
             const parentTypeName = currentModel.extends;
+
             if (parentTypeName) {
                 const parentModel = REGISTRY[parentTypeName.toLowerCase()];
-                if (parentModel) {
-                    currentModel = parentModel.model;
-                } else {
-                    currentModel = undefined;
-                }
+                currentModel = parentModel ? parentModel.model : undefined;
             } else {
                 currentModel = undefined;
             }
         }
         return mergedData as Record<string, unknown>;
     }
-    set data(newData: Record<string, unknown>) {
-        if (this.model) {
-            this.model.data = newData;
-        }
-    }
 
     get name() {
-        return String(this.model?.name);
-    }
-
-    get extends() {
-        const extendsType = this.model?.extends;
-        if (!extendsType) return null;
-        const parentModel = REGISTRY[extendsType.toLowerCase()];
-        if (!parentModel) return null;
-        return new ModelProxy(parentModel);
+        return String(this.model?.name).toLowerCase();
     }
 
     get icon() {
@@ -80,6 +125,35 @@ export class ModelProxy {
 
     get render() {
         return this.type; // Return the component itself for rendering
+    }
+
+    get actions() {
+        // Pass the node into our recursive merger
+        const mergedRecord = this.mergedActionsRecord;
+
+        return Object.entries(mergedRecord).map(([key, action]) => action && ({
+            id: key,
+            title: key,
+            ...action // This will gracefully allow action to override 'title' if it provides one
+        })).filter(Boolean);
+    }
+
+    get commands() {
+        const thisCommands = this.model.commands;
+        const parentCommands = this.extends?.commands || {};
+
+        return {
+            ...parentCommands,
+            ...thisCommands
+        };
+    }
+
+    invokeCommand(id: string) {
+        const command = this.commands[id];
+        if (typeof command === "function") {
+            return command(this.node);
+        }
+        console.warn(`Command with id "${id}" was not found at ${this.model.name}`);
     }
 
     getColor(isDarkMode: boolean) {
@@ -142,31 +216,34 @@ export class ModelProxy {
     }
 
     getDefaultName(nm: NodeContext) {
-        if (typeof this.model?.default?.name === "string") {
+        const definedName = this.model.default?.name;
+        if (typeof definedName === "string") {
             return this.model.default.name;
         }
-        if (typeof this.model?.default?.name === "function") {
-            return this.model.default.name(nm);
+        if (typeof definedName === "function") {
+            return definedName(nm);
         }
         return this.model.name || this.extends?.getDefaultName(nm) || "Unknown";
     }
 
     getDefaultTagName(nm: NodeContext) {
-        if (typeof this.model?.default?.tagName === "string") {
-            return this.model.default.tagName;
+        const definedTagName = this.model.default?.tagName;
+        if (typeof definedTagName === "string") {
+            return definedTagName.toLowerCase();
         }
-        if (typeof this.model?.default?.tagName === "function") {
-            return this.model.default.tagName(nm);
+        if (typeof definedTagName === "function") {
+            return definedTagName(nm).toLowerCase();
         }
         return this.extends?.getDefaultTagName(nm);
     }
 
     getDefaultEvents(nm: NodeContext) {
-        if (Array.isArray(this.model?.default?.events)) {
-            return this.model.default.events;
+        const definedEvents = this.model.default?.events;
+        if (Array.isArray(definedEvents)) {
+            return definedEvents;
         }
-        if (typeof this.model?.default?.events === "function") {
-            return this.model.default.events(nm);
+        if (typeof definedEvents === "function") {
+            return definedEvents(nm);
         }
         return this.extends?.getDefaultEvents(nm) || [];
     }
@@ -175,6 +252,7 @@ export class ModelProxy {
         if (this.model?.default?.props) {
             return this.model.default.props;
         }
+        // If A extends B and B extends A, this will recurse until a Stack Overflow
         return this.extends?.getDefaultProps(nm) || {};
     }
 }

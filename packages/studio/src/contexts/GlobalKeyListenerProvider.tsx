@@ -2,13 +2,7 @@
 import { createContext, useEffect, useRef, useCallback, useMemo, useContext } from "react";
 
 export interface ShortcutHandler {
-    /** List of keys required to trigger the action (e.g. ["Control", "s"] or ["*"]) */
     keys: string[];
-    /** 
-     * Callback executed when shortcut matches.
-     * @param event The original KeyboardEvent
-     * @param pressedKeys Array of all currently pressed keys (normalized)
-     */
     action: (event: KeyboardEvent, pressedKeys: string[]) => void;
 }
 
@@ -42,8 +36,7 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
     const keysRef = useRef<Set<string>>(new Set());
     const subscriberIdCounter = useRef(0);
     const clientRefCounts = useRef<Map<TheClient, number>>(new Map());
-    
-    // Normalize keys (handle Space bar & Case sensitivity for letter keys)
+
     const normalizeKey = useCallback((key: string) => {
         if (key === " ") return "Space";
         return key.length === 1 ? key.toLowerCase() : key;
@@ -66,18 +59,15 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
             const subscriber = subscribers[s];
             const shortcuts = subscriber.shortcuts;
 
-            // Loop BACKWARDS through shortcuts to maintain strict LIFO order
             for (let i = shortcuts.length - 1; i >= 0; i--) {
                 const handler = shortcuts[i];
                 const { normalizedKeys, isGlobalWildcard } = handler;
 
-                // 1. Global wildcard ["*"] matches ANY key press
                 if (isGlobalWildcard && currentKeysSize > 0) {
                     matchedHandlers.push(handler);
                     continue;
                 }
 
-                // 2. Combination matching using high-performance loop
                 if (normalizedKeys.length === currentKeysSize) {
                     let matches = true;
                     for (let k = 0; k < normalizedKeys.length; k++) {
@@ -104,7 +94,6 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
 
         keysRef.current.add(key);
 
-        // Special system key reset
         if (key === "Escape") {
             clearKeys();
             return;
@@ -113,17 +102,12 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
         const handlers = findMatchingHandlers();
         if (handlers.length === 0) return;
 
-        // Lazy snapshot: Allocate key array ONLY if valid handlers were matched
         const currentPressedKeys = Array.from(keysRef.current);
 
         for (let i = 0; i < handlers.length; i++) {
             const handler = handlers[i];
-            if (e.defaultPrevented) {
-                continue; // Skip if default action has already been prevented
-            }
-            if (!e.repeat) {
-                handler.action(e, currentPressedKeys);
-            }
+            if (e.defaultPrevented) continue;
+            if (!e.repeat) handler.action(e, currentPressedKeys);
         }
     }, [normalizeKey, clearKeys, findMatchingHandlers]);
 
@@ -136,7 +120,18 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
         }
     }, [normalizeKey]);
 
-    // Clear stuck keys on window blur or tab switch
+    // --- HOT RELOAD FIX: Stable Event Wrappers ---
+    // Keep a living reference to the latest handlers so the DOM listeners never need to be re-attached
+    const nativeHandlersRef = useRef({ handleKeyDown, handleKeyUp });
+    useEffect(() => {
+        nativeHandlersRef.current = { handleKeyDown, handleKeyUp };
+    }, [handleKeyDown, handleKeyUp]);
+
+    // These wrappers are strictly stable. Their memory references never change.
+    const stableKeydown = useCallback((e: Event) => nativeHandlersRef.current.handleKeyDown(e), []);
+    const stableKeyup = useCallback((e: Event) => nativeHandlersRef.current.handleKeyUp(e), []);
+    // ---------------------------------------------
+
     useEffect(() => {
         const handleReset = () => clearKeys();
         window.addEventListener("blur", handleReset);
@@ -150,13 +145,12 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
     const registerClient = useCallback((client: TheClient) => {
         if (!client) return () => { };
 
-        // Increment the reference count for this specific client
         const currentCount = clientRefCounts.current.get(client) || 0;
 
-        // ONLY add the native listener if this is the first time this client is registered
         if (currentCount === 0) {
-            client.addEventListener("keydown", handleKeyDown as EventListener);
-            client.addEventListener("keyup", handleKeyUp as EventListener);
+            // Use the stable wrappers here
+            client.addEventListener("keydown", stableKeydown);
+            client.addEventListener("keyup", stableKeyup);
         }
 
         clientRefCounts.current.set(client, currentCount + 1);
@@ -164,16 +158,16 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
         return () => {
             const count = (clientRefCounts.current.get(client) || 0) - 1;
 
-            // ONLY remove the native listener if no components are using this client anymore
             if (count <= 0) {
-                client.removeEventListener("keydown", handleKeyDown as EventListener);
-                client.removeEventListener("keyup", handleKeyUp as EventListener);
+                // Use the exact same stable wrappers here
+                client.removeEventListener("keydown", stableKeydown);
+                client.removeEventListener("keyup", stableKeyup);
                 clientRefCounts.current.delete(client);
             } else {
                 clientRefCounts.current.set(client, count);
             }
         };
-    }, [handleKeyDown, handleKeyUp]);
+    }, [stableKeydown, stableKeyup]); // Dependencies are now safely empty/stable
 
     const sortSubscribers = useCallback(() => {
         subscribersRef.current.sort((a, b) => {
@@ -185,7 +179,6 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
     const registerShortcuts = useCallback((handlers: ShortcutHandler[], sticky = false) => {
         const id = ++subscriberIdCounter.current;
 
-        // Pre-normalize keys and pre-evaluate wildcards once on registration
         const processedShortcuts: ProcessedShortcutHandler[] = handlers.map((h) => ({
             ...h,
             normalizedKeys: h.keys.map(normalizeKey),
@@ -207,7 +200,6 @@ export default function GlobalKeyListenerProvider({ children }: GlobalKeyListene
         };
     }, [normalizeKey, sortSubscribers]);
 
-    // Register global listener on mount
     useEffect(() => {
         if (typeof window === "undefined") return;
         return registerClient(window);

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, useMemo, memo, Fragment } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import { useNodesReducer, useStudio } from "@/contexts/StudioProvider";
 import { getLayoutBoxes } from "@/libs/tools/layout";
 import type { Edge, LayoutBoxes } from "@/types";
 import { NodeModel } from "@/libs/node/NodeModel";
+import NodeActions from "@/libs/node/NodeActions";
 
 const COLORS = {
     margin: "rgba(243, 202, 18, 0.35)", // Orange
@@ -32,8 +33,8 @@ const IndicatorAction = memo(({ node, layout }: IndicatorActionProps) => {
                 left: posX,
                 transform: "translateY(-100%) translateY(-4px)",
                 minWidth: 100,
-                minHeight: 20,
-                padding: "2px 6px",
+                minHeight: 30,
+                padding: "0px 3px 0px 4px",
                 fontSize: 12,
                 color: "#fff",
                 zIndex: 9999,
@@ -41,16 +42,20 @@ const IndicatorAction = memo(({ node, layout }: IndicatorActionProps) => {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 0.5,
-                borderRadius: "3px 3px 0 0",
+                borderRadius: .3,
+                overflow: "hidden",
                 pointerEvents: "auto",
                 whiteSpace: "nowrap",
             }}>
-            {node.type?.icon && (
-                <Box component={node.type.icon} size={14} />
-            )}
-            <Typography variant="caption" sx={{ fontSize: 12, color: "#fff", lineHeight: 1 }}>
-                {node.type?.name || node.name || "Unknown Type"}
-            </Typography>
+            <Stack direction={"row"} sx={{ alignItems: "center" }}>
+                {node.type?.icon && (
+                    <Box component={node.type.icon} size={14} sx={{ mr: .5 }} />
+                )}
+                <Typography variant="caption" sx={{ fontSize: 14, color: "#fff", lineHeight: 1 }}>
+                    {node.type?.name || node.name || "Unknown Type"}
+                </Typography>
+            </Stack>
+            <NodeActions node={node} />
         </Box>
     );
 });
@@ -202,7 +207,6 @@ export default function SelectedIndicators() {
         ).filter((node): node is NodeModel => Boolean(node && node.dom));
     }, [selected, collection]);
 
-    // console.log("Selected Nodes:", selectedNodes.map(node => ({ id: node.id, name: node.name })));
     return (
         <Fragment>
             {selectedNodes.map((node) => (

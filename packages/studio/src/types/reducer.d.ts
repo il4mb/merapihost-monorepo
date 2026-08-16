@@ -1,5 +1,5 @@
 import { NodeModel } from "@/libs/node/NodeModel";
-import type { NodeObject, NodeVariable, AssetObject, PageObject, Block, Edge, Coordinates } from "./index";
+import type { NodeObject, NodeVariable, AssetObject, PageObject, Block, Edge, Coordinates, NodeData } from "./index";
 
 // 2. Fixed DeepPartial to prevent infinite recursion on complex objects
 export type DeepPartial<T> = T extends Function | Map<any, any> | Set<any> | HTMLElement

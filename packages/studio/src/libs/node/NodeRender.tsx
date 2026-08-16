@@ -26,6 +26,8 @@ export default function NodeRender({ node }: NodeRenderProps) {
 
     const Component = useMemo(() => node.type.render, [node.type]);
 
+    // console.log(node);
+
     const childrenNode = useMemo(() => {
         const id = node.id;
         return Array.from(state.collection.values())
@@ -39,12 +41,18 @@ export default function NodeRender({ node }: NodeRenderProps) {
         const isDraggable = node.type.isDraggable(node);
         if (!dom || state.status !== "editing" || !isDraggable || !node.data.isSelected) return;
         const handleDragStart = (e: DragEvent) => {
+            console.log("Drag Start")
             e.stopPropagation();
             e.dataTransfer?.setData("studio/node", node.id);
         };
         const handleDragEnd = (e: DragEvent) => {
             e.stopPropagation();
         };
+        // const onMoseDown = (e: MouseEvent) => {
+        //     e.stopPropagation();
+        //     console.log(e);
+        // }
+        // dom.addEventListener("mousedown", onMoseDown);
         dom.setAttribute("draggable", "true");
         dom.addEventListener("dragstart", handleDragStart);
         dom.addEventListener("dragend", handleDragEnd);
@@ -52,6 +60,7 @@ export default function NodeRender({ node }: NodeRenderProps) {
         return () => {
             dom.removeEventListener("dragstart", handleDragStart);
             dom.removeEventListener("dragend", handleDragEnd);
+            // dom.removeEventListener("mousedown", onMoseDown);
             dom.removeAttribute("draggable");
         }
     }, [dom, node.data.isSelected, node, state.status]);
@@ -74,14 +83,9 @@ export default function NodeRender({ node }: NodeRenderProps) {
 
     if (!isVisible) return null;
 
-    // if "Root", render its children directly without any wrapper
-    if (node.type.name === "Root") {
-        return children;
-    }
-
     if (Component) {
         return (
-            <Component node={node} ref={elementRef} childrenNode={childrenNode}>
+            <Component key={node.id} node={node} ref={elementRef} childrenNode={childrenNode}>
                 {children}
             </Component>
         );

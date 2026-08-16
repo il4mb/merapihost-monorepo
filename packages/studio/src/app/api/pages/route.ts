@@ -62,6 +62,7 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
     {
         id: "header-logo",
         tagName: "div",
+        content: "My Brand",
         props: {
             sx: {
                 fontSize: "1.5rem",
@@ -71,15 +72,6 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "header",
-        order: 0,
-        visible: true
-    },
-    // Header logo text
-    {
-        id: "header-logo-text",
-        type: "textnode",
-        content: "My Brand",
-        parent: "header-logo",
         order: 0,
         visible: true
     },
@@ -112,18 +104,11 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "header-nav",
-        order: 0,
-        visible: true
-    },
-    {
-        id: "nav-home-text",
-        type: "textnode",
         content: "Home",
-        parent: "nav-home",
+
         order: 0,
         visible: true
     },
-
     {
         id: "nav-about",
         tagName: "a",
@@ -137,15 +122,7 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         },
         parent: "header-nav",
         order: 1,
-        visible: true
-    },
-    {
-        id: "nav-about-text",
-        type: "textnode",
-        content: "About",
-        parent: "nav-about",
-        order: 0,
-        visible: true
+        content: "About"
     },
 
     {
@@ -161,15 +138,8 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         },
         parent: "header-nav",
         order: 2,
-        visible: true
-    },
-    {
-        id: "nav-contact-text",
-        type: "textnode",
+        visible: true,
         content: "Contact",
-        parent: "nav-contact",
-        order: 0,
-        visible: true
     },
 
     // Main content area
@@ -248,17 +218,9 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         },
         parent: "hero-section",
         order: 0,
-        visible: true
-    },
-    {
-        id: "hero-title-text",
-        type: "textnode",
+        visible: true,
         content: "Welcome to Your New Page",
-        parent: "hero-title",
-        order: 0,
-        visible: true
     },
-
     // Hero subtitle
     {
         id: "hero-subtitle",
@@ -275,15 +237,8 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "hero-section",
-        order: 1,
-        visible: true
-    },
-    {
-        id: "hero-subtitle-text",
-        type: "textnode",
         content: "This is your starting point. Customize this page to match your brand and content needs.",
-        parent: "hero-subtitle",
-        order: 0,
+        order: 1,
         visible: true
     },
 
@@ -332,6 +287,7 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
     {
         id: "feature-1-icon",
         tagName: "div",
+        content: "📝",
         props: {
             sx: {
                 fontSize: "2.5rem",
@@ -339,14 +295,6 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "feature-1",
-        order: 0,
-        visible: true
-    },
-    {
-        id: "feature-1-icon-text",
-        type: "textnode",
-        content: "📝",
-        parent: "feature-1-icon",
         order: 0,
         visible: true
     },
@@ -361,16 +309,9 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
                 marginBottom: "10px"
             }
         },
+        content: "Easy Editing",
         parent: "feature-1",
         order: 1,
-        visible: true
-    },
-    {
-        id: "feature-1-title-text",
-        type: "textnode",
-        content: "Easy Editing",
-        parent: "feature-1-title",
-        order: 0,
         visible: true
     },
     {
@@ -383,15 +324,8 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "feature-1",
-        order: 2,
-        visible: true
-    },
-    {
-        id: "feature-1-text-content",
-        type: "textnode",
         content: "Edit any element directly on the page. Click to change text, styles, and more.",
-        parent: "feature-1-text",
-        order: 0,
+        order: 2,
         visible: true
     },
 
@@ -418,6 +352,7 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
     },
     {
         id: "feature-2-icon",
+        content: "🎨",
         tagName: "div",
         props: {
             sx: {
@@ -426,14 +361,6 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "feature-2",
-        order: 0,
-        visible: true
-    },
-    {
-        id: "feature-2-icon-text",
-        type: "textnode",
-        content: "🎨",
-        parent: "feature-2-icon",
         order: 0,
         visible: true
     },
@@ -448,16 +375,9 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
                 marginBottom: "10px"
             }
         },
+        content: "Custom Styling",
         parent: "feature-2",
         order: 1,
-        visible: true
-    },
-    {
-        id: "feature-2-title-text",
-        type: "textnode",
-        content: "Custom Styling",
-        parent: "feature-2-title",
-        order: 0,
         visible: true
     },
     {
@@ -470,15 +390,8 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "feature-2",
-        order: 2,
-        visible: true
-    },
-    {
-        id: "feature-2-text-content",
-        type: "textnode",
         content: "Use MUI's sx prop for responsive, theme-aware styling. Customize colors, spacing, and more.",
-        parent: "feature-2-text",
-        order: 0,
+        order: 2,
         visible: true
     },
 
@@ -506,6 +419,7 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
     {
         id: "feature-3-icon",
         tagName: "div",
+        content: "🚀",
         props: {
             sx: {
                 fontSize: "2.5rem",
@@ -517,16 +431,9 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
     {
-        id: "feature-3-icon-text",
-        type: "textnode",
-        content: "🚀",
-        parent: "feature-3-icon",
-        order: 0,
-        visible: true
-    },
-    {
         id: "feature-3-title",
         tagName: "h3",
+        content: "Ready to Publish",
         props: {
             sx: {
                 fontSize: "1.25rem",
@@ -540,14 +447,6 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
         visible: true
     },
     {
-        id: "feature-3-title-text",
-        type: "textnode",
-        content: "Ready to Publish",
-        parent: "feature-3-title",
-        order: 0,
-        visible: true
-    },
-    {
         id: "feature-3-text",
         tagName: "p",
         props: {
@@ -557,18 +456,10 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "feature-3",
+        content: "Your page is fully responsive and ready for production. Just add your content and go live!",
         order: 2,
         visible: true
     },
-    {
-        id: "feature-3-text-content",
-        type: "textnode",
-        content: "Your page is fully responsive and ready for production. Just add your content and go live!",
-        parent: "feature-3-text",
-        order: 0,
-        visible: true
-    },
-
     // Call to action section
     {
         id: "cta-section",
@@ -597,15 +488,8 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
                 marginBottom: "1rem"
             }
         },
-        parent: "cta-section",
-        order: 0,
-        visible: true
-    },
-    {
-        id: "cta-title-text",
-        type: "textnode",
         content: "Ready to Get Started?",
-        parent: "cta-title",
+        parent: "cta-section",
         order: 0,
         visible: true
     },
@@ -619,16 +503,9 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
                 marginBottom: "20px"
             }
         },
+        content: "Begin customizing your page by clicking on any element. Add your own content, images, and styling.",
         parent: "cta-section",
         order: 1,
-        visible: true
-    },
-    {
-        id: "cta-text-content",
-        type: "textnode",
-        content: "Begin customizing your page by clicking on any element. Add your own content, images, and styling.",
-        parent: "cta-text",
-        order: 0,
         visible: true
     },
     {
@@ -649,16 +526,9 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
                 }
             }
         },
+        content: "Start Editing",
         parent: "cta-section",
         order: 2,
-        visible: true
-    },
-    {
-        id: "cta-button-text",
-        type: "textnode",
-        content: "Start Editing",
-        parent: "cta-button",
-        order: 0,
         visible: true
     },
 
@@ -711,14 +581,7 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "footer-content",
-        order: 0,
-        visible: true
-    },
-    {
-        id: "footer-text-content",
-        type: "textnode",
         content: `© ${new Date().getFullYear()} My Company. All rights reserved.`,
-        parent: "footer-text",
         order: 0,
         visible: true
     },
@@ -739,6 +602,7 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
     },
     {
         id: "footer-link-privacy",
+        content: "Privacy Policy",
         tagName: "a",
         props: {
             href: "#",
@@ -750,14 +614,6 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
             }
         },
         parent: "footer-links",
-        order: 0,
-        visible: true
-    },
-    {
-        id: "footer-link-privacy-text",
-        type: "textnode",
-        content: "Privacy Policy",
-        parent: "footer-link-privacy",
         order: 0,
         visible: true
     },
@@ -773,16 +629,9 @@ const INITIAL_PAGE_LAYOUT: NodeObject[] = [
                 "&:hover": { color: "#1976d2" }
             }
         },
+        content: "Terms of Service",
         parent: "footer-links",
         order: 1,
-        visible: true
-    },
-    {
-        id: "footer-link-terms-text",
-        type: "textnode",
-        content: "Terms of Service",
-        parent: "footer-link-terms",
-        order: 0,
         visible: true
     }
 ];

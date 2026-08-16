@@ -103,9 +103,13 @@ export const getTreeOrderedNodes = (rootId: string, map: Map<string, NodeModel>)
 export const findNode = (id: string | null | undefined, map: Map<string, NodeModel>): NodeModel | null =>
     id ? map.get(id) ?? null : null;
 
+/**
+ * Looking Upward Chain
+ */
 export const getAncestorChain = (startNode: NodeModel, map: Map<string, NodeModel>, rootId: string): NodeModel[] => {
     const chain: NodeModel[] = [];
-    let current = findNode(startNode.parent, map);
+    // check start node first
+    let current = findNode(startNode.id, map);
     while (current && current.id !== rootId) {
         chain.push(current);
         current = findNode(current.parent, map);
@@ -142,6 +146,19 @@ const areMergeableFormatTags = (a: string, b: string): boolean => {
     return false;
 };
 
+const isEmptyContent = (node: NodeModel, map: Map<string, NodeModel>): boolean => {
+    const children = Array.from(map.values()).filter((n) => n.parent === node.id);
+    if (children.length > 0) {
+        return children.every((child) => isEmptyContent(child, map));
+    } else {
+        return !Boolean(node.content); // empty|null|undefineded|false
+    }
+}
+
+const isMergeable = (node: NodeModel) => {
+    return node.type.name === "spanned" || Boolean(node.content);
+}
+
 export const mergeAdjacentFormatNodes = (map: Map<string, NodeModel>) => {
     let changed = true;
     while (changed) {
@@ -162,25 +179,11 @@ export const mergeAdjacentFormatNodes = (map: Map<string, NodeModel>) => {
                 const curr = children[i];
                 const next = children[i + 1];
 
-                const bothFormatNode =
-                    curr.type.name.toLowerCase() === "formatted" &&
-                    next.type.name.toLowerCase() === "formatted";
-
+                const bothFormatNode = isMergeable(curr) && isMergeable(next);
                 if (bothFormatNode && areMergeableFormatTags(curr.tagName, next.tagName)) {
-                    const nextChildren = Array.from(map.values())
-                        .filter((c) => c.parent === next.id)
-                        .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-                    const currChildren = Array.from(map.values())
-                        .filter((c) => c.parent === curr.id)
-                        .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-                    let startOrd = currChildren.length;
-                    nextChildren.forEach((child) => {
-                        child.parent = curr.id;
-                        child.order = startOrd++;
-                    });
-
+                    const merged = new NodeModel(curr);
+                    merged.content = (merged.content || "") + (next.content || "");
+                    map.set(curr.id, merged);
                     map.delete(next.id);
                     changed = true;
                     break;
@@ -190,94 +193,15 @@ export const mergeAdjacentFormatNodes = (map: Map<string, NodeModel>) => {
     }
 };
 
-export const mergeSiblingTextNodes = (map: Map<string, NodeModel>) => {
-    let changed = true;
-    while (changed) {
-        changed = false;
-        const parentGroups = new Map<string, NodeModel[]>();
-
-        map.forEach((n) => {
-            if (n.parent) {
-                const group = parentGroups.get(n.parent) || [];
-                group.push(n);
-                parentGroups.set(n.parent, group);
-            }
-        });
-
-        parentGroups.forEach((children) => {
-            children.sort((a, b) => (a.order || 0) - (b.order || 0));
-            for (let i = 0; i < children.length - 1; i++) {
-                const curr = children[i];
-                const next = children[i + 1];
-                const bothTextNode =
-                    curr.type.name.toLowerCase() === "textnode" &&
-                    next.type.name.toLowerCase() === "textnode";
-
-                if (bothTextNode) {
-                    curr.content = (curr.content || "") + (next.content || "");
-
-                    const nextChildren = Array.from(map.values())
-                        .filter((c) => c.parent === next.id)
-                        .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-                    const currChildren = Array.from(map.values())
-                        .filter((c) => c.parent === curr.id)
-                        .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-                    let startOrd = currChildren.length;
-                    nextChildren.forEach((child) => {
-                        child.parent = curr.id;
-                        child.order = startOrd++;
-                    });
-
-                    map.delete(next.id);
-                    changed = true;
-                    break;
-                }
-            }
-        });
-    }
-};
-
-
-const isEmptyContent = (node: NodeModel, map: Map<string, NodeModel>): boolean => {
-    const children = Array.from(map.values()).filter((n) => n.parent === node.id);
-    if (children.length > 0) {
-        return children.every((child) => isEmptyContent(child, map));
-    } else {
-        return (node.content || "").trim() === "";
-    }
-}
 
 export const cleanupEmptyFormatNodes = (map: Map<string, NodeModel>) => {
     let changed = true;
     while (changed) {
         changed = false;
-        const emptyFormatNodes = Array.from(map.values()).filter((n) => {
-            const isFormatNode = n.type.name.toLowerCase() === "formatted";
-            return isFormatNode && isEmptyContent(n, map);
-        });
-
+        const emptyFormatNodes = Array.from(map.values()).filter((n) => isEmptyContent(n, map));
         for (const node of emptyFormatNodes) {
-            const content = node.content || "";
-
-            if (content.trim() === "") {
-                // Node contains only whitespace (or is empty)
-                if (content !== "") {
-                    // Convert to a text node preserving the whitespace
-                    const textNode = new NodeModel({
-                        id: nanoid(),
-                        type: "textnode",
-                        content: content,
-                        parent: node.parent,
-                        order: node.order,
-                    });
-                    map.set(textNode.id, textNode);
-                }
-                // Delete the format node
-                map.delete(node.id);
-                changed = true;
-            }
+            map.delete(node.id);
+            changed = true;
         }
     }
 };
@@ -324,9 +248,8 @@ export const disableInteractions = (map: Map<string, NodeModel>) => {
 
 export const normalizeTree = (map: Map<string, NodeModel>, rootId: string) => {
     purgeOrphanNodes(map, rootId);
-    mergeSiblingTextNodes(map);
     mergeAdjacentFormatNodes(map);
-    cleanupEmptyFormatNodes(map);
+    // cleanupEmptyFormatNodes(map);
     normalizeOrders(map, rootId);
     disableInteractions(map);
 };

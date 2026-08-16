@@ -1,14 +1,8 @@
-import type { NodeObject, BlockNodeObject } from "@/types";
+import type { NodeObject, BlockNodeObject, NodeData } from "@/types";
 import { REGISTRY } from ".";
 import { ModelProxy } from "./ModelProxy";
-import { merge } from "lodash";
+import { merge, pickBy } from "lodash";
 import { nanoid } from "nanoid";
-
-export type NodeData<T extends Record<string, any>> = {
-    isSelected: boolean;
-    isHovered: boolean;
-    isVisible: boolean;
-} & T;
 
 export interface NodeContext {
     node: NodeObject | null;
@@ -31,12 +25,12 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
     private findType(node: NodeObject): ModelProxy {
         const typeName = String(node.type || "").toLowerCase();
         if (typeName.trim() != "" && typeName in REGISTRY) {
-            return new ModelProxy(REGISTRY[typeName]);
+            return new ModelProxy(this, REGISTRY[typeName]);
         }
         const match = Object.values(REGISTRY).find(
             (item) => item.model.isInstance?.(node)
         );
-        return match ? new ModelProxy(match) : new ModelProxy(REGISTRY["element"]);
+        return match ? new ModelProxy(this, match) : new ModelProxy(this, REGISTRY["element"]);
     }
 
     private mergeDefaultProps() {
@@ -49,7 +43,7 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
         if (node instanceof NodeModel) {
             // existing NodeModel
             this.node = node.node;
-            this.type = node.type;
+            this.type = new ModelProxy(this, node.type.type); // ensure node updated at model
             this._data = node.data;
             this._dom = node.dom;
             this.selectable = node.selectable;
@@ -64,6 +58,8 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
             this._data = {
                 isSelected: false,
                 isVisible: true,
+                isHovered: false,
+                isDragover: false,
                 ... this.type.data
             } as NodeData<T>;
         }
@@ -84,7 +80,10 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
         return this._data;
     }
     set data(value: NodeData<T>) {
-        this._data = merge({}, this._data, value);
+        this._data = {
+            ...this._data,
+            ...value
+        };
     }
 
     /**
@@ -115,10 +114,10 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
 
 
     get tagName() {
-        return this.node?.tagName || this.type.getDefaultTagName(this);
+        return this.node?.tagName?.toLowerCase() || this.type.getDefaultTagName(this)
     }
     set tagName(value: string) {
-        this.node.tagName = value;
+        this.node.tagName = value.toLowerCase();
     }
 
 
@@ -145,6 +144,10 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
         this.node.visible = value;
     }
 
+    get isTextLeaf(): boolean {
+        return this.type.isText && typeof this.content === "string";
+    }
+
     clone(): NodeModel {
         const clonedNode = merge({}, { ...this.node });
         clonedNode.id = nanoid(); // Assign a new unique ID for the cloned node
@@ -157,27 +160,16 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
      * @returns A plain NodeObject representation of the NodeModel.
      */
     toJSON(): NodeObject {
-        const typeName = String(this.type?.model?.name).toLowerCase();
-        if (typeName === "textnode") {
-            return {
-                id: this.node.id,
-                tagName: this.node.tagName,
-                type: this.node.type,
-                name: this.node.name,
-                content: this.node.content,
-                parent: this.node.parent || null,
-                order: this.node.order
-            };
-        }
-        return {
+        return pickBy({
             id: this.node.id,
             type: this.node.type,
             tagName: this.node.tagName,
             name: this.node.name,
+            content: this.node.content,
             props: { ...this.node.props },
             parent: this.node.parent || null,
             order: this.node.order
-        };
+        }, v => v !== undefined) as unknown as NodeObject;
     }
 
 
@@ -249,7 +241,7 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
 
                 const newNode = new NodeModel({
                     id: nanoid(),
-                    type: "textnode",
+                    type: "text",
                     content: text,
                     parent: currentParentId,
                     order
@@ -277,7 +269,7 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
                     // Leaf element – store its inner HTML as content, skip children
                     const elementModel = new NodeModel({
                         id: elementId,
-                        type: "textnode",
+                        type: "text",
                         tagName: tagName,
                         props,
                         content: element.innerHTML,  // entire inner HTML becomes a string

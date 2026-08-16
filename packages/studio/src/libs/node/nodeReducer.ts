@@ -252,7 +252,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
             const newNodes = new Map(state.collection);
 
-            if ("dom" in action.payload && action.payload !== undefined) {
+            if ("dom" in action.payload && action.payload !== undefined) { // Nullable
                 node.dom = action.payload.dom;
             }
             if ("name" in action.payload && action.payload.name !== undefined) {
@@ -264,7 +264,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
                     ...action.payload.props
                 };
             }
-            if ("content" in action.payload && action.payload.content !== undefined) {
+            if ("content" in action.payload) { // Nillable
                 node.content = action.payload.content;
             }
             if ("tagName" in action.payload && action.payload.tagName !== undefined) {
@@ -289,7 +289,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
                 node.deletable = Boolean(action.payload.deletable);
             }
             if ("data" in action.payload && action.payload.data) {
-                node.data = action.payload.data;
+                node.data = action.payload.data as any;
             }
 
             newNodes.set(action.payload.id, node);

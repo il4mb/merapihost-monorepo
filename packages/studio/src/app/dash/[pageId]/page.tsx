@@ -47,7 +47,18 @@ export default async function Page({ params }: PageProps) {
             <NodeStatusIndicator />
             <ScreenContainer>
                 <ScreenFrame>
-                    <EditorCanvas nodes={nodes} />
+                    <EditorCanvas nodes={nodes || [
+                        {
+                            id: "1234",
+                            parent: null,
+                            tagName: "div"
+                        },
+                        {
+                            id: '12345',
+                            tagName: "h1",
+                            content: "Hallo World"
+                        }
+                    ]} />
                 </ScreenFrame>
             </ScreenContainer>
         </Fragment>

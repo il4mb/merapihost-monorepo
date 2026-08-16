@@ -11,15 +11,10 @@ export const ContainerBlock = {
             {
                 type: "Text",
                 tagName: "h1",
+                content: "This is a container.",
                 props: {
                     style: { fontSize: "32px", fontWeight: "bold" }
-                },
-                children: [
-                    {
-                        type: "textnode",
-                        content: "This is a container."
-                    }
-                ]
+                }
             },
             {
                 type: "Text",
@@ -27,12 +22,7 @@ export const ContainerBlock = {
                 props: {
                     style: { fontSize: "16px", lineHeight: "1.5" }
                 },
-                children: [
-                    {
-                        type: "textnode",
-                        content: "You can add your own content inside this container."
-                    }
-                ]
+                content: "You can add your own content inside this container."
             }
         ]
     }
@@ -54,12 +44,7 @@ export const BoxBlock = {
                 props: {
                     style: { fontSize: "16px", lineHeight: "1.5" }
                 },
-                children: [
-                    {
-                        type: "textnode",
-                        content: "This is a box. You can add your own content here."
-                    }
-                ]
+                content: "This is a box. You can add your own content here."
             }
         ]
     }

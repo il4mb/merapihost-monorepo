@@ -9,15 +9,10 @@ export const TypographyBlock = {
     content: {
         type: "Text",
         tagName: "p",
+        content: "This is a paragraph of text. You can edit this text to add your own content.",
         props: {
             style: { fontSize: "16px", lineHeight: "1.5" }
-        },
-        children: [
-            {
-                type: "textnode",
-                content: "This is a paragraph of text. You can edit this text to add your own content."
-            }
-        ]
+        }
     }
 
 } as Block;
@@ -29,14 +24,9 @@ export const HeadingBlock = {
     content: {
         type: "Text",
         tagName: "h1",
+        content: "This is a heading.",
         props: {
             style: { fontSize: "32px", fontWeight: "bold" }
-        },
-        children: [
-            {
-                type: "textnode",
-                content: "This is a heading."
-            }
-        ]
+        }
     }
 } as Block; 

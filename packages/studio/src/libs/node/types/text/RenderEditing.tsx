@@ -2,13 +2,14 @@ import { useCallback, useMemo, useRef, useEffect, useLayoutEffect, Fragment } fr
 import { flushSync } from "react-dom";
 import { NodeModel } from "../..";
 import RenderEditingType from "./RenderEditingType";
-import { cloneChainSlice, findNode, getAncestorChain, isSameFormatTag, normalizeTree, setGlobalCharOffsets } from "./tools";
+import { cleanupEmptyFormatNodes, cloneChainSlice, disableInteractions, findNode, getAncestorChain, isSameFormatTag, mergeAdjacentFormatNodes, normalizeOrders, normalizeTree, setGlobalCharOffsets } from "./tools";
 import { useNodesReducer } from "@/contexts/StudioProvider";
 import { useNodeDescendants } from "@/hooks";
 import { ShortcutHandler, useGlobalKeyListener } from "@/contexts/GlobalKeyListenerProvider";
 import { nanoid } from "nanoid";
 import { getSelectionSegments, useCaretControl } from "@/hooks/useEditText";
 
+const TEMP_ORDER_STEP = 1000;
 type RenderEditingProps = { root: NodeModel };
 
 export default function RenderEditing({ root }: RenderEditingProps) {
@@ -29,6 +30,11 @@ export default function RenderEditing({ root }: RenderEditingProps) {
     const isFormattingRef = useRef(false);
     const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
 
+    const rootRef = useRef(root);
+    useEffect(() => {
+        rootRef.current = root;
+    }, [root]);
+
     // Restore native selection (fallback only)
     useLayoutEffect(() => {
         if (pendingSelectionRef.current && root.dom) {
@@ -39,8 +45,10 @@ export default function RenderEditing({ root }: RenderEditingProps) {
     }, [nodeChildren, root.dom]);
 
     const getTextNodes = useCallback(() => {
+        const root = rootRef.current;
+        if (typeof root.content === 'string') return [root];
         return Array.from(descendantsRef.current.values())
-            .filter((n) => n.type.name.toLowerCase() === "textnode")
+            .filter((n) => typeof n.content === 'string')
             .sort((a, b) => {
                 if (!a.dom || !b.dom) return (a.order || 0) - (b.order || 0);
                 const cmp = a.dom.compareDocumentPosition(b.dom);
@@ -50,10 +58,9 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             });
     }, []);
 
-    // ═════════════════════════════════════════════════════════════════
-    // FORMATTING
-    // ═════════════════════════════════════════════════════════════════
     const insertFormattedText = useCallback((format: "bold" | "italic" | "underline") => {
+        const root = rootRef.current;
+
         if (isFormattingRef.current) return;
         isFormattingRef.current = true;
 
@@ -71,8 +78,9 @@ export default function RenderEditing({ root }: RenderEditingProps) {
 
         const formattedTagName = format === "bold" ? "strong" : format === "italic" ? "em" : "u";
         const newContents = new Map(descendantsRef.current);
+        newContents.set(root.id, root); // ensure root 
 
-        const segments = getSelectionSegments(selStart, selEnd, newContents);
+        const segments = getSelectionSegments(selStart, selEnd, newContents, root);
         if (segments.length === 0) {
             isFormattingRef.current = false;
             return;
@@ -85,7 +93,10 @@ export default function RenderEditing({ root }: RenderEditingProps) {
         const targetAction: "APPLY" | "REMOVE" = isAllFormatted ? "REMOVE" : "APPLY";
 
         segments.forEach((seg, segIdx) => {
+
             const targetNode = seg.node;
+            const targetIsRoot = targetNode.id === root.id;
+
             const startOffset = seg.localStart;
             const endOffset = seg.localEnd;
             const overlapLength = endOffset - startOffset;
@@ -98,146 +109,292 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             const hasBefore = before.length > 0;
             const hasAfter = after.length > 0;
             const baseOrder = targetNode.order || 0;
-            const originalParentId = targetNode.parent;
+            const originalParentId = targetIsRoot ? root.id : targetNode.parent;
 
             const chain = getAncestorChain(targetNode, newContents, root.id);
             const matchedIdx = chain.findIndex((w) => isSameFormatTag(w.tagName, format));
 
             if (targetAction === "APPLY") {
-                // ── Already formatted → skip entirely ──
                 if (matchedIdx !== -1) return;
 
-                // ── Not formatted → wrap selected text ──
-                const beforeNode = targetNode.clone();
-                beforeNode.content = before;
-                beforeNode.order = baseOrder;
-                beforeNode.parent = originalParentId;
+                const nodeOrder = targetNode.order || 0;
+                const grandParentId = targetNode.parent || root.id;
+                const isTargetFormatted = targetNode.type.name.toLowerCase() === "spanned";
+                const isFormatTargetEqual = isSameFormatTag(targetNode.tagName, format);
 
-                const selectedNode = targetNode.clone();
-                selectedNode.content = selectedText;
-                selectedNode.order = baseOrder + 0.01 + segIdx * 0.001;
-                selectedNode.parent = originalParentId;
+                console.log({
+                    nodeOrder,
+                    grandParentId,
+                    isTargetFormatted,
+                    targetIsRoot,
+                    targetNode,
+                    isFormatTargetEqual
+                });
 
-                const afterNode = targetNode.clone();
-                afterNode.content = after;
-                afterNode.order = baseOrder + 0.02 + segIdx * 0.001;
-                afterNode.parent = originalParentId;
 
-                newContents.delete(targetNode.id);
-                if (hasBefore) newContents.set(beforeNode.id, beforeNode);
-                if (hasAfter) newContents.set(afterNode.id, afterNode);
 
-                if (selectedText.length > 0) {
-                    newContents.set(selectedNode.id, selectedNode);
-                    const wrapper = new NodeModel({
+                if (targetIsRoot) {
+                    const beforeNode = new NodeModel({
                         id: nanoid(),
-                        type: "formatnode",
-                        tagName: formattedTagName,
-                        parent: originalParentId,
-                        order: selectedNode.order,
+                        tagName: "span",
+                        type: "spanned",
+                        content: before,
+                        order: baseOrder,
+                        parent: originalParentId
                     });
-                    newContents.set(wrapper.id, wrapper);
-                    selectedNode.parent = wrapper.id;
-                    selectedNode.order = 0;
+
+                    const afterNode = new NodeModel({
+                        id: nanoid(),
+                        tagName: "span",
+                        type: "spanned",
+                        content: after,
+                        order: baseOrder + 0.02 + segIdx * 0.001,
+                        parent: originalParentId
+                    });
+
+                    newContents.delete(targetNode.id);
+                    if (hasBefore) newContents.set(beforeNode.id, beforeNode);
+                    if (hasAfter) newContents.set(afterNode.id, afterNode);
+
+                    if (selectedText.length > 0) {
+                        if (chain.length > 0) {
+                            // ── Ada ancestor spanned → clone & preserve ──
+                            const { innermostId, outermostId } = cloneChainSlice(
+                                chain, 0, chain.length - 1, originalParentId, newContents
+                            );
+
+                            // Promote cloned wrappers: hapus content supaya jadi container
+                            let cleanId = outermostId;
+                            while (cleanId) {
+                                const n = findNode(cleanId, newContents);
+                                if (!n) break;
+                                n.content = undefined;
+                                const kids = Array.from(newContents.values()).filter(c => c.parent === cleanId);
+                                cleanId = kids.length > 0 ? kids[0].id : null;
+                            }
+
+                            // Format baru sebagai leaf di dalam innermost clone
+                            const newFormatNode = new NodeModel({
+                                id: nanoid(),
+                                type: "spanned",
+                                tagName: formattedTagName,
+                                content: selectedText,      // ← leaf mode, langsung content
+                                parent: innermostId,
+                                order: 0,
+                            });
+
+                            newContents.set(newFormatNode.id, newFormatNode);
+
+                            if (outermostId) {
+                                const outerNode = findNode(outermostId, newContents);
+                                if (outerNode) {
+                                    outerNode.order = baseOrder + 0.01 + segIdx * 0.001;
+                                }
+                            }
+                        } else {
+                            // ── Tidak ada ancestor → simple spanned leaf ──
+                            const wrapper = new NodeModel({
+                                id: nanoid(),
+                                type: "spanned",
+                                tagName: formattedTagName,
+                                content: selectedText,
+                                parent: originalParentId,
+                                order: baseOrder + 0.01 + segIdx * 0.001,
+                            });
+                            newContents.set(wrapper.id, wrapper);
+                        }
+                    }
                 }
-            } else {
+
+                if (isTargetFormatted) {
+
+                    if (isFormatTargetEqual) {
+                        newContents.delete(targetNode.id);
+
+                        if (hasBefore) {
+                            const beforeText = new NodeModel({
+                                id: nanoid(),
+                                type: "spanned",
+                                tagName: "span",
+                                content: before,
+                                parent: root.id,
+                                order: nodeOrder,
+                            });
+                            newContents.set(beforeText.id, beforeText);
+                        }
+
+                        if (hasAfter) {
+                            const afterText = new NodeModel({
+                                id: nanoid(),
+                                type: "spanned",
+                                content: after,
+                                tagName: "span",
+                                parent: root.id,
+                                order: segIdx + nodeOrder + 0.002,
+                            });
+                            newContents.set(afterText.id, afterText);
+                        }
+
+                        if (selectedText.length > 0) {
+                            const newFormatNode = new NodeModel({
+                                id: nanoid(),
+                                type: "spanned",
+                                tagName: formattedTagName,
+                                content: selectedText,
+                                parent: root.id,
+                                order: nodeOrder,
+                            });
+
+                            newContents.set(newFormatNode.id, newFormatNode);
+                        }
+                        return;
+                    }
+
+                    if (targetNode.tagName === "span") {
+
+                        const beforeNode = targetNode.clone();
+                        beforeNode.content = before;
+                        beforeNode.order = nodeOrder + segIdx * 0.001;
+
+                        const afterNode = targetNode.clone();
+                        afterNode.content = after;
+                        afterNode.order = nodeOrder + 0.02 + segIdx * 0.001;
+
+                        newContents.delete(targetNode.id);
+                        if (hasBefore) newContents.set(beforeNode.id, beforeNode);
+                        if (hasAfter) newContents.set(afterNode.id, afterNode);
+
+                        if (selectedText.length > 0) {
+                            const newFormatNode = new NodeModel({
+                                id: nanoid(),
+                                type: "spanned",
+                                tagName: formattedTagName,
+                                content: selectedText,
+                                parent: root.id,
+                                order: nodeOrder + 0.001 + segIdx * 0.001,
+                            });
+
+                            newContents.set(newFormatNode.id, newFormatNode);
+                        }
+                    } else {
+                        console.log("Nexted Formatted", targetNode.dom, before);
+
+                        const wrapper = targetNode.clone();
+                        wrapper.content = undefined;
+
+                        const beforeNode = targetNode.clone();
+                        beforeNode.content = before;
+                        beforeNode.order = nodeOrder + segIdx * 0.001;
+                        beforeNode.parent = wrapper.id;
+
+                        const afterNode = targetNode.clone();
+                        afterNode.content = after;
+                        afterNode.order = nodeOrder + 0.02 + segIdx * 0.001;
+                        afterNode.parent = wrapper.id;
+
+                        const newFormatNode = new NodeModel({
+                            id: nanoid(),
+                            type: "spanned",
+                            tagName: formattedTagName,
+                            content: selectedText,
+                            parent: wrapper.id,
+                            order: nodeOrder + 0.001 + segIdx * 0.001,
+                        });
+
+                        newContents.set(newFormatNode.id, newFormatNode);
+                        newContents.set(wrapper.id, wrapper);
+
+                        newContents.delete(targetNode.id);
+                    }
+                }
+            }
+
+            else {
                 // ── REMOVE formatting ──
                 if (matchedIdx === -1) return;
 
-                const beforeNode = targetNode.clone();
-                beforeNode.content = before;
-                beforeNode.order = baseOrder;
-                beforeNode.parent = originalParentId;
-
-                const selectedNode = targetNode.clone();
-                selectedNode.content = selectedText;
-                selectedNode.parent = originalParentId;
-                selectedNode.order = baseOrder + 0.01 + segIdx * 0.001;
-
-                const afterNode = targetNode.clone();
-                afterNode.content = after;
-                afterNode.order = baseOrder + 0.02 + segIdx * 0.001;
-                afterNode.parent = originalParentId;
-
-                newContents.delete(targetNode.id);
-                if (hasBefore) newContents.set(beforeNode.id, beforeNode);
-                if (hasAfter) newContents.set(afterNode.id, afterNode);
-
-                if (selectedText.length === 0) return;
-                newContents.set(selectedNode.id, selectedNode);
+                console.log("REMOVVVE")
 
                 const matchedWrapper = chain[matchedIdx];
-                const grandParentId = matchedWrapper.parent;
-                const wrapperOrder = matchedWrapper.order;
+                const grandParentId = matchedWrapper.parent || root.id;
 
-                // Clone outer wrappers (if any) to preserve nesting above the removed format
-                const selectedSlice = cloneChainSlice(chain, 0, matchedIdx - 1, grandParentId, newContents);
-                selectedNode.parent = selectedSlice.innermostId;
+                // 1. Delete the original target node because we are splitting it
+                newContents.delete(targetNode.id);
 
-                // ── CRITICAL FIX: only adjust order of NEWLY CREATED wrappers ──
-                // If outermostId is null, no wrappers were cloned → set selectedNode directly
-                if (selectedSlice.outermostId !== null) {
-                    const outerNode = findNode(selectedSlice.outermostId, newContents);
-                    if (outerNode) {
-                        if (hasBefore && hasAfter) {
-                            outerNode.order = wrapperOrder + 0.01 + segIdx * 0.001;
-                        } else if (hasBefore && !hasAfter) {
-                            outerNode.order = wrapperOrder + 0.01 + segIdx * 0.001;
-                        } else if (!hasBefore && hasAfter) {
-                            outerNode.order = wrapperOrder - 0.01 + segIdx * 0.001;
-                        } else {
-                            outerNode.order = wrapperOrder + segIdx * 0.001;
-                        }
-                    }
-                } else {
-                    // No outer wrappers → place directly under grandparent at wrapper's position
-                    if (hasBefore && hasAfter) {
-                        selectedNode.order = wrapperOrder + 0.01 + segIdx * 0.001;
-                    } else if (hasBefore && !hasAfter) {
-                        selectedNode.order = wrapperOrder + 0.01 + segIdx * 0.001;
-                    } else if (!hasBefore && hasAfter) {
-                        selectedNode.order = wrapperOrder - 0.01 + segIdx * 0.001;
-                    } else {
-                        selectedNode.order = wrapperOrder + segIdx * 0.001;
-                    }
+                // 2. Preserve the text BEFORE the selection (Keep it formatted)
+                if (hasBefore) {
+                    const beforeNode = targetNode.clone();
+                    beforeNode.content = before;
+                    newContents.set(beforeNode.id, beforeNode);
                 }
 
-                // Handle afterNode placement if needed
+                // 3. Preserve the text AFTER the selection (Keep it formatted)
                 if (hasAfter) {
-                    const afterSlice = cloneChainSlice(chain, 0, matchedIdx, grandParentId, newContents);
-                    afterNode.parent = afterSlice.innermostId;
-                    if (afterSlice.outermostId !== null) {
-                        const outerAfter = findNode(afterSlice.outermostId, newContents);
-                        if (outerAfter) {
-                            if (hasBefore) {
-                                outerAfter.order = wrapperOrder + 0.02 + segIdx * 0.001;
-                            } else {
-                                outerAfter.order = wrapperOrder + 0.01 + segIdx * 0.001;
-                            }
-                        }
-                    } else {
-                        if (hasBefore) {
-                            afterNode.order = wrapperOrder + 0.02 + segIdx * 0.001;
-                        } else {
-                            afterNode.order = wrapperOrder + 0.01 + segIdx * 0.001;
-                        }
-                    }
+                    const afterNode = targetNode.clone();
+                    afterNode.content = after;
+                    // make sure order is slightly higher so it renders after
+                    afterNode.order = (targetNode.order || 0) + 0.002;
+                    newContents.set(afterNode.id, afterNode);
+                }
+
+                // 4. Handle the SELECTED text (Remove the specific format)
+                if (selectedText.length > 0) {
+                    // If it was ONLY bold, it becomes a span. 
+                    // If it was bold AND italic, we need to remove bold but keep italic.
+                    // (Assuming you handle deep nesting, you'd recreate the chain minus the matchedWrapper)
+
+                    const unformattedNode = new NodeModel({
+                        id: nanoid(),
+                        type: "spanned",
+                        tagName: "span", // Or the tag of the next parent in the chain
+                        content: selectedText,
+                        parent: grandParentId, // Attach it outside the removed wrapper
+                        order: (targetNode.order || 0) + 0.001,
+                    });
+
+                    newContents.set(unformattedNode.id, unformattedNode);
                 }
             }
         });
 
-        normalizeTree(newContents, root.id);
+        // // Defensive: jangan dispatch jika semua node hilang
+        if (newContents.size === 0) {
+            console.warn("Formatting failed: all nodes were purged");
+            isFormattingRef.current = false;
+            return;
+        }
+
+        cleanupEmptyFormatNodes(newContents);
+        mergeAdjacentFormatNodes(newContents);
+        disableInteractions(newContents);
+        newContents.delete(root.id); // root just for meansurements
+
+        let newContent = undefined;
+        if (newContents.size === 1) {
+            const contentNode = Array.from(newContents.values())[0];
+            if (contentNode.isTextLeaf && contentNode.tagName === "span") {
+                newContent = contentNode.content;
+                newContents.delete(contentNode.id);
+            }
+        }
+
         flushSync(() => {
-            dispatch({ type: "SET_NODE_CHILDREN", payload: { id: root.id, children: newContents } });
+            dispatch({
+                type: "BULK",
+                payload: [
+                    { type: "SET_NODE_CHILDREN", payload: { id: root.id, children: newContents } }, // add children
+                    { type: "UPDATE_NODE", payload: { id: root.id, content: newContent } } // remove plain text
+                ]
+            });
         });
 
-        // Restore original selection range
+        // // Restore original selection range
         caretControl.selectionRef.current = { anchor: originalAnchor, focus: originalFocus };
         requestAnimationFrame(() => {
             caretControl.render();
             isFormattingRef.current = false;
         });
-    }, [dispatch, root.id, root.dom, caretControl]);
+    }, []);
 
     const toggleFormat = useCallback((e: KeyboardEvent, command: "bold" | "italic" | "underline") => {
         e.preventDefault();
@@ -249,6 +406,7 @@ export default function RenderEditing({ root }: RenderEditingProps) {
     // DELETE (range or single)
     // ═════════════════════════════════════════════════════════════════
     const handleDelete = useCallback((direction: 'backspace' | 'delete'): { anchor: number; focus: number } => {
+        const root = rootRef.current;
         const textNodes = getTextNodes();
         const selection = caretControl.selectionRef.current;
         const newContents = new Map(descendantsRef.current);
@@ -344,12 +502,13 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             dispatch({ type: "SET_NODE_CHILDREN", payload: { id: root.id, children: newContents } });
         });
         return { anchor: newPos, focus: newPos };
-    }, [dispatch, root.id, getTextNodes, caretControl]);
+    }, [dispatch, getTextNodes, caretControl]);
 
     // ═════════════════════════════════════════════════════════════════
     // TYPING
     // ═════════════════════════════════════════════════════════════════
     const insertTextAt = useCallback((text: string, at: number): number => {
+        const root = rootRef.current;
         const textNodes = getTextNodes();
         const newContents = new Map(descendantsRef.current);
         let globalPos = 0;
@@ -365,16 +524,23 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             }
             globalPos += len;
         }
+        // console.log(targetNode, textNodes.length);
 
         if (!targetNode) {
             if (textNodes.length > 0) {
                 const last = textNodes[textNodes.length - 1];
                 const u = new NodeModel(last);
-                u.content = (last.content || "") + text;
+                u.content = (last.content || "") + text.replace("\s+", "\u200B")
                 newContents.set(last.id, u);
             } else {
                 const n = new NodeModel({ id: nanoid(), type: "textnode", content: text, parent: root.id });
                 newContents.set(n.id, n);
+                root.content = text;
+                dispatch({
+                    type: "UPDATE_NODE",
+                    payload: { id: root.id, content: text }
+                })
+                return at + text.length;
             }
         } else {
             const content = targetNode.content || "";
@@ -387,7 +553,7 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             dispatch({ type: "SET_NODE_CHILDREN", payload: { id: root.id, children: newContents } });
         });
         return at + text.length;
-    }, [dispatch, root.id, getTextNodes]);
+    }, [dispatch, getTextNodes]);
 
     const handleBlocking = useCallback((direction: "left" | "right" | "all") => {
         const textNodes = getTextNodes();
@@ -476,7 +642,7 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             requestAnimationFrame(() => caretControl.render());
             return;
         }
-    }, [handleDelete, insertTextAt, caretControl, handleBlocking, getTextNodes]);
+    }, [handleDelete, insertTextAt, handleBlocking, getTextNodes]);
 
     // ═════════════════════════════════════════════════════════════════
     // SHORTCUTS
@@ -490,26 +656,36 @@ export default function RenderEditing({ root }: RenderEditingProps) {
         { keys: ["Meta", "u"], action: (e) => toggleFormat(e, "underline") },
     ], [toggleFormat]);
 
-    const handlersRef = useRef(shortcutHandlers);
-    useEffect(() => { handlersRef.current = shortcutHandlers; }, [shortcutHandlers]);
-
     useEffect(() => {
+        const root = rootRef.current;
         if (!root.dom) return;
         const win = root.dom.ownerDocument.defaultView;
+        if (!win) return;
+
         win.addEventListener("keydown", handleInput, true);
-        const unregister = registerShortcuts(handlersRef.current, true);
+        const unregister = registerShortcuts(shortcutHandlers, true);
 
         return () => {
             unregister();
             win.removeEventListener("keydown", handleInput, true);
         };
-    }, [root.dom, handleInput, registerShortcuts]);
+    }, [handleInput, handleInput]);
+
+    useEffect(() => {
+
+    }, [handleInput]);
 
     return (
         <Fragment>
-            {nodeChildren.map((node) => (
-                <RenderEditingType key={node.id} node={node} />
-            ))}
+            {!Boolean(root.content) ? (
+                <Fragment>
+                    {nodeChildren.map((node) => (
+                        <RenderEditingType
+                            key={node.id}
+                            node={node} />
+                    ))}
+                </Fragment>
+            ) : root.content}
             <svg
                 ref={caretControl.svgRef}
                 style={{

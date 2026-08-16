@@ -10,7 +10,10 @@ type FCProps<T = any, P = any> = {
 } & P;
 type CreateTypeFC<T, P> = FC<FCProps<T, P>>;
 
-export const createType = <T extends Record<string, unknown>, P = any>(fc: CreateTypeFC<T, P>, model: TypeModel<T>): TypeComponent<T> => {
+export const createType = <T extends Record<string, unknown>, P = {}>(
+    fc: CreateTypeFC<T, P>,
+    model: TypeModel<T>
+): TypeComponent<T> => {
     // @ts-ignore
     return Object.assign(fc, { model });
 }

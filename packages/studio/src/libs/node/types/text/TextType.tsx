@@ -1,16 +1,47 @@
-import { IconButton, Tooltip, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
 import { BoldIcon, ItalicIcon, TypeIcon, UnderlineIcon } from "lucide-react";
 import { createType } from "../../tools";
 import { JSX } from "react/jsx-runtime";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useNodesReducer } from "@/contexts/StudioProvider";
 import RenderEditing from "./RenderEditing";
 import { useNodeDescendantsRef } from "@/hooks/useNodes";
+import { NodeModel } from "../..";
 
-export const TextType = createType(({ node, children, ref }) => {
-    const { dispatch } = useNodesReducer();
+type TextTypeData = {
+    editing: boolean;
+    formats: string[]
+}
+export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
+    const { state, dispatch } = useNodesReducer();
     const tagName = (node.tagName || "span") as keyof JSX.IntrinsicElements;
     const descendantsRef = useNodeDescendantsRef(node);
+    const textRootRef = useRef<NodeModel>(null);
+
+    const getRootTextNode = useCallback(() => {
+        // If the starting node isn't text
+        if (!node.type.isText) return node;
+
+        // Start tracking from the current node
+        let rootTextNode = node;
+        let parentNode = state.collection.get(node.parent || "");
+
+        // Keep walking UP the tree as long as the parent exists and IS a text node
+        while (parentNode && parentNode.type.isText) {
+            rootTextNode = parentNode as any; // Move our pointer up one level
+
+            // Fetch the next parent in the chain to check in the next loop iteration
+            parentNode = state.collection.get(rootTextNode.parent || "");
+        }
+
+        // Once the while loop stops (because parentNode is a Div/Canvas/undefined), 
+        // rootTextNode holds the absolute highest-level text node.
+        return rootTextNode;
+    }, [state.collection, node]);
+
+    useEffect(() => {
+        textRootRef.current = getRootTextNode();
+    }, [getRootTextNode]);
 
     const clearWindowSelection = useCallback(() => {
         // clear both selection
@@ -30,12 +61,7 @@ export const TextType = createType(({ node, children, ref }) => {
             payload: [
                 {
                     type: "UPDATE_NODE",
-                    payload: {
-                        id: node.id,
-                        data: {
-                            editing: true
-                        }
-                    }
+                    payload: { id: node.id, data: { editing: true } }
                 },
                 ...payloads
             ]
@@ -54,12 +80,7 @@ export const TextType = createType(({ node, children, ref }) => {
             payload: [
                 {
                     type: "UPDATE_NODE",
-                    payload: {
-                        id: node.id,
-                        data: {
-                            editing: false
-                        }
-                    }
+                    payload: { id: node.id, data: { editing: false }, selectable: true, hoverable: true }
                 },
                 ...payloads
             ]
@@ -68,9 +89,23 @@ export const TextType = createType(({ node, children, ref }) => {
     }, [descendantsRef, dispatch, node.id, clearWindowSelection]);
 
     const handleDoubleClick = useCallback(() => {
-        if (node.data.editing) return;
-        if (node.data.isSelected && ref.current) {
-            prepareStartEditing();
+        const textRoot = textRootRef.current;
+        const isRootNode = textRoot?.id === node.id;
+        if (textRoot) {
+            if (!isRootNode) {
+                // pass event to text root
+                dispatch({ type: "SET_SELECTED", payload: textRoot.id });
+                setTimeout(() => {
+                    textRoot.dom?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+                }, 50);
+                return;
+            }
+
+            // only pass when not editing and in root text node
+            if (node.data.editing) return;
+            if (node.data.isSelected && ref.current) {
+                prepareStartEditing();
+            }
         }
     }, [node.data.isSelected, node.data.editing, ref, prepareStartEditing]);
 
@@ -87,17 +122,20 @@ export const TextType = createType(({ node, children, ref }) => {
             onDoubleClick={handleDoubleClick}
             sx={{
                 ...node.props.sx,
-                userSelect: "none",
+                "&:empty:before": {
+                    content: "\"Empty\"",
+                    fontStyle: "italic",
+                    color: "#ccc"
+                },
                 ...(node.data.editing ? {
                     position: "relative",
                     userSelect: "none",
-                    cursor: "text"
+                    cursor: "text",
+                    minHeight: '1.2em'
                 } : {})
             }}
             ref={ref}>
-            {node.data.editing ? (
-                <RenderEditing root={node} />
-            ) : children}
+            {node.data.editing ? (<RenderEditing root={node} />) : (node.content ? node.content : children)}
         </Typography>
     );
 }, {
@@ -105,42 +143,46 @@ export const TextType = createType(({ node, children, ref }) => {
     extends: "Element",
     icon: TypeIcon,
     draggable: true,
-    accepts: ["textnode", "formatted"],
-    data: { editing: false },
+    accepts: ["formatted"],
+    data: { editing: false, formats: [] },
     isInstance(target) {
         const supportedTags = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "span", "a"];
-        return supportedTags.includes(String(target.tagName).toLowerCase());
+        return supportedTags.includes(String(target.tagName).toLowerCase()) || typeof target.content === "string";
     },
     default: {
         name: (ctx) => String(ctx?.node?.tagName || "span"),
+        props: {
+            sx: {
+                userSelect: "none",
+                whiteSpace: "break-spaces",
+            }
+        }
     },
-    actions: {
-        bold: () => {
-            return (
-                <Tooltip title={"Toggle Bold"}>
-                    <IconButton>
-                        <BoldIcon size={16} />
-                    </IconButton>
-                </Tooltip>
-            );
+    actions: (node) => {
+        if (!node.data.editing) return;
+        return {
+            bold: {
+                icon: BoldIcon,
+                active: node.data.formats.includes("strong")
+            },
+            italic: {
+                icon: ItalicIcon,
+                active: node.data.formats.includes("em")
+            },
+            underline: {
+                icon: UnderlineIcon,
+                active: node.data.formats.includes("u")
+            },
+            delete: false,
+            parent: false
+        }
+    },
+    commands: {
+        bold: (node) => {
+            console.log("Bold Command", node.data);
         },
         italic: () => {
-            return (
-                <Tooltip title={"Toggle Italic"}>
-                    <IconButton>
-                        <ItalicIcon size={16} />
-                    </IconButton>
-                </Tooltip>
-            );
-        },
-        underline: () => {
-            return (
-                <Tooltip title={"Toggle Underline"}>
-                    <IconButton>
-                        <UnderlineIcon size={16} />
-                    </IconButton>
-                </Tooltip>
-            );
+            console.log("Italic Command");
         }
     }
 });
