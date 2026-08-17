@@ -290,7 +290,7 @@ export const useCaret = (node: NodeModel<TextTypeData>, descendantsRef: RefObjec
         if (!node.content) {
             if ("caretPositionFromPoint" in doc) {
                 const pos = doc.caretPositionFromPoint(mouseX, mouseY);
-                // console.log(pos);
+                // // console.log(pos);
                 if (pos?.offsetNode) return offsetFromNativeNode(pos.offsetNode, pos.offset, descendantsRef.current);
             } else if ("caretRangeFromPoint" in doc) {
                 const range = (doc as any).caretRangeFromPoint(mouseX, mouseY);
@@ -470,7 +470,7 @@ export const useCaret = (node: NodeModel<TextTypeData>, descendantsRef: RefObjec
         }
 
         svg.setAttribute("height", String(container.scrollHeight));
-        // console.log(isFormatsChanged);
+        // // console.log(isFormatsChanged);
 
         if (isFormatsChanged) {
             mutate({ formats: newFormats });

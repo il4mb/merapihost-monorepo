@@ -33,7 +33,7 @@ export default function CanvasProvider({ children, iframe, isReady }: CanvasProv
             const anchor = target.closest('a');
             if (anchor) {
                 event.preventDefault();
-                console.log(`Navigation prevented for anchor: ${anchor.href}`);
+                // console.log(`Navigation prevented for anchor: ${anchor.href}`);
             }
         };
 

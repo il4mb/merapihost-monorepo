@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useEffect, Fragment } from "react";
 import { flushSync } from "react-dom";
-import { NodeModel, useNodeInternal, useWireEffect } from "@/libs/node";
+import { NodeModel, normalizeNodeOrders, useNodeInternal, useWireEffect } from "@/libs/node";
 import RenderEditingType from "./RenderEditingType";
 import { getTextNodes } from "./tools";
 import { useNodes } from "@/contexts";
@@ -128,6 +128,8 @@ export default function RenderEditing({ root }: RenderEditingProps) {
                 }
             }
         }
+
+        normalizeNodeOrders(newContents);
 
         flushSync(() => {
             dispatch({ type: "SET_NODE_CHILDREN", payload: { id: root.id, children: newContents } });

@@ -78,10 +78,10 @@ export default function DragAndDropZone({ children, customOverlay, accepts, onVa
         }));
 
         if (isAccepted) {
-            console.log("Dropped and Accepted!");
+            // console.log("Dropped and Accepted!");
             if (children.props.onDrop) children.props.onDrop(event);
         } else {
-            console.log("Drop Rejected!");
+            // console.log("Drop Rejected!");
         }
     };
 

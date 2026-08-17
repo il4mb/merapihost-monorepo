@@ -32,7 +32,7 @@ const IndicatorAction = memo(({ node, layout }: IndicatorActionProps) => {
                 top: posY,
                 left: posX,
                 transform: "translateY(-100%) translateY(-4px)",
-                minWidth: 100,
+                minWidth: 50,
                 minHeight: 30,
                 padding: "0px 3px 0px 4px",
                 fontSize: 12,
@@ -47,12 +47,12 @@ const IndicatorAction = memo(({ node, layout }: IndicatorActionProps) => {
                 pointerEvents: "auto",
                 whiteSpace: "nowrap",
             }}>
-            <Stack direction={"row"} sx={{ alignItems: "center" }}>
+            <Stack direction={"row"} sx={{ alignItems: "center", gap: .75 }}>
                 {node.type?.icon && (
-                    <Box component={node.type.icon} size={14} sx={{ mr: .5 }} />
+                    <Box component={node.type.icon} size={14} />
                 )}
                 <Typography variant="caption" sx={{ fontSize: 14, color: "#fff", lineHeight: 1 }}>
-                    {node.type?.name || node.name || "Unknown Type"}
+                    {node.type?.model.name || node.name || "Unknown Type"}
                 </Typography>
             </Stack>
             <NodeActions node={node} />

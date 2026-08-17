@@ -78,7 +78,7 @@ export const getNodeDescendants = (node: NodeModel, collection: Map<string, Node
             childrenMap.set(child.parent, [child]);
         }
     }
-    
+
     const descendants = new Map<string, NodeModel>();
     const walk = (parentId: string) => {
         for (const child of childrenMap.get(parentId) ?? []) {
@@ -136,25 +136,43 @@ export const purgeOrphanNodes = (map: Map<string, NodeModel>) => {
     });
 };
 
+const getTopLevelNodes = (collections: Map<string, NodeModel>) => {
+    return Array.from(collections.values())
+        .filter((node) => !node.parent || !collections.has(node.parent))
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+};
 
 /**
- * 
- * @param map 
- * @param rootId 
+ * Normalize node orders recursively.
  */
-export const normalizeNodeOrders = (map: Map<string, NodeModel>) => {
+export const normalizeNodeOrders = (collections: Map<string, NodeModel>) => {
+    const childrenByParent = new Map<string, NodeModel[]>();
+
+    // Group children by parent
+    for (const node of collections.values()) {
+        if (!node.parent) continue;
+        const children = childrenByParent.get(node.parent) ?? [];
+        children.push(node);
+        childrenByParent.set(node.parent, children);
+    }
 
     const normalize = (parentId: string) => {
-        const children = Array.from(map.values())
-            .filter((n) => n.parent === parentId)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
-
+        const children = childrenByParent.get(parentId);
+        if (!children) return;
+        children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         children.forEach((child, index) => {
             child.order = index;
             normalize(child.id);
         });
     };
-    const root = map.get(ROOT_NODE.id);
-    if (!root) return;
-    normalize(root.id);
-}
+
+    // 1. Find all top-level nodes
+    const topLevelNodes = getTopLevelNodes(collections);
+
+    // 2. Normalize top-level order
+    topLevelNodes.forEach((node, index) => {
+        node.order = index;
+        // 3. Normalize descendants
+        normalize(node.id);
+    });
+};

@@ -1,27 +1,89 @@
 import { nanoid } from "nanoid";
-import { findNode, getNodeAncestorChain, NodeModel } from "../..";
+import { findNode, getNodeAncestorChain, NodeModel, normalizeNodeOrders } from "../..";
 import { TextTypeData } from "./TextType";
 
-// Clone a slice of wrapper chain (index start..end, inclusive) from OUTER to INNER
-export function cloneChainSlice(chain: NodeModel[], start: number, end: number, outerParentId: string | null, map: Map<string, NodeModel>) {
+// ---------------------------------------------------------------------------
+// Order-spacing constants
+// ---------------------------------------------------------------------------
+// NodeModel.order values are floats. These small increments let a newly
+// split/inserted sibling slot in between existing nodes without a full
+// re-normalization on every insert (normalizeNodeOrders() runs once at the
+// end instead). The exact magnitudes below are copied 1:1 from the values
+// used throughout the original implementation — do not change them without
+// re-checking every call site, since normalizeNodeOrders() only guarantees
+// correct *relative* ordering, not correct *values*.
+const ORDER_EPS = 0.001; // smallest increment, usually multiplied by segIdx
+const ORDER_MINOR = 0.01; // "before"-style offset
+const ORDER_MAJOR = 0.02; // "after"-style offset
+const ORDER_STEP = 0.002; // "after" offset used in the REMOVE branch
+
+// Safety cap for the various `while (changed) { ... }` fixed-point loops
+// below. None of them should ever need this many passes for real documents;
+// it exists purely so a future bug (e.g. a merge condition that never
+// stabilizes) degrades into a console warning instead of hanging the tab.
+const MAX_FIXPOINT_ITERATIONS = 5000;
+
+/**
+ * Clone a slice of a wrapper chain (index start..end, inclusive), from
+ * OUTER to INNER, re-parenting the clones under `outerParentId`.
+ *
+ * Returns:
+ *  - innermostId: id of the innermost clone (or `outerParentId` if the
+ *    slice is empty, i.e. start > end)
+ *  - outermostId: id of the outermost clone, or null if the slice is empty
+ */
+export function cloneChainSlice(
+    chain: NodeModel[],
+    start: number,
+    end: number,
+    outerParentId: string | null,
+    map: Map<string, NodeModel>
+): { innermostId: string; outermostId: string | null } {
     if (start > end) {
+        // Empty slice: nothing to clone, "innermost" collapses to the parent.
         return { innermostId: outerParentId as string, outermostId: null };
     }
-    let parentId = outerParentId;
+
+    let parentId: string | null = outerParentId;
     let outermostId: string | null = null;
+
     for (let i = end; i >= start; i--) {
-        const c = chain[i].clone();
-        c.parent = parentId;
-        c.order = 0;
-        map.set(c.id, c);
-        if (outermostId === null) outermostId = c.id;
-        parentId = c.id;
+        const clone = chain[i].clone();
+        clone.parent = parentId;
+        clone.order = 0;
+        map.set(clone.id, clone);
+        if (outermostId === null) outermostId = clone.id;
+        parentId = clone.id;
     }
+
+    // Loop ran at least once (start <= end), so parentId was reassigned to a
+    // real clone id and is guaranteed non-null here.
     return { innermostId: parentId as string, outermostId };
 }
 
+// ---------------------------------------------------------------------------
+// Small node-construction helper
+// ---------------------------------------------------------------------------
+// Used for every place that builds a *brand new* "spanned" node from scratch
+// (as opposed to `.clone()`-ing an existing node, which intentionally
+// preserves the source node's other properties and is left untouched below).
+function makeSpannedNode(params: {
+    tagName: string;
+    content?: string;
+    parent: string | null;
+    order: number;
+}): NodeModel {
+    return new NodeModel({
+        id: nanoid(),
+        type: "spanned",
+        tagName: params.tagName,
+        content: params.content,
+        parent: params.parent,
+        order: params.order,
+    });
+}
 
-const isSameFormatTag = (tagName: string, format: FormattedType) => {
+const isSameFormatTag = (tagName: string, format: FormattedType): boolean => {
     const t = tagName.toLowerCase();
     if (format === "bold") return t === "strong" || t === "b";
     if (format === "italic") return t === "em" || t === "i";
@@ -29,19 +91,20 @@ const isSameFormatTag = (tagName: string, format: FormattedType) => {
     return false;
 };
 
-
 const isEmptyContent = (node: NodeModel, map: Map<string, NodeModel>): boolean => {
     const children = Array.from(map.values()).filter((n) => n.parent === node.id);
     if (children.length > 0) {
         return children.every((child) => isEmptyContent(child, map));
-    } else {
-        return !Boolean(node.content); // empty|null|undefineded|false
     }
-}
+    return !Boolean(node.content); // empty | null | undefined | false
+};
 
-const isMergeable = (node: NodeModel) => {
-    return node.type.isText; // name === "spanned" || Boolean(node.content);
-}
+const isMergeable = (node: NodeModel): boolean => node.type.isText;
+
+/** True if `content` is present and consists only of whitespace. */
+const isWhitespaceOnly = (content: string | undefined): boolean => {
+    return Boolean(content) && /^\s*$/.test(content || "");
+};
 
 const areMergeableFormatTags = (a: string, b: string): boolean => {
     const ta = a.toLowerCase();
@@ -53,12 +116,110 @@ const areMergeableFormatTags = (a: string, b: string): boolean => {
     return false;
 };
 
-const mergeAdjacentFormatNodes = (descendants: Map<string, NodeModel>) => {
-    let changed = true;
-    while (changed) {
-        changed = false;
-        const parentGroups = new Map<string, NodeModel[]>();
+/** Two nodes can merge if mergeable, same format tag family, siblings, and
+ *  adjacent (optionally with only whitespace-only nodes between them). */
+const canMergeAcrossWhitespace = (
+    node1: NodeModel,
+    node2: NodeModel,
+    descendants: Map<string, NodeModel>
+): boolean => {
+    if (!isMergeable(node1) || !isMergeable(node2)) return false;
+    if (!areMergeableFormatTags(node1.tagName, node2.tagName)) return false;
+    if (node1.parent !== node2.parent) return false;
 
+    const siblings = Array.from(descendants.values())
+        .filter((n) => n.parent === node1.parent)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    const idx1 = siblings.findIndex((n) => n.id === node1.id);
+    const idx2 = siblings.findIndex((n) => n.id === node2.id);
+
+    if (Math.abs(idx1 - idx2) === 1) return true;
+
+    const minIdx = Math.min(idx1, idx2);
+    const maxIdx = Math.max(idx1, idx2);
+
+    for (let i = minIdx + 1; i < maxIdx; i++) {
+        const between = siblings[i];
+        if (!isWhitespaceOnly(between.content) || between.type.isText === false) {
+            return false;
+        }
+    }
+
+    return true;
+};
+
+/** Runs a `while (changed)` fix-point loop with a safety cap so a stray bug
+ *  in the merge condition can't hang the tab — it just stops and warns. */
+function runFixpoint(label: string, step: () => boolean): void {
+    let changed = true;
+    let iterations = 0;
+    while (changed) {
+        if (++iterations > MAX_FIXPOINT_ITERATIONS) {
+            console.warn(`${label}: exceeded ${MAX_FIXPOINT_ITERATIONS} iterations, aborting to avoid a hang.`);
+            break;
+        }
+        changed = step();
+    }
+}
+
+const mergeAdjacentFormatNodesWithWhitespace = (descendants: Map<string, NodeModel>): void => {
+    runFixpoint("mergeAdjacentFormatNodesWithWhitespace", () => {
+        const parentGroups = new Map<string, NodeModel[]>();
+        descendants.forEach((node) => {
+            if (node.parent) {
+                const group = parentGroups.get(node.parent) || [];
+                group.push(node);
+                parentGroups.set(node.parent, group);
+            }
+        });
+
+        for (const children of parentGroups.values()) {
+            children.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+            for (let i = 0; i < children.length - 1; i++) {
+                const current = children[i];
+                const next = children[i + 1];
+
+                if (
+                    canMergeAcrossWhitespace(current, next, descendants) &&
+                    isMergeable(current) &&
+                    isMergeable(next) &&
+                    areMergeableFormatTags(current.tagName, next.tagName)
+                ) {
+                    const merged = new NodeModel(current);
+                    merged.content = (merged.content || "") + (next.content || "");
+                    descendants.set(current.id, merged);
+                    descendants.delete(next.id);
+                    return true;
+                }
+
+                if (i < children.length - 2) {
+                    const afterNext = children[i + 2];
+                    if (
+                        isWhitespaceOnly(next.content) &&
+                        canMergeAcrossWhitespace(current, afterNext, descendants) &&
+                        isMergeable(current) &&
+                        isMergeable(afterNext) &&
+                        areMergeableFormatTags(current.tagName, afterNext.tagName)
+                    ) {
+                        const merged = new NodeModel(current);
+                        merged.content = (merged.content || "") + (next.content || "") + (afterNext.content || "");
+                        descendants.set(current.id, merged);
+                        descendants.delete(next.id);
+                        descendants.delete(afterNext.id);
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    });
+};
+
+const mergeAdjacentFormatNodes = (descendants: Map<string, NodeModel>): void => {
+    runFixpoint("mergeAdjacentFormatNodes", () => {
+        const parentGroups = new Map<string, NodeModel[]>();
         descendants.forEach((n) => {
             if (n.parent) {
                 const group = parentGroups.get(n.parent) || [];
@@ -67,46 +228,79 @@ const mergeAdjacentFormatNodes = (descendants: Map<string, NodeModel>) => {
             }
         });
 
-        parentGroups.forEach((children) => {
+        for (const children of parentGroups.values()) {
             children.sort((a, b) => (a.order || 0) - (b.order || 0));
             for (let i = 0; i < children.length - 1; i++) {
                 const curr = children[i];
                 const next = children[i + 1];
-
-                const bothFormatNode = isMergeable(curr) && isMergeable(next);
-                if (bothFormatNode && areMergeableFormatTags(curr.tagName, next.tagName)) {
+                if (isMergeable(curr) && isMergeable(next) && areMergeableFormatTags(curr.tagName, next.tagName)) {
                     const merged = new NodeModel(curr);
                     merged.content = (merged.content || "") + (next.content || "");
                     descendants.set(curr.id, merged);
                     descendants.delete(next.id);
-                    changed = true;
-                    break;
+                    return true;
                 }
             }
-        });
-    }
-};
-
-const cleanupEmptyFormatNodes = (descendants: Map<string, NodeModel>) => {
-    let changed = true;
-    while (changed) {
-        changed = false;
-        const emptyFormatNodes = Array.from(descendants.values()).filter((n) => isEmptyContent(n, descendants));
-        for (const node of emptyFormatNodes) {
-            descendants.delete(node.id);
-            changed = true;
         }
-    }
+        return false;
+    });
 };
 
-const disableInteractions = (descendants: Map<string, NodeModel>) => {
-    descendants.forEach(node => {
+const mergeNestedFormatNodes = (descendants: Map<string, NodeModel>): void => {
+    runFixpoint("mergeNestedFormatNodes", () => {
+        for (const node of descendants.values()) {
+            if (!isMergeable(node)) continue;
+
+            const children = Array.from(descendants.values())
+                .filter((n) => n.parent === node.id)
+                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+            // Only flatten a single-child wrapper.
+            if (children.length !== 1) continue;
+
+            const nested = children[0];
+            if (!isMergeable(nested) || !areMergeableFormatTags(node.tagName, nested.tagName)) continue;
+
+            // Move nested's children directly under `node`.
+            const grandchildren = Array.from(descendants.values()).filter((n) => n.parent === nested.id);
+            for (const grandchild of grandchildren) {
+                grandchild.parent = node.id;
+            }
+
+            if (nested.content) {
+                node.content = (node.content ?? "") + nested.content;
+            }
+
+            descendants.delete(nested.id);
+            return true;
+        }
+        return false;
+    });
+};
+
+const cleanupEmptyFormatNodes = (descendants: Map<string, NodeModel>): void => {
+    runFixpoint("cleanupEmptyFormatNodes", () => {
+        const empties = Array.from(descendants.values()).filter((n) => isEmptyContent(n, descendants));
+        for (const node of empties) {
+            descendants.delete(node.id);
+        }
+        return empties.length > 0;
+    });
+};
+
+const disableInteractions = (descendants: Map<string, NodeModel>): void => {
+    descendants.forEach((node) => {
         node.selectable = false;
         node.hoverable = false;
     });
-}
+};
 
-const getSelectionSegments = (anchor: number, focus: number, descendants: Map<string, NodeModel>, rootNode: NodeModel): SelectionSegment[] => {
+const getSelectionSegments = (
+    anchor: number,
+    focus: number,
+    descendants: Map<string, NodeModel>,
+    rootNode: NodeModel
+): SelectionSegment[] => {
     const start = Math.min(anchor, focus);
     const end = Math.max(anchor, focus);
     if (start === end) return [];
@@ -155,13 +349,14 @@ export type SelectionSegment = {
     isPartial: boolean;
 };
 
+
 /** Ambil semua text leaf dalam urutan dokumen */
 export const getTextNodes = (descendants: Map<string, NodeModel>, rootNode: NodeModel): NodeModel[] => {
     // Jika root sendiri yang punya content string (plain text, no descendants)
     if (rootNode.content) return [rootNode];
 
     return Array.from(descendants.values())
-        .filter(n => n.content)
+        .filter((n) => n.content)
         .sort((a, b) => {
             if (!a.dom || !b.dom) return (a.order || 0) - (b.order || 0);
             const cmp = a.dom.compareDocumentPosition(b.dom);
@@ -172,18 +367,27 @@ export const getTextNodes = (descendants: Map<string, NodeModel>, rootNode: Node
 };
 
 export type FormattedType = "bold" | "italic" | "underline";
-export type Selection = { anchor: number, focus: number };
+export type Selection = { anchor: number; focus: number };
 export type ApplyFormattedProps = {
     format: FormattedType;
     descendants: Map<string, NodeModel>;
     selection: Selection;
     node: NodeModel<TextTypeData>;
-}
-export const applyFormatted = ({ format, node: textNode, selection, descendants }: ApplyFormattedProps) => {
+};
 
-    if (selection.anchor === selection.focus) return;
+/**
+ * Core implementation. Kept separate from the exported `applyFormatted` so
+ * the export can wrap it in a try/catch (see below) without indenting this
+ * whole function body.
+ */
+function applyFormattedInternal({
+    format,
+    node: rootNode,
+    selection,
+    descendants,
+}: ApplyFormattedProps): Map<string, NodeModel> | undefined {
+    if (selection.anchor === selection.focus) return undefined;
 
-    // Preserve original selection range
     const originalAnchor = selection.anchor;
     const originalFocus = selection.focus;
     const selStart = Math.min(originalAnchor, originalFocus);
@@ -192,22 +396,20 @@ export const applyFormatted = ({ format, node: textNode, selection, descendants 
     const formattedTagName = format === "bold" ? "strong" : format === "italic" ? "em" : "u";
 
     const contents = new Map(descendants);
-    contents.set(textNode.id, textNode); // ensure root 
+    contents.set(rootNode.id, rootNode); // ensure root is present for chain lookups
 
-    const segments = getSelectionSegments(selStart, selEnd, contents, textNode);
-    if (segments.length === 0) return;
-
+    const segments = getSelectionSegments(selStart, selEnd, contents, rootNode);
+    if (segments.length === 0) return undefined;
 
     const isAllFormatted = segments.every((seg) => {
-        const chain = getNodeAncestorChain(seg.node.id, textNode.id, contents);
+        const chain = getNodeAncestorChain(seg.node.id, rootNode.id, contents);
         return chain.some((w) => isSameFormatTag(w.tagName, format));
     });
     const targetAction: "APPLY" | "REMOVE" = isAllFormatted ? "REMOVE" : "APPLY";
 
     segments.forEach((seg, segIdx) => {
-
         const targetNode = seg.node;
-        const targetIsRoot = targetNode.id === textNode.id;
+        const targetIsRoot = targetNode.id === rootNode.id;
 
         const startOffset = seg.localStart;
         const endOffset = seg.localEnd;
@@ -221,36 +423,30 @@ export const applyFormatted = ({ format, node: textNode, selection, descendants 
         const hasBefore = before.length > 0;
         const hasAfter = after.length > 0;
         const baseOrder = targetNode.order || 0;
-        const originalParentId = targetIsRoot ? textNode.id : targetNode.parent;
+        const originalParentId = targetIsRoot ? rootNode.id : targetNode.parent;
 
-        const chain = getNodeAncestorChain(targetNode.id, textNode.id, contents);
+        const nodeOrder = targetNode.order || 0;
+        const isTargetFormatted = targetNode.type.name.toLowerCase() === "spanned";
+        const isFormatTargetEqual = isSameFormatTag(targetNode.tagName, format);
+
+        const chain = getNodeAncestorChain(targetNode.id, rootNode.id, contents);
         const matchedIdx = chain.findIndex((w) => isSameFormatTag(w.tagName, format));
 
         if (targetAction === "APPLY") {
             if (matchedIdx !== -1) return;
 
-            const nodeOrder = targetNode.order || 0;
-            const grandParentId = targetNode.parent || textNode.id;
-            const isTargetFormatted = targetNode.type.name.toLowerCase() === "spanned";
-            const isFormatTargetEqual = isSameFormatTag(targetNode.tagName, format);
-
             if (targetIsRoot) {
-                const beforeNode = new NodeModel({
-                    id: nanoid(),
+                const beforeNode = makeSpannedNode({
                     tagName: "span",
-                    type: "spanned",
                     content: before,
                     order: baseOrder,
-                    parent: originalParentId
+                    parent: originalParentId,
                 });
-
-                const afterNode = new NodeModel({
-                    id: nanoid(),
+                const afterNode = makeSpannedNode({
                     tagName: "span",
-                    type: "spanned",
                     content: after,
-                    order: baseOrder + 0.02 + segIdx * 0.001,
-                    parent: originalParentId
+                    order: baseOrder + ORDER_MAJOR + segIdx * ORDER_EPS,
+                    parent: originalParentId,
                 });
 
                 contents.delete(targetNode.id);
@@ -259,48 +455,49 @@ export const applyFormatted = ({ format, node: textNode, selection, descendants 
 
                 if (selectedText.length > 0) {
                     if (chain.length > 0) {
-                        // ── Ada ancestor spanned → clone & preserve ──
+                        // Ancestor spanned wrapper(s) exist → clone & preserve them.
                         const { innermostId, outermostId } = cloneChainSlice(
-                            chain, 0, chain.length - 1, originalParentId, contents
+                            chain,
+                            0,
+                            chain.length - 1,
+                            originalParentId,
+                            contents
                         );
 
-                        // Promote cloned wrappers: hapus content supaya jadi container
+                        // Promote cloned wrappers: strip content so they act as
+                        // pure containers rather than duplicating text.
                         let cleanId = outermostId;
-                        while (cleanId) {
+                        let guard = 0;
+                        while (cleanId && guard++ < MAX_FIXPOINT_ITERATIONS) {
                             const n = findNode(cleanId, contents);
                             if (!n) break;
                             n.content = undefined;
-                            const kids = Array.from(contents.values()).filter(c => c.parent === cleanId);
+                            const kids = Array.from(contents.values()).filter((c) => c.parent === cleanId);
                             cleanId = kids.length > 0 ? kids[0].id : null;
                         }
 
-                        // Format baru sebagai leaf di dalam innermost clone
-                        const newFormatNode = new NodeModel({
-                            id: nanoid(),
-                            type: "spanned",
+                        // New format node as a leaf inside the innermost clone.
+                        const newFormatNode = makeSpannedNode({
                             tagName: formattedTagName,
-                            content: selectedText,      // ← leaf mode, langsung content
+                            content: selectedText,
                             parent: innermostId,
                             order: 0,
                         });
-
                         contents.set(newFormatNode.id, newFormatNode);
 
                         if (outermostId) {
                             const outerNode = findNode(outermostId, contents);
                             if (outerNode) {
-                                outerNode.order = baseOrder + 0.01 + segIdx * 0.001;
+                                outerNode.order = baseOrder + ORDER_MINOR + segIdx * ORDER_EPS;
                             }
                         }
                     } else {
-                        // ── Tidak ada ancestor → simple spanned leaf ──
-                        const wrapper = new NodeModel({
-                            id: nanoid(),
-                            type: "spanned",
+                        // No ancestor wrapper → simple spanned leaf.
+                        const wrapper = makeSpannedNode({
                             tagName: formattedTagName,
                             content: selectedText,
                             parent: originalParentId,
-                            order: baseOrder + 0.01 + segIdx * 0.001,
+                            order: baseOrder + ORDER_MINOR + segIdx * ORDER_EPS,
                         });
                         contents.set(wrapper.id, wrapper);
                     }
@@ -308,166 +505,185 @@ export const applyFormatted = ({ format, node: textNode, selection, descendants 
             }
 
             if (isTargetFormatted) {
-
                 if (isFormatTargetEqual) {
                     contents.delete(targetNode.id);
 
                     if (hasBefore) {
-                        const beforeText = new NodeModel({
-                            id: nanoid(),
-                            type: "spanned",
+                        const beforeText = makeSpannedNode({
                             tagName: "span",
                             content: before,
-                            parent: textNode.id,
+                            parent: rootNode.id,
                             order: nodeOrder,
                         });
                         contents.set(beforeText.id, beforeText);
                     }
 
                     if (hasAfter) {
-                        const afterText = new NodeModel({
-                            id: nanoid(),
-                            type: "spanned",
-                            content: after,
+                        const afterText = makeSpannedNode({
                             tagName: "span",
-                            parent: textNode.id,
-                            order: segIdx + nodeOrder + 0.002,
+                            content: after,
+                            parent: rootNode.id,
+                            order: segIdx + nodeOrder + ORDER_STEP,
                         });
                         contents.set(afterText.id, afterText);
                     }
 
                     if (selectedText.length > 0) {
-                        const newFormatNode = new NodeModel({
-                            id: nanoid(),
-                            type: "spanned",
+                        const newFormatNode = makeSpannedNode({
                             tagName: formattedTagName,
                             content: selectedText,
-                            parent: textNode.id,
+                            parent: rootNode.id,
                             order: nodeOrder,
                         });
-
                         contents.set(newFormatNode.id, newFormatNode);
                     }
                     return;
                 }
 
                 if (targetNode.tagName === "span") {
-
                     const beforeNode = targetNode.clone();
                     beforeNode.content = before;
-                    beforeNode.order = nodeOrder + segIdx * 0.001;
+                    beforeNode.order = nodeOrder + segIdx * ORDER_EPS;
 
                     const afterNode = targetNode.clone();
                     afterNode.content = after;
-                    afterNode.order = nodeOrder + 0.02 + segIdx * 0.001;
+                    afterNode.order = nodeOrder + ORDER_MAJOR + segIdx * ORDER_EPS;
 
-                    contents.delete(targetNode.id);
                     if (hasBefore) contents.set(beforeNode.id, beforeNode);
                     if (hasAfter) contents.set(afterNode.id, afterNode);
 
                     if (selectedText.length > 0) {
-                        const newFormatNode = new NodeModel({
-                            id: nanoid(),
-                            type: "spanned",
+                        const newFormatNode = makeSpannedNode({
                             tagName: formattedTagName,
                             content: selectedText,
-                            parent: textNode.id,
-                            order: nodeOrder + 0.001 + segIdx * 0.001,
+                            parent: rootNode.id,
+                            order: nodeOrder + ORDER_EPS + segIdx * ORDER_EPS,
                         });
-
                         contents.set(newFormatNode.id, newFormatNode);
+                        contents.delete(targetNode.id);
                     }
                 } else {
-                    console.log("Nexted Formatted", targetNode.dom, before);
-
                     const wrapper = targetNode.clone();
                     wrapper.content = undefined;
 
                     const beforeNode = targetNode.clone();
                     beforeNode.content = before;
-                    beforeNode.order = nodeOrder + segIdx * 0.001;
+                    beforeNode.order = nodeOrder + segIdx * ORDER_EPS;
                     beforeNode.parent = wrapper.id;
 
                     const afterNode = targetNode.clone();
                     afterNode.content = after;
-                    afterNode.order = nodeOrder + 0.02 + segIdx * 0.001;
+                    afterNode.order = nodeOrder + ORDER_MAJOR + segIdx * ORDER_EPS;
                     afterNode.parent = wrapper.id;
 
-                    const newFormatNode = new NodeModel({
-                        id: nanoid(),
-                        type: "spanned",
+                    const newFormatNode = makeSpannedNode({
                         tagName: formattedTagName,
                         content: selectedText,
                         parent: wrapper.id,
-                        order: nodeOrder + 0.001 + segIdx * 0.001,
+                        order: nodeOrder + ORDER_EPS + segIdx * ORDER_EPS,
                     });
+
+                    if (hasBefore) contents.set(beforeNode.id, beforeNode);
+                    if (hasAfter) contents.set(afterNode.id, afterNode);
 
                     contents.set(newFormatNode.id, newFormatNode);
                     contents.set(wrapper.id, wrapper);
-
                     contents.delete(targetNode.id);
                 }
             }
-        }
-
-        else {
+        } else {
             // ── REMOVE formatting ──
             if (matchedIdx === -1) return;
 
-            console.log("REMOVVVE")
-
-            const matchedWrapper = chain[matchedIdx];
-            const grandParentId = matchedWrapper.parent || textNode.id;
-
-            // 1. Delete the original target node because we are splitting it
+            // Fall back to rootNode if the parent isn't resolvable — keeps
+            // `wrapper` guaranteed defined (the original `has ? get : root`
+            // pattern could type-check to `NodeModel | undefined`).
+            const wrapper: NodeModel = (originalParentId && descendants.get(originalParentId)) || rootNode;
             contents.delete(targetNode.id);
 
-            // 2. Preserve the text BEFORE the selection (Keep it formatted)
-            if (hasBefore) {
-                const beforeNode = targetNode.clone();
-                beforeNode.content = before;
-                contents.set(beforeNode.id, beforeNode);
-            }
+            if (wrapper.id === rootNode.id) {
+                if (hasBefore) {
+                    const beforeNode = targetNode.clone();
+                    beforeNode.content = before;
+                    contents.set(beforeNode.id, beforeNode);
+                }
 
-            // 3. Preserve the text AFTER the selection (Keep it formatted)
-            if (hasAfter) {
-                const afterNode = targetNode.clone();
-                afterNode.content = after;
-                // make sure order is slightly higher so it renders after
-                afterNode.order = (targetNode.order || 0) + 0.002;
-                contents.set(afterNode.id, afterNode);
-            }
+                // Preserve the text AFTER the selection (keep it formatted).
+                if (hasAfter) {
+                    const afterNode = targetNode.clone();
+                    afterNode.content = after;
+                    afterNode.order = (targetNode.order || 0) + ORDER_STEP;
+                    contents.set(afterNode.id, afterNode);
+                }
 
-            // 4. Handle the SELECTED text (Remove the specific format)
-            if (selectedText.length > 0) {
-                // If it was ONLY bold, it becomes a span. 
-                // If it was bold AND italic, we need to remove bold but keep italic.
-                // (Assuming you handle deep nesting, you'd recreate the chain minus the matchedWrapper)
-
-                const unformattedNode = new NodeModel({
-                    id: nanoid(),
-                    type: "spanned",
-                    tagName: "span", // Or the tag of the next parent in the chain
-                    content: selectedText,
-                    parent: grandParentId, // Attach it outside the removed wrapper
-                    order: (targetNode.order || 0) + 0.001,
-                });
-
-                contents.set(unformattedNode.id, unformattedNode);
+                // Handle the SELECTED text (remove the specific format).
+                if (selectedText.length > 0) {
+                    const unformattedNode = makeSpannedNode({
+                        tagName: "span", // or the tag of the next parent in the chain
+                        content: selectedText,
+                        parent: wrapper.id, // attach it outside the removed wrapper
+                        order: (targetNode.order || 0) + ORDER_EPS,
+                    });
+                    contents.set(unformattedNode.id, unformattedNode);
+                    contents.delete(targetNode.id);
+                }
+            } else {
+                if (hasBefore) {
+                    const beforeNode = targetNode.clone();
+                    beforeNode.content = before;
+                    contents.set(beforeNode.id, beforeNode);
+                }
+                if (hasAfter) {
+                    const afterNode = targetNode.clone();
+                    afterNode.content = after;
+                    afterNode.order = (targetNode.order || 0) + ORDER_STEP;
+                    contents.set(afterNode.id, afterNode);
+                }
+                if (selectedText.length > 0) {
+                    const unformattedNode = wrapper.clone();
+                    unformattedNode.content = selectedText;
+                    unformattedNode.parent = wrapper.id;
+                    unformattedNode.order = (targetNode.order || 0) + ORDER_EPS;
+                    contents.set(unformattedNode.id, unformattedNode);
+                }
             }
         }
     });
 
-    // Defensive: jangan dispatch jika semua node hilang
-    if (contents.size === 0) {
-        console.warn("Formatting failed: all nodes were purged");
-        return;
-    }
+    contents.delete(rootNode.id); // root was only there for measurement/lookup purposes
 
+    normalizeNodeOrders(contents);
     cleanupEmptyFormatNodes(contents);
+
     mergeAdjacentFormatNodes(contents);
+    mergeNestedFormatNodes(contents);
+    mergeAdjacentFormatNodesWithWhitespace(contents);
+
     disableInteractions(contents);
-    contents.delete(textNode.id); // root just for meansurements
+    normalizeNodeOrders(contents);
+
+    if (contents.size === 0) {
+        console.warn("applyFormatted: all nodes were purged, aborting update.");
+        return undefined;
+    }
 
     return contents;
 }
+
+/**
+ * Apply or remove `format` over the current selection.
+ *
+ * Wrapped in a try/catch: this function drives live editor state, so an
+ * unexpected edge case (malformed chain, missing node, etc.) should degrade
+ * to "no-op, log the error" rather than throwing and breaking the editor
+ * mid-keystroke. If you're debugging a formatting issue, check the console
+ * for an "applyFormatted failed" error first.
+ */
+export const applyFormatted = (props: ApplyFormattedProps): Map<string, NodeModel> | undefined => {
+    try {
+        return applyFormattedInternal(props);
+    } catch (err) {
+        console.error("applyFormatted failed:", err);
+        return undefined;
+    }
+};

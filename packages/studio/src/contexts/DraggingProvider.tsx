@@ -267,7 +267,7 @@ export default function DraggingProvider({ children, iframe, isReady, arrayNodeR
 
             // Check if the container accepts the source node and if the source node can be dropped onto the container
             const isCanDrop = containerNode.type.isAccepted(sourceNode) && sourceNode.type.isDroppable(containerNode);
-            // console.log(isCanDrop)
+            // // console.log(isCanDrop)
             if (containerNode && isCanDrop) {
                 validDropTarget = { targetEl: currentEl, position: currentPosition };
                 break; // Found a valid target!

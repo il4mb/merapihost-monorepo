@@ -32,7 +32,7 @@ export default function NodeRender({ node }: NodeRenderProps) {
         if (!dom || state.status !== "editing" || !isDraggable || !node.data.isSelected) return;
 
         const handleDragStart = (e: DragEvent) => {
-            console.log("Drag Start")
+            // console.log("Drag Start")
             e.stopPropagation();
             e.dataTransfer?.setData("studio/node", node.id);
         };

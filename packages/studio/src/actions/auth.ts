@@ -9,7 +9,7 @@ export const getCurrentUser = async () => {
     }
     try {
         const { data } = await serverApi.get(`/v1/auth/me`);
-        console.log("User data fetched successfully:", data);
+        // console.log("User data fetched successfully:", data);
         return {
             success: Boolean(data.success),
             user: data.user || null,

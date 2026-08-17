@@ -199,13 +199,16 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
                 let content;
                 if (updatedContents.size === 1) {
                     const [firstValue] = updatedContents.values();
-                    content = firstValue.content;
-                    updatedContents.delete(firstValue.id);
+                    if (firstValue.tagName === "span") {
+                        content = firstValue.content;
+                        updatedContents.delete(firstValue.id);
+                    }
+
                 }
 
                 context.update({ content });
                 context.updateChildren(updatedContents);
-                console.log(selection);
+                // console.log(selection);
                 setTimeout(() => {
                     context.withNode(node, () => context.command("renderCaret"));
                 }, 50);
@@ -232,7 +235,7 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
             if (rootText && !rootText.data.editing) {
                 return rootText.type.invokeCommand("startEditing", context);
             }
-            console.log("Won't start editing wire not connected to component");
+            // console.log("Won't start editing wire not connected to component");
         },
 
         stopEditing({ context }) {
@@ -240,7 +243,7 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
             if (rootText && rootText.data.editing) {
                 return rootText.type.invokeCommand("stopEditing", context);
             }
-            console.log("Won't stop editing wire not connected to component");
+            // console.log("Won't stop editing wire not connected to component");
         }
     }
 });

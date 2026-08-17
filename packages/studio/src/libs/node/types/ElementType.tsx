@@ -63,7 +63,7 @@ export const ElementType = createType(({ node, children, ref }) => {
     commands: {
         parent: ({ node, context }) => {
             const parentNode = context.getParent();
-            console.log(node.id, parentNode.id); // 1234, 123
+            // console.log(node.id, parentNode.id); // 1234, 123
 
             if (parentNode) {
                 parentNode.type.invokeCommand("select", context);
@@ -75,7 +75,7 @@ export const ElementType = createType(({ node, children, ref }) => {
         },
 
         select: ({ context, node }) => {
-            console.log("trigger select", node.id); // 123
+            // console.log("trigger select", node.id); // 123
             context.select(); // but in reducer it become 1234
         }
     }

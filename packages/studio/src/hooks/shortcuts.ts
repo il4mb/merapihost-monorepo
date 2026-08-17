@@ -22,13 +22,13 @@ export const useMainShortcutListener = () => {
     }, [state.collection]);
 
     const handleUndo = useCallback((e: KeyboardEvent) => {
-        console.log("Undo action triggered");
+        // console.log("Undo action triggered");
         e.preventDefault();
         dispatch({ type: "UNDO" });
     }, []);
 
     const handleRedo = useCallback((e: KeyboardEvent) => {
-        console.log("Redo action triggered");
+        // console.log("Redo action triggered");
         e.preventDefault();
         dispatch({ type: "REDO" });
     }, []);

@@ -36,5 +36,10 @@ export const RootType = createType<any, RootProps>(({ dom }) => {
     );
 }, {
     name: "Root",
+    extends: "element",
     icon: PageIcon,
+    actions: {
+        parent: null,
+        delete: null
+    }
 });

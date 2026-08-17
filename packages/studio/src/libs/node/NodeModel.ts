@@ -247,7 +247,7 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
                     order
                 });
                 result.push(newNode);
-                console.log(`📄 Text: "${text.trim()}" → parent: ${currentParentId}`);
+                // console.log(`📄 Text: "${text.trim()}" → parent: ${currentParentId}`);
                 return;
             }
 
@@ -277,7 +277,7 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
                         order
                     });
                     result.push(elementModel);
-                    console.log(`📝 TextNode: <${tagName}> → parent: ${currentParentId}`);
+                    // console.log(`📝 TextNode: <${tagName}> → parent: ${currentParentId}`);
                     // Do NOT traverse children – they are flattened into the content string
                 } else {
                     // Normal container element – traverse children
@@ -290,7 +290,7 @@ export class NodeModel<T extends Record<string, any> = Record<string, any>> impl
                         order
                     });
                     result.push(elementModel);
-                    console.log(`📦 Element: <${tagName}> → parent: ${currentParentId}`);
+                    // console.log(`📦 Element: <${tagName}> → parent: ${currentParentId}`);
 
                     let childOrder = 0;
                     Array.from(element.childNodes).forEach((child) => {
