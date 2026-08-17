@@ -43,3 +43,5 @@ export type NodeObject = {
     visible?: boolean;
 };
 
+
+export type NodeUpdateInput = DeepPartial<Omit<NodeObject, "id"> & { data: NodeData<Record<string, any>>; dom: HTMLElement | null; }>

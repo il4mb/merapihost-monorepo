@@ -15,8 +15,9 @@ export const SpannedNodeType = createType(({ node, ref, children }) => {
     const FinalTagName = FORMAT_NODE_TAGS.includes(TagName) ? TagName : "span";
     const { sx, ...rest } = node.props;
 
-    const onDoubleClick = useCallback(() => {
-        invokeCommand("toggleEditing");
+    const onDoubleClick = useCallback((e: MouseEvent) => {
+        e.stopPropagation();
+        invokeCommand("startEditing");
     }, [invokeCommand]);
 
     return createElement(FinalTagName, { ...rest, ref, onDoubleClick }, node.content ? node.content : children);

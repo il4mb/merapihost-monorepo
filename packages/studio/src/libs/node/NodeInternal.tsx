@@ -1,28 +1,36 @@
-import { createContext, RefObject, useCallback, useContext, useMemo, useRef } from "react";
+import { createContext, RefObject, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { NodeModel, NodeRender } from ".";
 import { useNodes, useNodeCollectionRef } from "@/contexts";
 
 type NodeInternalProps = {
     node: NodeModel;
     ref: RefObject<HTMLElement>
-};
+}
+
+type NodeInternalContextType = {
+    invokeCommand: (id: string, props?: any) => any;
+    wireCommand: (id: string, callback: (p?: any) => void) => () => void;
+}
+
+const Context = createContext<NodeInternalContextType | undefined>(undefined);
+export const useNodeInternal = () => {
+    const ctx = useContext(Context);
+    if (!ctx) throw new Error("useNodeInternal must with in NodeInternal");
+    return ctx;
+}
+
+export const useWireEffect = (id: string, callback: (props?: any) => void, deps?: any[]) => {
+    const { wireCommand } = useNodeInternal();
+    useEffect(() => {
+        return wireCommand(id, callback);
+    }, deps);
+}
 
 export default function NodeInternal({ node, ref }: NodeInternalProps) {
 
     const { state, dispatch } = useNodes();
     const collectionRef = useNodeCollectionRef();
-    const nodeRef = useRef(node);
-
-    const invokeCommand = useCallback((id: string, props?: any) => {
-        return nodeRef.current.type.invokeCommand(
-            id,
-            nodeRef.current.type.createContext(
-                dispatch,
-                collectionRef.current,
-            ),
-            props
-        );
-    }, [nodeRef]);
+    const wiredCommandRef = useRef<Map<string, (p?: any) => void>>(new Map());
 
     const childrenNode = useMemo(() => {
         const id = node.id;
@@ -34,10 +42,41 @@ export default function NodeInternal({ node, ref }: NodeInternalProps) {
     const children = childrenNode.map(n => <NodeRender key={n.id} node={n} />);
     const Component = useMemo(() => node.type.render, [node.type]);
 
+    const invokeCommand = useCallback((id: string, props?: any) => {
+        return node.type.invokeCommand(
+            id,
+            node.type.createContext(
+                dispatch,
+                collectionRef.current,
+            ),
+            props
+        );
+    }, [node]);
+
+    const wireCommand = useCallback((id: string, callback: (p?: any) => void) => {
+        node.type.commands[id] = callback;
+        wiredCommandRef.current.set(id, callback);
+        node.type.wireCommand(id, callback); //  regist wired command
+        return () => {
+            wiredCommandRef.current.delete(id);
+            node.type.unWireCommand(id);
+        }
+    }, []);
+
+    const syncWireCommands = useCallback(() => {
+        wiredCommandRef.current.forEach((command, id) => {
+            node.type.wireCommand(id, command); //  regist wired command
+        });
+    }, [node]);
+
+    useEffect(() => {
+        syncWireCommands();
+    }, [syncWireCommands]);
 
     const values = useMemo(() => ({
-        invokeCommand
-    }), [invokeCommand]);
+        invokeCommand,
+        wireCommand
+    }), [invokeCommand, wireCommand]);
 
 
     if (Component) {
@@ -57,12 +96,3 @@ export default function NodeInternal({ node, ref }: NodeInternalProps) {
     );
 }
 
-type NodeInternalContextType = {
-    invokeCommand: (id: string, props?: any) => any;
-}
-const Context = createContext<NodeInternalContextType | undefined>(undefined);
-export const useNodeInternal = () => {
-    const ctx = useContext(Context);
-    if (!ctx) throw new Error("useNodeInternal must with in NodeInternal");
-    return ctx;
-}

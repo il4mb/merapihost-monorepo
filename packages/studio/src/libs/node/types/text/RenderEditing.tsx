@@ -1,20 +1,22 @@
 import { useCallback, useMemo, useRef, useEffect, useLayoutEffect, Fragment } from "react";
 import { flushSync } from "react-dom";
-import { NodeModel } from "../..";
+import { NodeModel, useNodeInternal, useWireEffect } from "@/libs/node";
 import RenderEditingType from "./RenderEditingType";
-import { cleanupEmptyFormatNodes, cloneChainSlice, disableInteractions, findNode, getAncestorChain, isSameFormatTag, mergeAdjacentFormatNodes, normalizeOrders, normalizeTree, setGlobalCharOffsets } from "./tools";
+import { getTextNodes } from "./tools";
 import { useNodes } from "@/contexts";
 import { useNodeDescendants } from "@/hooks";
 import { ShortcutHandler, useGlobalKeyListener } from "@/contexts/GlobalKeyListenerProvider";
 import { nanoid } from "nanoid";
-import { getSelectionSegments, useCaretControl } from "@/hooks/useEditText";
+import { useCaretControl } from "@/hooks/useEditText";
+import { TextTypeData } from "./TextType";
 
-const TEMP_ORDER_STEP = 1000;
-type RenderEditingProps = { root: NodeModel };
+type RenderEditingProps = { root: NodeModel<TextTypeData> };
 
 export default function RenderEditing({ root }: RenderEditingProps) {
+
+    const { invokeCommand } = useNodeInternal();
     const { registerShortcuts } = useGlobalKeyListener();
-    const { dispatch } = useNodes();;
+    const { dispatch } = useNodes();
 
     const descendants = useNodeDescendants(root);
     const nodeChildren = useMemo(() => {
@@ -27,387 +29,36 @@ export default function RenderEditing({ root }: RenderEditingProps) {
     descendantsRef.current = descendants;
 
     const caretControl = useCaretControl(root, descendantsRef);
-    const isFormattingRef = useRef(false);
-    const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
+    // const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
 
     const rootRef = useRef(root);
     useEffect(() => {
         rootRef.current = root;
     }, [root]);
 
+    useWireEffect("renderCaret", () => caretControl.render, [caretControl.render]);
+    useWireEffect("getSelection", () => caretControl.selectionRef.current, [])
+
     // Restore native selection (fallback only)
-    useLayoutEffect(() => {
-        if (pendingSelectionRef.current && root.dom) {
-            const { start, end } = pendingSelectionRef.current;
-            setGlobalCharOffsets(root.dom, start, end);
-            pendingSelectionRef.current = null;
-        }
-    }, [nodeChildren, root.dom]);
-
-    const getTextNodes = useCallback(() => {
-        const root = rootRef.current;
-        if (typeof root.content === 'string') return [root];
-        return Array.from(descendantsRef.current.values())
-            .filter((n) => typeof n.content === 'string')
-            .sort((a, b) => {
-                if (!a.dom || !b.dom) return (a.order || 0) - (b.order || 0);
-                const cmp = a.dom.compareDocumentPosition(b.dom);
-                if (cmp & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-                if (cmp & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-                return (a.order || 0) - (b.order || 0);
-            });
-    }, []);
-
-    const insertFormattedText = useCallback((format: "bold" | "italic" | "underline") => {
-        const root = rootRef.current;
-
-        if (isFormattingRef.current) return;
-        isFormattingRef.current = true;
-
-        const selection = caretControl.selectionRef.current;
-        if (selection.anchor === selection.focus) {
-            isFormattingRef.current = false;
-            return;
-        }
-
-        // Preserve original selection range
-        const originalAnchor = selection.anchor;
-        const originalFocus = selection.focus;
-        const selStart = Math.min(originalAnchor, originalFocus);
-        const selEnd = Math.max(originalAnchor, originalFocus);
-
-        const formattedTagName = format === "bold" ? "strong" : format === "italic" ? "em" : "u";
-        const newContents = new Map(descendantsRef.current);
-        newContents.set(root.id, root); // ensure root 
-
-        const segments = getSelectionSegments(selStart, selEnd, newContents, root);
-        if (segments.length === 0) {
-            isFormattingRef.current = false;
-            return;
-        }
-
-        const isAllFormatted = segments.every((seg) => {
-            const chain = getAncestorChain(seg.node, newContents, root.id);
-            return chain.some((w) => isSameFormatTag(w.tagName, format));
-        });
-        const targetAction: "APPLY" | "REMOVE" = isAllFormatted ? "REMOVE" : "APPLY";
-
-        segments.forEach((seg, segIdx) => {
-
-            const targetNode = seg.node;
-            const targetIsRoot = targetNode.id === root.id;
-
-            const startOffset = seg.localStart;
-            const endOffset = seg.localEnd;
-            const overlapLength = endOffset - startOffset;
-            if (overlapLength === 0) return;
-
-            const originalContent = targetNode.content || "";
-            const before = originalContent.slice(0, startOffset);
-            const selectedText = originalContent.slice(startOffset, endOffset);
-            const after = originalContent.slice(endOffset);
-            const hasBefore = before.length > 0;
-            const hasAfter = after.length > 0;
-            const baseOrder = targetNode.order || 0;
-            const originalParentId = targetIsRoot ? root.id : targetNode.parent;
-
-            const chain = getAncestorChain(targetNode, newContents, root.id);
-            const matchedIdx = chain.findIndex((w) => isSameFormatTag(w.tagName, format));
-
-            if (targetAction === "APPLY") {
-                if (matchedIdx !== -1) return;
-
-                const nodeOrder = targetNode.order || 0;
-                const grandParentId = targetNode.parent || root.id;
-                const isTargetFormatted = targetNode.type.name.toLowerCase() === "spanned";
-                const isFormatTargetEqual = isSameFormatTag(targetNode.tagName, format);
-
-                console.log({
-                    nodeOrder,
-                    grandParentId,
-                    isTargetFormatted,
-                    targetIsRoot,
-                    targetNode,
-                    isFormatTargetEqual
-                });
-
-
-
-                if (targetIsRoot) {
-                    const beforeNode = new NodeModel({
-                        id: nanoid(),
-                        tagName: "span",
-                        type: "spanned",
-                        content: before,
-                        order: baseOrder,
-                        parent: originalParentId
-                    });
-
-                    const afterNode = new NodeModel({
-                        id: nanoid(),
-                        tagName: "span",
-                        type: "spanned",
-                        content: after,
-                        order: baseOrder + 0.02 + segIdx * 0.001,
-                        parent: originalParentId
-                    });
-
-                    newContents.delete(targetNode.id);
-                    if (hasBefore) newContents.set(beforeNode.id, beforeNode);
-                    if (hasAfter) newContents.set(afterNode.id, afterNode);
-
-                    if (selectedText.length > 0) {
-                        if (chain.length > 0) {
-                            // ── Ada ancestor spanned → clone & preserve ──
-                            const { innermostId, outermostId } = cloneChainSlice(
-                                chain, 0, chain.length - 1, originalParentId, newContents
-                            );
-
-                            // Promote cloned wrappers: hapus content supaya jadi container
-                            let cleanId = outermostId;
-                            while (cleanId) {
-                                const n = findNode(cleanId, newContents);
-                                if (!n) break;
-                                n.content = undefined;
-                                const kids = Array.from(newContents.values()).filter(c => c.parent === cleanId);
-                                cleanId = kids.length > 0 ? kids[0].id : null;
-                            }
-
-                            // Format baru sebagai leaf di dalam innermost clone
-                            const newFormatNode = new NodeModel({
-                                id: nanoid(),
-                                type: "spanned",
-                                tagName: formattedTagName,
-                                content: selectedText,      // ← leaf mode, langsung content
-                                parent: innermostId,
-                                order: 0,
-                            });
-
-                            newContents.set(newFormatNode.id, newFormatNode);
-
-                            if (outermostId) {
-                                const outerNode = findNode(outermostId, newContents);
-                                if (outerNode) {
-                                    outerNode.order = baseOrder + 0.01 + segIdx * 0.001;
-                                }
-                            }
-                        } else {
-                            // ── Tidak ada ancestor → simple spanned leaf ──
-                            const wrapper = new NodeModel({
-                                id: nanoid(),
-                                type: "spanned",
-                                tagName: formattedTagName,
-                                content: selectedText,
-                                parent: originalParentId,
-                                order: baseOrder + 0.01 + segIdx * 0.001,
-                            });
-                            newContents.set(wrapper.id, wrapper);
-                        }
-                    }
-                }
-
-                if (isTargetFormatted) {
-
-                    if (isFormatTargetEqual) {
-                        newContents.delete(targetNode.id);
-
-                        if (hasBefore) {
-                            const beforeText = new NodeModel({
-                                id: nanoid(),
-                                type: "spanned",
-                                tagName: "span",
-                                content: before,
-                                parent: root.id,
-                                order: nodeOrder,
-                            });
-                            newContents.set(beforeText.id, beforeText);
-                        }
-
-                        if (hasAfter) {
-                            const afterText = new NodeModel({
-                                id: nanoid(),
-                                type: "spanned",
-                                content: after,
-                                tagName: "span",
-                                parent: root.id,
-                                order: segIdx + nodeOrder + 0.002,
-                            });
-                            newContents.set(afterText.id, afterText);
-                        }
-
-                        if (selectedText.length > 0) {
-                            const newFormatNode = new NodeModel({
-                                id: nanoid(),
-                                type: "spanned",
-                                tagName: formattedTagName,
-                                content: selectedText,
-                                parent: root.id,
-                                order: nodeOrder,
-                            });
-
-                            newContents.set(newFormatNode.id, newFormatNode);
-                        }
-                        return;
-                    }
-
-                    if (targetNode.tagName === "span") {
-
-                        const beforeNode = targetNode.clone();
-                        beforeNode.content = before;
-                        beforeNode.order = nodeOrder + segIdx * 0.001;
-
-                        const afterNode = targetNode.clone();
-                        afterNode.content = after;
-                        afterNode.order = nodeOrder + 0.02 + segIdx * 0.001;
-
-                        newContents.delete(targetNode.id);
-                        if (hasBefore) newContents.set(beforeNode.id, beforeNode);
-                        if (hasAfter) newContents.set(afterNode.id, afterNode);
-
-                        if (selectedText.length > 0) {
-                            const newFormatNode = new NodeModel({
-                                id: nanoid(),
-                                type: "spanned",
-                                tagName: formattedTagName,
-                                content: selectedText,
-                                parent: root.id,
-                                order: nodeOrder + 0.001 + segIdx * 0.001,
-                            });
-
-                            newContents.set(newFormatNode.id, newFormatNode);
-                        }
-                    } else {
-                        console.log("Nexted Formatted", targetNode.dom, before);
-
-                        const wrapper = targetNode.clone();
-                        wrapper.content = undefined;
-
-                        const beforeNode = targetNode.clone();
-                        beforeNode.content = before;
-                        beforeNode.order = nodeOrder + segIdx * 0.001;
-                        beforeNode.parent = wrapper.id;
-
-                        const afterNode = targetNode.clone();
-                        afterNode.content = after;
-                        afterNode.order = nodeOrder + 0.02 + segIdx * 0.001;
-                        afterNode.parent = wrapper.id;
-
-                        const newFormatNode = new NodeModel({
-                            id: nanoid(),
-                            type: "spanned",
-                            tagName: formattedTagName,
-                            content: selectedText,
-                            parent: wrapper.id,
-                            order: nodeOrder + 0.001 + segIdx * 0.001,
-                        });
-
-                        newContents.set(newFormatNode.id, newFormatNode);
-                        newContents.set(wrapper.id, wrapper);
-
-                        newContents.delete(targetNode.id);
-                    }
-                }
-            }
-
-            else {
-                // ── REMOVE formatting ──
-                if (matchedIdx === -1) return;
-
-                console.log("REMOVVVE")
-
-                const matchedWrapper = chain[matchedIdx];
-                const grandParentId = matchedWrapper.parent || root.id;
-
-                // 1. Delete the original target node because we are splitting it
-                newContents.delete(targetNode.id);
-
-                // 2. Preserve the text BEFORE the selection (Keep it formatted)
-                if (hasBefore) {
-                    const beforeNode = targetNode.clone();
-                    beforeNode.content = before;
-                    newContents.set(beforeNode.id, beforeNode);
-                }
-
-                // 3. Preserve the text AFTER the selection (Keep it formatted)
-                if (hasAfter) {
-                    const afterNode = targetNode.clone();
-                    afterNode.content = after;
-                    // make sure order is slightly higher so it renders after
-                    afterNode.order = (targetNode.order || 0) + 0.002;
-                    newContents.set(afterNode.id, afterNode);
-                }
-
-                // 4. Handle the SELECTED text (Remove the specific format)
-                if (selectedText.length > 0) {
-                    // If it was ONLY bold, it becomes a span. 
-                    // If it was bold AND italic, we need to remove bold but keep italic.
-                    // (Assuming you handle deep nesting, you'd recreate the chain minus the matchedWrapper)
-
-                    const unformattedNode = new NodeModel({
-                        id: nanoid(),
-                        type: "spanned",
-                        tagName: "span", // Or the tag of the next parent in the chain
-                        content: selectedText,
-                        parent: grandParentId, // Attach it outside the removed wrapper
-                        order: (targetNode.order || 0) + 0.001,
-                    });
-
-                    newContents.set(unformattedNode.id, unformattedNode);
-                }
-            }
-        });
-
-        // // Defensive: jangan dispatch jika semua node hilang
-        if (newContents.size === 0) {
-            console.warn("Formatting failed: all nodes were purged");
-            isFormattingRef.current = false;
-            return;
-        }
-
-        cleanupEmptyFormatNodes(newContents);
-        // mergeAdjacentFormatNodes(newContents);
-        disableInteractions(newContents);
-        newContents.delete(root.id); // root just for meansurements
-
-        let newContent = undefined;
-        if (newContents.size === 1) {
-            const contentNode = Array.from(newContents.values())[0];
-            if (contentNode.isTextLeaf && contentNode.tagName === "span") {
-                newContent = contentNode.content;
-                newContents.delete(contentNode.id);
-            }
-        }
-
-        flushSync(() => {
-            dispatch({
-                type: "BULK",
-                payload: [
-                    { type: "SET_NODE_CHILDREN", payload: { id: root.id, children: newContents } }, // add children
-                    { type: "UPDATE_NODE", payload: { id: root.id, content: newContent } } // remove plain text
-                ]
-            });
-        });
-
-        // // Restore original selection range
-        caretControl.selectionRef.current = { anchor: originalAnchor, focus: originalFocus };
-        requestAnimationFrame(() => {
-            caretControl.render();
-            isFormattingRef.current = false;
-        });
-    }, []);
+    // useLayoutEffect(() => {
+    //     if (pendingSelectionRef.current && root.dom) {
+    //         const { start, end } = pendingSelectionRef.current;
+    //         setGlobalCharOffsets(root.dom, start, end);
+    //         pendingSelectionRef.current = null;
+    //     }
+    // }, [nodeChildren, root.dom]);
 
     const toggleFormat = useCallback((e: KeyboardEvent, command: "bold" | "italic" | "underline") => {
         e.preventDefault();
-        if (isFormattingRef.current) return;
-        insertFormattedText(command);
-    }, [insertFormattedText]);
+        invokeCommand(command);
+    }, [invokeCommand]);
 
     // ═════════════════════════════════════════════════════════════════
     // DELETE (range or single)
     // ═════════════════════════════════════════════════════════════════
     const handleDelete = useCallback((direction: 'backspace' | 'delete'): { anchor: number; focus: number } => {
         const root = rootRef.current;
-        const textNodes = getTextNodes();
+        const textNodes = getTextNodes(descendantsRef.current, rootRef.current);
         const selection = caretControl.selectionRef.current;
         const newContents = new Map(descendantsRef.current);
         let newPos = selection.focus;
@@ -497,19 +148,19 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             }
         }
 
-        normalizeTree(newContents, root.id);
+        // normalizeTree(newContents, root.id);
         flushSync(() => {
             dispatch({ type: "SET_NODE_CHILDREN", payload: { id: root.id, children: newContents } });
         });
         return { anchor: newPos, focus: newPos };
-    }, [dispatch, getTextNodes, caretControl]);
+    }, [dispatch, caretControl]);
 
     // ═════════════════════════════════════════════════════════════════
     // TYPING
     // ═════════════════════════════════════════════════════════════════
     const insertTextAt = useCallback((text: string, at: number): number => {
         const root = rootRef.current;
-        const textNodes = getTextNodes();
+        const textNodes = getTextNodes(descendantsRef.current, rootRef.current);
         const newContents = new Map(descendantsRef.current);
         let globalPos = 0;
         let targetNode: NodeModel | null = null;
@@ -553,10 +204,10 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             dispatch({ type: "SET_NODE_CHILDREN", payload: { id: root.id, children: newContents } });
         });
         return at + text.length;
-    }, [dispatch, getTextNodes]);
+    }, [dispatch]);
 
     const handleBlocking = useCallback((direction: "left" | "right" | "all") => {
-        const textNodes = getTextNodes();
+        const textNodes = getTextNodes(descendantsRef.current, rootRef.current);
         const totalLength = textNodes.reduce((sum, n) => sum + (n.content || "").length, 0);
         const { anchor, focus } = caretControl.selectionRef.current;
 
@@ -576,7 +227,7 @@ export default function RenderEditing({ root }: RenderEditingProps) {
         // Anchor stays fixed (where selection started), focus moves
         caretControl.selectionRef.current = { anchor, focus: newFocus };
         requestAnimationFrame(() => caretControl.render());
-    }, [getTextNodes, caretControl]);
+    }, [caretControl]);
 
     const handleInput = useCallback((e: KeyboardEvent) => {
         // ── Ctrl+A / Cmd+A ──
@@ -594,7 +245,7 @@ export default function RenderEditing({ root }: RenderEditingProps) {
         // ── Plain arrows (move collapsed caret) ──
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
             e.preventDefault();
-            const textNodes = getTextNodes();
+            const textNodes = getTextNodes(descendantsRef.current, rootRef.current);
             const totalLength = textNodes.reduce((sum, n) => sum + (n.content || "").length, 0);
             const delta = e.key === "ArrowLeft" ? -1 : 1;
             const newPos = Math.max(0, Math.min(totalLength, caretControl.selectionRef.current.focus + delta));
@@ -642,7 +293,7 @@ export default function RenderEditing({ root }: RenderEditingProps) {
             requestAnimationFrame(() => caretControl.render());
             return;
         }
-    }, [handleDelete, insertTextAt, handleBlocking, getTextNodes]);
+    }, [handleDelete, insertTextAt, handleBlocking]);
 
     // ═════════════════════════════════════════════════════════════════
     // SHORTCUTS

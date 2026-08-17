@@ -1,6 +1,8 @@
 import { NodeModel } from "@/libs/node";
 import { RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutateNodeData } from "./useNodes";
+import { TextTypeData } from "@/libs/node/types/text/TextType";
+import { getTextNodes, Selection } from "@/libs/node/types/text/tools";
 
 type CustomSelection = { anchor: number; focus: number };
 
@@ -22,23 +24,7 @@ export type SelectionSegment = {
     isPartial: boolean;
 };
 
-/** Ambil semua text leaf dalam urutan dokumen */
-const getTextNodes = (map: Map<string, NodeModel>, rootNode: NodeModel): NodeModel[] => {
-    // Jika root sendiri yang punya content string (plain text, no descendants)
-    if (rootNode.isTextLeaf) return [rootNode];
-
-    return Array.from(map.values())
-        .filter(n => n.isTextLeaf)
-        .sort((a, b) => {
-            if (!a.dom || !b.dom) return (a.order || 0) - (b.order || 0);
-            const cmp = a.dom.compareDocumentPosition(b.dom);
-            if (cmp & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-            if (cmp & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-            return (a.order || 0) - (b.order || 0);
-        });
-};
-
-export const getSelectionSegments = (anchor: number, focus: number, descendantsMap: Map<string, NodeModel>, rootNode: NodeModel): SelectionSegment[] => {
+const getSelectionSegments = (anchor: number, focus: number, descendantsMap: Map<string, NodeModel>, rootNode: NodeModel): SelectionSegment[] => {
     const start = Math.min(anchor, focus);
     const end = Math.max(anchor, focus);
     if (start === end) return [];
@@ -284,35 +270,17 @@ const getWordBounds = (offset: number, textNodes: NodeModel[]): { start: number;
     return { start, end };
 };
 
-export const useCaretControl = (node: NodeModel, descendantsRef: RefObject<Map<string, NodeModel>>): CaretControl => {
+export const useCaretControl = (node: NodeModel<TextTypeData>, descendantsRef: RefObject<Map<string, NodeModel>>): CaretControl => {
     const mutate = useMutateNodeData(node);
     const svgRef = useRef<SVGSVGElement>(null);
-    const selectionRef = useRef<CustomSelection>({ anchor: 0, focus: 0 });
-    const activeFormatsRef = useRef<string[]>([]);
+    const selectionRef = useRef<Selection>({ anchor: 0, focus: 0 });
+    const activeFormatsRef = useRef(node.data.formats);
     const isDraggingRef = useRef(false);
 
     const nodeRef = useRef(node);
-
     useEffect(() => {
         nodeRef.current = node;
     }, [node])
-
-    const getTextNodes = useCallback(() => {
-        // check is node plain text
-        if (nodeRef.current.isTextLeaf) {
-            return [nodeRef.current];
-        }
-        // return descendants
-        return Array.from(descendantsRef.current.values())
-            .filter((n) => n.isTextLeaf)
-            .sort((a, b) => {
-                if (!a.dom || !b.dom) return (a.order || 0) - (b.order || 0);
-                const cmp = a.dom.compareDocumentPosition(b.dom);
-                if (cmp & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-                if (cmp & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-                return (a.order || 0) - (b.order || 0);
-            });
-    }, []);
 
     const getOffsetFromPoint = useCallback((mouseX: number, mouseY: number): number => {
         const node = nodeRef.current;
@@ -411,7 +379,7 @@ export const useCaretControl = (node: NodeModel, descendantsRef: RefObject<Map<s
         const selEnd = Math.max(selection.anchor, selection.focus);
         const hasRange = selStart !== selEnd;
 
-        const textNodes = getTextNodes();
+        const textNodes = getTextNodes(descendantsRef.current, node);
         const doc = container.ownerDocument;
         const containerRect = container.getBoundingClientRect();
 
@@ -500,16 +468,13 @@ export const useCaretControl = (node: NodeModel, descendantsRef: RefObject<Map<s
         }
 
         svg.setAttribute("height", String(container.scrollHeight));
-        mutate({
-            formats: activeFormatsRef.current,
-            selection
-        })
-    }, [getTextNodes, descendantsRef, mutate]);
+        mutate({ formats: activeFormatsRef.current })
+    }, [descendantsRef, mutate]);
 
     const handleMouseDown = useCallback((e: MouseEvent) => {
         e.preventDefault();
         const offset = getOffsetFromPoint(e.clientX, e.clientY);
-        const textNodes = getTextNodes();
+        const textNodes = getTextNodes(descendantsRef.current, node);
 
         if (e.detail === 3) {
             const fullText = textNodes.map((n) => n.content || "").join("");
@@ -534,7 +499,7 @@ export const useCaretControl = (node: NodeModel, descendantsRef: RefObject<Map<s
         selectionRef.current = { anchor: offset, focus: offset };
         isDraggingRef.current = true;
         render();
-    }, [getOffsetFromPoint, getTextNodes, render]);
+    }, [getOffsetFromPoint, render]);
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
         if (!isDraggingRef.current) return;

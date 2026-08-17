@@ -1,76 +1,56 @@
 import { Typography } from "@mui/material";
 import { BoldIcon, ItalicIcon, TypeIcon, UnderlineIcon, RemoveFormatting } from "lucide-react";
 import { JSX } from "react/jsx-runtime";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 import { useNodes } from "@/contexts";
 import RenderEditing from "./RenderEditing";
 import { useNodeDescendantsRef } from "@/hooks/useNodes";
 import { NodeModel, createType, useNodeInternal } from "@/libs/node";
+import { applyFormatted, getTextNodes } from "./tools";
 
-type TextTypeData = {
+export type TextTypeData = {
     editing: boolean;
-    formats: string[]
+    formats: string[];
 }
 export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
 
-    const { invokeCommand } = useNodeInternal();
-    const { state, dispatch } = useNodes();;
+    const { invokeCommand, wireCommand } = useNodeInternal();
+    const { dispatch } = useNodes();
     const tagName = (node.tagName || "span") as keyof JSX.IntrinsicElements;
     const descendantsRef = useNodeDescendantsRef(node);
-    const textRootRef = useRef<NodeModel>(null);
-
-    const getRootTextNode = useCallback(() => {
-        // If the starting node isn't text
-        if (!node.type.isText) return node;
-
-        // Start tracking from the current node
-        let rootTextNode = node;
-        let parentNode = state.collection.get(node.parent || "");
-
-        // Keep walking UP the tree as long as the parent exists and IS a text node
-        while (parentNode && parentNode.type.isText) {
-            rootTextNode = parentNode as any; // Move our pointer up one level
-
-            // Fetch the next parent in the chain to check in the next loop iteration
-            parentNode = state.collection.get(rootTextNode.parent || "");
-        }
-
-        // Once the while loop stops (because parentNode is a Div/Canvas/undefined), 
-        // rootTextNode holds the absolute highest-level text node.
-        return rootTextNode;
-    }, [state.collection, node]);
-
-    useEffect(() => {
-        textRootRef.current = getRootTextNode();
-    }, [getRootTextNode]);
 
     const clearWindowSelection = useCallback(() => {
         // clear both selection
-        const win = node.dom.ownerDocument.defaultView;
+        const win = node.dom?.ownerDocument?.defaultView;
         window?.getSelection()?.removeAllRanges();
         win?.getSelection()?.removeAllRanges();
     }, [node.dom]);
 
     const prepareStartEditing = useCallback(() => {
+        if (node.data.editing) return;
         const descendants = Array.from(descendantsRef.current.values());
         const payloads = descendants.map((n) => ({
             type: "UPDATE_NODE",
             payload: { id: n.id, selectable: false, hoverable: false }
         })) as any[];
-        dispatch({
-            type: "BULK",
-            payload: [
-                {
-                    type: "UPDATE_NODE",
-                    payload: { id: node.id, data: { editing: true } }
-                },
-                ...payloads
-            ]
-        });
-        clearWindowSelection();
-    }, [descendantsRef, dispatch, node.id, clearWindowSelection]);
+        dispatch({ type: "SET_SELECTED", payload: node.id });
+        setTimeout(() => {
+            dispatch({
+                type: "BULK",
+                payload: [
+                    {
+                        type: "UPDATE_NODE",
+                        payload: { id: node.id, data: { editing: true } }
+                    },
+                    ...payloads
+                ]
+            });
+            clearWindowSelection();
+        }, 50);
+    }, [descendantsRef, dispatch, node.id, node.data.editing, clearWindowSelection]);
 
     const prepareStopEditing = useCallback(() => {
+        if (!node.data.editing) return;
         const descendants = Array.from(descendantsRef.current.values());
         const payloads = descendants.map((n) => ({
             type: "UPDATE_NODE",
@@ -87,35 +67,27 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
             ]
         });
         clearWindowSelection();
-    }, [descendantsRef, dispatch, node.id, clearWindowSelection]);
+    }, [descendantsRef, dispatch, node.id, node.data.editing, clearWindowSelection]);
 
     const handleDoubleClick = useCallback(() => {
-        invokeCommand("toggleEditing");
-        // const textRoot = textRootRef.current;
-        // const isRootNode = textRoot?.id === node.id;
-        // if (textRoot) {
-        //     if (!isRootNode) {
-        //         // pass event to text root
-        //         dispatch({ type: "SET_SELECTED", payload: textRoot.id });
-        //         setTimeout(() => {
-        //             textRoot.dom?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-        //         }, 50);
-        //         return;
-        //     }
+        invokeCommand("startEditing");
+    }, [invokeCommand]);
 
-        //     // only pass when not editing and in root text node
-        //     if (node.data.editing) return;
-        //     if (node.data.isSelected && ref.current) {
-        //         prepareStartEditing();
-        //     }
-        // }
-    }, [node.data.isSelected, node.data.editing, ref, prepareStartEditing]);
+    useEffect(() => {
+        const unregisters = [
+            wireCommand("startEditing", prepareStartEditing),
+            wireCommand("stopEditing", prepareStopEditing)
+        ];
+        return () => {
+            unregisters.map(e => e())
+        };
+    }, [wireCommand, prepareStartEditing, prepareStopEditing]);
 
     useEffect(() => {
         // blur detection
-        if (!node.data.editing) return;
+        if (!node.data.isSelected) return;
         return prepareStopEditing;
-    }, [node.data.editing, node.data.isSelected, prepareStopEditing]);
+    }, [node.data.isSelected, prepareStopEditing]);
 
     return (
         <Typography
@@ -146,7 +118,10 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
     icon: TypeIcon,
     draggable: true,
     accepts: ["formatted"],
-    data: { editing: false, formats: [] },
+    data: {
+        editing: false,
+        formats: []
+    },
     isInstance(target) {
         const supportedTags = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "span", "a"];
         return supportedTags.includes(String(target.tagName).toLowerCase()) || typeof target.content === "string";
@@ -163,9 +138,9 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
     actions: (node) => {
         if (!node.data.editing) {
             return !node.isTextLeaf && {
-                clean: {
+                clearFormat: {
                     icon: RemoveFormatting,
-                    title: "clear text"
+                    title: "clear formatted"
                 }
             }
         }
@@ -187,15 +162,76 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
         }
     },
     commands: {
-        bold: (node) => {
-            console.log("Bold Command", node.data);
+        bold({ context }) {
+            context.command("applyFormat", { format: "bold" })
         },
-        italic: () => {
-            console.log("Italic Command");
+        italic({ context }) {
+            context.command("applyFormat", { format: "italic" })
+        },
+        underline({ context }) {
+            context.command("applyFormat", { format: "underline" })
         },
 
-        toggleEditing: (node, { context }) => {
-            console.log("Starting Editing", context.getChildren());
+        clearFormat({ context, node }) {
+            const textNodes = getTextNodes(context.getDescendants(), node);
+            const contents = textNodes.map(n => n.content);
+            context.update({ content: contents.join("") });
+            context.updateChildren(new Map());
+        },
+
+        applyFormat({ context, format, node }) {
+            const selection = context.command("getSelection");
+            if (!selection) {
+                console.warn("Selection is missing");
+                return;
+            }
+            const descendants = context.getDescendants();
+            const updatedContents = applyFormatted({ format, descendants, selection, node });
+
+            if (updatedContents) {
+
+                let content;
+                if (updatedContents.size === 1) {
+                    const [firstValue] = updatedContents.values();
+                    content = firstValue.content;
+                    updatedContents.delete(firstValue.id);
+                }
+
+                context.update({ content });
+                context.updateChildren(updatedContents);
+                context.command("renderCaret");
+
+            }
+        },
+
+        getRootText({ context, node }) {
+            const ancestors = context.getAncestors();
+            if (!node.type.isText) return node;
+            let rootTextNode = node;
+            let parentNode = ancestors.get(node.parent || "");
+
+            // Keep walking UP the tree as long as the parent exists and IS a text node
+            while (parentNode && parentNode.type.isText) {
+                rootTextNode = parentNode as any;
+                parentNode = ancestors.get(rootTextNode.parent || "");
+            }
+            return rootTextNode;
+        },
+
+        startEditing({ context }) {
+            const rootText = context.command("getRootText") as NodeModel<TextTypeData>;
+            if (rootText && !rootText.data.editing) {
+                return rootText.type.invokeCommand("startEditing", context);
+            }
+            console.log("Won't start editing wire not connected to component");
+        },
+
+        stopEditing({ context }) {
+            const rootText = context.command("getRootText") as NodeModel<TextTypeData>;
+            if (rootText && rootText.data.editing) {
+                return rootText.type.invokeCommand("stopEditing", context);
+            }
+            console.log("Won't stop editing wire not connected to component");
         }
     }
 });

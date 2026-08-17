@@ -1,16 +1,19 @@
-import type { NodeModel, NodeReducerAction, TypeActionDefine, TypeComponent, TypeModel } from "@/types";
-import { getNodeAncesors, getNodeChildren, getNodeDescendants, REGISTRY } from ".";
+import type { NodeModel, NodeReducerAction, NodeUpdateInput, TypeActionDefine, TypeComponent, TypeModel } from "@/types";
+import { getNodeAncestors, getNodeChildren, getNodeDescendants, getNodeSiblings, REGISTRY } from ".";
 import { NodeContext } from "./NodeModel";
 import { Dispatch } from "react";
 import { merge } from "lodash";
 
 
+
 export type ModelActionContext = {
-    getChildren: () => NodeModel<Record<string, any>>[];
-    getAncesors: () => NodeModel<Record<string, any>>[];
+    getChildren: () => Map<string, NodeModel<Record<string, any>>>;
+    getAncestors: () => Map<string, NodeModel<Record<string, any>>>;
     getDescendants: () => Map<string, NodeModel<Record<string, any>>>;
+    getSiblings: () => Map<string, NodeModel<Record<string, any>>>;
     updateChildren: (children: Map<string, NodeModel>) => void;
-    command: (id: string) => any;
+    update: (patch: NodeUpdateInput) => void;
+    command: (id: string, props?: any) => any;
 }
 
 /**
@@ -19,6 +22,7 @@ export type ModelActionContext = {
  */
 export class ModelProxy {
 
+    private wiredCommands: Map<string, (p?: any) => void> = new Map();
     readonly node: NodeModel;
     readonly type: TypeComponent;
     readonly model: TypeModel;
@@ -158,22 +162,73 @@ export class ModelProxy {
         };
     }
 
-    createContext(dispatch: Dispatch<NodeReducerAction>, collection: Map<string, NodeModel>) {
-        return {
+    unWireCommand(id: string) {
+        this.wiredCommands.delete(id);
+    }
+    wireCommand(id: string, callback: (p?: any) => void) {
+        this.wiredCommands.set(id, callback);
+        return () => this.unWireCommand(id);
+    }
+
+    createContext(dispatch: Dispatch<NodeReducerAction>, collection: Map<string, NodeModel>): ModelActionContext {
+        // Maintain a queue for actions triggered in the current execution cycle
+        let pendingActions: NodeReducerAction[] = [];
+        let isScheduled = false;
+
+        // Create a batching function to intercept the dispatches
+        const dispatchBatched = (action: NodeReducerAction) => {
+            pendingActions.push(action);
+
+            if (!isScheduled) {
+                isScheduled = true;
+                queueMicrotask(() => {
+                    if (pendingActions.length === 1) {
+                        // Just one action? Dispatch normally.
+                        dispatch(pendingActions[0]);
+                    } else if (pendingActions.length > 1) {
+                        // Multiple actions? Bundle them into a BULK type.
+                        dispatch({
+                            type: "BULK",
+                            payload: pendingActions // Pass the array of actions
+                        });
+                    }
+
+                    // Reset the queue for the next cycle
+                    pendingActions = [];
+                    isScheduled = false;
+                });
+            }
+        };
+
+        const context: ModelActionContext = {
             getChildren: () => getNodeChildren(this.node, collection),
-            getAncesors: () => getNodeAncesors(this.node, collection),
+            getAncestors: () => getNodeAncestors(this.node, collection),
             getDescendants: () => getNodeDescendants(this.node, collection),
-            updateChildren: (children: Map<string, NodeModel>) => dispatch({ type: "SET_NODE_CHILDREN", payload: { id: this.node.id, children } }),
-            command: this.invokeCommand
-        } as ModelActionContext;
+            getSiblings: () => getNodeSiblings(this.node, collection),
+
+            updateChildren: (children: Map<string, NodeModel>) => dispatchBatched({
+                type: "SET_NODE_CHILDREN",
+                payload: { id: this.node.id, children }
+            }),
+            update: (patch) => dispatchBatched({
+                type: "UPDATE_NODE",
+                payload: { ...patch, id: this.node.id }
+            }),
+            command: (id: string, props?: any) => this.invokeCommand(id, context, props)
+        };
+
+        return context;
     }
 
     invokeCommand(id: string, context: ModelActionContext, props?: any) {
+        const wiredCommand = this.wiredCommands.get(id);
+        if (wiredCommand) return wiredCommand(props);
+
         const command = this.commands[id];
         if (typeof command === "function") {
-            return command(this.node, { context, ...props });
+            return command({ ...props, context, node: this.node });
         }
-        console.warn(`Command with id "${id}" was not found at ${this.model.name}`);
+        console.warn(`Command "${id}" was not found at ${this.model.name}, not definded or wire missing`);
     }
 
     getColor(isDarkMode: boolean) {

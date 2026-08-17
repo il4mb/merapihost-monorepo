@@ -1,5 +1,5 @@
 import { NodeModel } from "@/libs/node/NodeModel";
-import type { NodeObject, NodeVariable, AssetObject, PageObject, Block, Edge, Coordinates, NodeData } from "./index";
+import type { NodeObject, NodeVariable, AssetObject, PageObject, Block, Edge, Coordinates, NodeData, NodeUpdateInput } from "./index";
 
 // Fixed DeepPartial to prevent infinite recursion on complex objects
 export type DeepPartial<T> = T extends Function | Map<any, any> | Set<any> | HTMLElement
@@ -97,14 +97,7 @@ export type NodeActionMap = {
         targetId: string;
         position: "before" | "after" | "inside";
     };
-    UPDATE_NODE: {
-        id: string
-    } & DeepPartial<
-        Omit<NodeObject, "id"> & {
-            data: NodeData<Record<string, any>>;
-            dom: HTMLElement | null;
-        }
-    >;
+    UPDATE_NODE: { id: string } & NodeUpdateInput;
 
     UPDATE_NODE_PROPS: {
         id: string

@@ -1,5 +1,6 @@
 import { NodeState, NodeObject, Variable, NodeHistory, NodeReducerAction } from "@/types";
 import { NodeModel } from "@/libs/node/NodeModel";
+import { getNodeDescendants, purgeOrphanNodes } from "../node";
 
 export const ROOT_NODE = {
     id: "root",
@@ -58,6 +59,8 @@ const pushHistory = (state: NodeState): NodeHistory => {
         past.shift();
     }
 
+    console.log("PAST", past.length);
+
     return {
         past,
         future: [] // Any new edit clears the redo stack
@@ -93,7 +96,10 @@ const applyUndo = (state: NodeState): NodeState => {
  */
 const applyRedo = (state: NodeState): NodeState => {
     const { past, future } = state.histories;
-    if (future.length === 0) return state; // Nothing to redo
+    if (future.length === 0) {
+        console.log("No thing to redo");
+        return state; // Nothing to redo
+    }
 
     const nextCollection = future[0];
     const newFuture = future.slice(1);
@@ -110,43 +116,6 @@ const applyRedo = (state: NodeState): NodeState => {
         hovered: new Set()
     };
 };
-
-
-
-const getDescendant = (collection: Map<string, NodeModel>, rootId: string): Map<string, NodeModel> => {
-    const result = new Map<string, NodeModel>();
-    const stack = [rootId];
-
-    while (stack.length > 0) {
-        const currentId = stack.pop()!;
-        for (const [id, node] of collection) {
-            if (node.parent === currentId) {
-                result.set(id, node);
-                stack.push(id);
-            }
-        }
-    }
-    return result;
-}
-
-function getDescendantIds(collection: Map<string, NodeModel>, rootId: string): IterableIterator<string> {
-    return getDescendant(collection, rootId).keys();
-}
-
-const getDescendantsArray = (collection: Map<string, NodeModel>, rootId: string): NodeModel[] => {
-    const descendantsMap = getDescendant(collection, rootId);
-    return Array.from(descendantsMap.values());
-}
-
-
-const cleanOrphanedNodes = (collection: Map<string, NodeModel>) => {
-    for (const [id, node] of collection) {
-        if (node.parent && !collection.has(node.parent)) {
-            collection.delete(id);
-        }
-    }
-}
-
 
 
 export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeState => {
@@ -282,8 +251,8 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
             const { sourceId, targetId, position } = action.payload;
 
             // 1. Get references
-            const sourceNode = state.collection.get(sourceId) ? new NodeModel(state.collection.get(sourceId)!) : null;
-            const targetNode = state.collection.get(targetId) ? new NodeModel(state.collection.get(targetId)!) : null;
+            const sourceNode = state.collection.get(sourceId);
+            const targetNode = state.collection.get(targetId);
 
             if (!sourceNode || !targetNode) {
                 console.warn(`Source or target node not found for MOVE_NODE action.`);
@@ -292,48 +261,58 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
 
             const newNodes = new Map(state.collection);
 
-            // 2. Determine the actual parent (if 'inside', the target itself becomes the parent)
-            const targetParentId = position === "inside" ? targetNode.id : targetNode.parent; // Add fallback if needed: || ROOT_NODE.id
-            const oldParentId = sourceNode.parent;
+            // 2. Determine parents exactly as INSERT_BLOCK does
+            const targetParentId = position === "inside"
+                ? targetNode.id
+                : (targetNode.parent || ROOT_NODE.id);
 
-            // 3. Get the target's siblings (or children, if 'inside'), EXCLUDING the dragged node
-            const targetSiblings = Array.from(newNodes.values())
-                .filter(node => node.parent === targetParentId && node.id !== sourceId)
+            const oldParentId = sourceNode.parent || ROOT_NODE.id;
+
+            // 3. Get old siblings and REMOVE the source node from them first
+            let oldSiblings = Array.from(newNodes.values())
+                .filter(n => (n.parent || ROOT_NODE.id) === oldParentId)
                 .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-            // 4. Update the source node's parent reference
-            sourceNode.parent = targetParentId;
+            oldSiblings = oldSiblings.filter(n => n.id !== sourceId); // 🛑 Crucial step!
 
-            // 5. Insert the node based on the position
-            if (position === "inside") {
-                // If dropping inside, append it to the end of the container's children
-                targetSiblings.push(sourceNode);
+            // 4. Prepare the target siblings list
+            let targetSiblings: NodeModel[];
+            if (oldParentId === targetParentId) {
+                targetSiblings = oldSiblings;
             } else {
-                // Find the target's index in this clean list
+                targetSiblings = Array.from(newNodes.values())
+                    .filter(n => (n.parent || ROOT_NODE.id) === targetParentId)
+                    .sort((a, b) => (a.order || 0) - (b.order || 0));
+            }
+
+            // 5. Update the source node's parent reference
+            // ✅ FIX: Assign the targetParentId directly to maintain the ROOT_NODE.id reference
+            const updatedSourceNode = new NodeModel(sourceNode);
+            updatedSourceNode.parent = targetParentId;
+
+            // 6. Insert the node based on the position
+            if (position === "inside") {
+                targetSiblings.push(updatedSourceNode);
+            } else {
                 const targetIndex = targetSiblings.findIndex(node => node.id === targetId);
 
                 if (targetIndex !== -1) {
-                    // Calculate exact insertion point
                     const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
-                    targetSiblings.splice(insertIndex, 0, sourceNode);
+                    targetSiblings.splice(insertIndex, 0, updatedSourceNode);
                 } else {
-                    targetSiblings.push(sourceNode); // Failsafe fallback
+                    targetSiblings.push(updatedSourceNode); // Failsafe
                 }
             }
 
-            // 6. Iterate through the modified array and reassign sequential `order` numbers (0, 1, 2, 3...)
+            // 7. Reassign sequential `order` numbers (0, 1, 2...) and save to map
             targetSiblings.forEach((node, index) => {
                 const updatedNode = new NodeModel(node);
                 updatedNode.order = index;
                 newNodes.set(node.id, updatedNode);
             });
 
-            // 7. If the node was moved to a DIFFERENT parent, re-index the old parent's children to close the gap
+            // 8. If the node was moved to a DIFFERENT parent, re-index the old parent's remaining children
             if (oldParentId !== targetParentId) {
-                const oldSiblings = Array.from(newNodes.values())
-                    .filter(node => node.parent === oldParentId)
-                    .sort((a, b) => (a.order || 0) - (b.order || 0));
-
                 oldSiblings.forEach((node, index) => {
                     const updatedNode = new NodeModel(node);
                     updatedNode.order = index;
@@ -341,7 +320,7 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
                 });
             }
 
-            // 8. Return updated state
+            // 9. Return updated state
             return {
                 ...state,
                 histories: pushHistory(state),
@@ -358,6 +337,8 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
 
             const newNodes = new Map(state.collection);
 
+            let shouldHistoryPropagate = false;
+
             if ("dom" in action.payload && action.payload !== undefined) { // Nullable
                 node.dom = action.payload.dom;
             }
@@ -369,9 +350,11 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
                     ...node.props,
                     ...action.payload.props
                 };
+                shouldHistoryPropagate = true;
             }
             if ("content" in action.payload) { // Nillable
                 node.content = action.payload.content;
+                shouldHistoryPropagate = true;
             }
             if ("tagName" in action.payload && action.payload.tagName !== undefined) {
                 node.tagName = action.payload.tagName;
@@ -399,9 +382,16 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
             }
 
             newNodes.set(action.payload.id, node);
+
+            if (shouldHistoryPropagate) {
+                return {
+                    ...state,
+                    histories: pushHistory(state),
+                    collection: newNodes
+                }
+            }
             return {
                 ...state,
-                histories: pushHistory(state),
                 collection: newNodes
             }
         }
@@ -430,40 +420,27 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
             // editing protection: only allow block insertion when in "editing" mode
             if (state.status !== "editing") return state;
 
+            // the target to delete
             const targetNode = state.collection.get(action.payload)
             if (!targetNode) return state;
-            if (String(targetNode.type.model.name).toLowerCase() === "root") {
+            if (targetNode.type.name.toLowerCase() === ROOT_NODE.type) {
                 console.warn("Cannot remove DOM reference for the Root node.");
                 return state;
             }
 
             const newNodes = new Map(state.collection);
-
-            const getDescendants = (parentId: string): string[] => {
-                let ids: string[] = []
-                newNodes.forEach((node, id) => {
-                    if (node.parent === parentId) {
-                        ids.push(id)
-                        ids.push(...getDescendants(id))
-                    }
-                })
-                return ids
-            };
-
-            const descendantsToDelete = getDescendants(action.payload);
-            const allDeletedIds = [action.payload, ...descendantsToDelete];
-            allDeletedIds.forEach(id => {
-                newNodes.delete(id)
-            });
-
-
+            const nodesToDelete = getNodeDescendants(targetNode, newNodes);
             const newHovered = new Set(state.hovered);
             const newSelected = new Set(state.selected);
 
-            allDeletedIds.forEach(id => {
-                newHovered.delete(id)
-                newSelected.delete(id)
-            })
+            for (const [id] of nodesToDelete) {
+                newNodes.delete(id);
+                newHovered.delete(id);
+                newSelected.delete(id);
+            }
+            newNodes.delete(targetNode.id);
+            newHovered.delete(targetNode.id);
+            newSelected.delete(targetNode.id);
 
             return {
                 ...state,
@@ -484,9 +461,10 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
 
             let newNodes = new Map(state.collection);
 
-            // 1. Collect ALL descendants (including nested ones)
-            const oldDescendantIds = getDescendantIds(newNodes, target.id);
-            for (const id of oldDescendantIds) {
+            // Collect ALL descendants (including nested ones)
+            const oldDescendantIds = getNodeDescendants(target, newNodes);
+            for (const [id] of oldDescendantIds) {
+                if (id === target.id) continue; // self protection
                 newNodes.delete(id);
             }
 
@@ -497,7 +475,10 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
                 }
                 newNodes.set(childNode.id, childNode);
             });
-            cleanOrphanedNodes(newNodes);
+
+            // remove parentle nodes
+            purgeOrphanNodes(newNodes);
+
             return {
                 ...state,
                 histories: pushHistory(state),
@@ -634,11 +615,15 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
                 histories: pushHistory(state)
             };
 
+            console.log("Collect History");
+
             return action.payload.reduce((currentState, bulkAction) => {
                 if (bulkAction.type === "BULK") {
                     console.warn("Nested BULK actions are not allowed. Ignoring this action.");
                     return currentState;
                 }
+
+                console.log("Bulk Action");
 
                 // Temporary override to avoid pushing multiple history entries during bulk operations
                 const resultState = nodeReducer(currentState, bulkAction);

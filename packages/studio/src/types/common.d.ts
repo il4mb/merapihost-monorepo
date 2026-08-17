@@ -152,7 +152,12 @@ export type TypeModel<T extends Record<string, unknown> = Record<string, unknown
     default?: TypeModelDefault<T>;
     actions?: TypeActionDefine | ((n: NodeModel<T>) => TypeActionDefine | undefined | void);
     commands?: {
-        [k: string]: (node: NodeModel, props: { context: ModelActionContext }) => void
+        [k: string]: <
+            P extends Record<string, any> = Record<string, any>
+        >(props: {
+            context: ModelActionContext,
+            node: NodeModel<T>
+        } & P) => void
     }
 }
 export type TypeActionDefine = {
