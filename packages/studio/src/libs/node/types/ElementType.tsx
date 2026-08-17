@@ -61,7 +61,22 @@ export const ElementType = createType(({ node, children, ref }) => {
         }
     },
     commands: {
-        parent: () => { },
-        delete: () => { }
+        parent: ({ node, context }) => {
+            const parentNode = context.getParent();
+            console.log(node.id, parentNode.id); // 1234, 123
+
+            if (parentNode) {
+                parentNode.type.invokeCommand("select", context);
+            }
+        },
+
+        delete: ({ context }) => {
+            context.delete();
+        },
+
+        select: ({ context, node }) => {
+            console.log("trigger select", node.id); // 123
+            context.select(); // but in reducer it become 1234
+        }
     }
 });

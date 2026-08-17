@@ -59,7 +59,7 @@ const pushHistory = (state: NodeState): NodeHistory => {
         past.shift();
     }
 
-    console.log("PAST", past.length);
+    // console.log("PAST", past.length);
 
     return {
         past,
@@ -97,7 +97,7 @@ const applyUndo = (state: NodeState): NodeState => {
 const applyRedo = (state: NodeState): NodeState => {
     const { past, future } = state.histories;
     if (future.length === 0) {
-        console.log("No thing to redo");
+        // console.log("No thing to redo");
         return state; // Nothing to redo
     }
 
@@ -122,15 +122,15 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
     switch (action.type) {
 
         case "UNDO":
-            console.log("Undo History")
+            // console.log("Undo History")
             return applyUndo(state);
 
         case "REDO":
-            console.log("Redo History")
+            // console.log("Redo History")
             return applyRedo(state);
 
         case "CLEAR_HISTORY": {
-            console.log("History Cleared");
+            // console.log("History Cleared");
             return applyResetHistory(state);
         }
 
@@ -615,7 +615,7 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
                 histories: pushHistory(state)
             };
 
-            console.log("Collect History");
+            // console.log("Collect History");
 
             return action.payload.reduce((currentState, bulkAction) => {
                 if (bulkAction.type === "BULK") {
@@ -623,7 +623,7 @@ export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeSt
                     return currentState;
                 }
 
-                console.log("Bulk Action");
+                // console.log("Bulk Action");
 
                 // Temporary override to avoid pushing multiple history entries during bulk operations
                 const resultState = nodeReducer(currentState, bulkAction);

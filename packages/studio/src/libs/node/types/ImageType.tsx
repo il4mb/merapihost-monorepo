@@ -84,6 +84,7 @@ export const ImageType = createType(({ node, ref }) => {
     );
 }, {
     name: "Image",
+    extends: "element",
     icon: ImageIcon,
     isInstance(target) {
         if ("tagName" in target && String(target.tagName).toLowerCase() === "img") {
@@ -101,6 +102,6 @@ export const ImageType = createType(({ node, ref }) => {
             alt: "Image",
             width: 200,
             height: 200,
-        }
+        } as any
     }
 });

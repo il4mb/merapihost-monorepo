@@ -1,20 +1,10 @@
-import type { NodeModel, NodeReducerAction, NodeUpdateInput, TypeActionDefine, TypeComponent, TypeModel } from "@/types";
-import { getNodeAncestors, getNodeChildren, getNodeDescendants, getNodeSiblings, REGISTRY } from ".";
+import { NodeModel, NodeReducerAction, TypeActionDefine, TypeComponent, TypeModel } from "@/types";
+import { REGISTRY } from ".";
 import { NodeContext } from "./NodeModel";
 import { Dispatch } from "react";
 import { merge } from "lodash";
+import { ModelContext } from "./ModelContext";
 
-
-
-export type ModelActionContext = {
-    getChildren: () => Map<string, NodeModel<Record<string, any>>>;
-    getAncestors: () => Map<string, NodeModel<Record<string, any>>>;
-    getDescendants: () => Map<string, NodeModel<Record<string, any>>>;
-    getSiblings: () => Map<string, NodeModel<Record<string, any>>>;
-    updateChildren: (children: Map<string, NodeModel>) => void;
-    update: (patch: NodeUpdateInput) => void;
-    command: (id: string, props?: any) => any;
-}
 
 /**
  * A proxy class that wraps a TypeModel and provides access to its properties, including inherited properties from parent models.
@@ -169,64 +159,16 @@ export class ModelProxy {
         this.wiredCommands.set(id, callback);
         return () => this.unWireCommand(id);
     }
-
-    createContext(dispatch: Dispatch<NodeReducerAction>, collection: Map<string, NodeModel>): ModelActionContext {
-        // Maintain a queue for actions triggered in the current execution cycle
-        let pendingActions: NodeReducerAction[] = [];
-        let isScheduled = false;
-
-        // Create a batching function to intercept the dispatches
-        const dispatchBatched = (action: NodeReducerAction) => {
-            pendingActions.push(action);
-
-            if (!isScheduled) {
-                isScheduled = true;
-                queueMicrotask(() => {
-                    if (pendingActions.length === 1) {
-                        // Just one action? Dispatch normally.
-                        dispatch(pendingActions[0]);
-                    } else if (pendingActions.length > 1) {
-                        // Multiple actions? Bundle them into a BULK type.
-                        dispatch({
-                            type: "BULK",
-                            payload: pendingActions // Pass the array of actions
-                        });
-                    }
-
-                    // Reset the queue for the next cycle
-                    pendingActions = [];
-                    isScheduled = false;
-                });
-            }
-        };
-
-        const context: ModelActionContext = {
-            getChildren: () => getNodeChildren(this.node, collection),
-            getAncestors: () => getNodeAncestors(this.node, collection),
-            getDescendants: () => getNodeDescendants(this.node, collection),
-            getSiblings: () => getNodeSiblings(this.node, collection),
-
-            updateChildren: (children: Map<string, NodeModel>) => dispatchBatched({
-                type: "SET_NODE_CHILDREN",
-                payload: { id: this.node.id, children }
-            }),
-            update: (patch) => dispatchBatched({
-                type: "UPDATE_NODE",
-                payload: { ...patch, id: this.node.id }
-            }),
-            command: (id: string, props?: any) => this.invokeCommand(id, context, props)
-        };
-
-        return context;
-    }
-
-    invokeCommand(id: string, context: ModelActionContext, props?: any) {
+    
+    invokeCommand(id: string, context: ModelContext, props?: any) {
         const wiredCommand = this.wiredCommands.get(id);
         if (wiredCommand) return wiredCommand(props);
 
         const command = this.commands[id];
         if (typeof command === "function") {
-            return command({ ...props, context, node: this.node });
+            return context.withNode(this.node, () => {
+                return command.call(this, { ...props, context, node: this.node });
+            });
         }
         console.warn(`Command "${id}" was not found at ${this.model.name}, not definded or wire missing`);
     }

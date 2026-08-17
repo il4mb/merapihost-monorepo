@@ -1,10 +1,8 @@
 import React from "react";
 import { FC, RefObject } from "react";
-import { NodeObject, NodeVariable } from "./node";
 import { AssetObject } from "./asset";
-import type { NodeContext, NodeModel } from "@/libs/node/NodeModel";
+import type { NodeContext, NodeModel, NodeObject, NodeVariable, ModelContext } from "@/libs/node";
 import { SxProps } from "@mui/material";
-import { ModelActionContext } from "@/libs/node";
 
 export interface ShortcutHandler {
     /** List of keys required to trigger the action (e.g. ["Control", "s"]) */
@@ -155,7 +153,7 @@ export type TypeModel<T extends Record<string, unknown> = Record<string, unknown
         [k: string]: <
             P extends Record<string, any> = Record<string, any>
         >(props: {
-            context: ModelActionContext,
+            context: ModelContext,
             node: NodeModel<T>
         } & P) => void
     }

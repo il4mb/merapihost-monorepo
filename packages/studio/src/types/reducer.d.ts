@@ -1,7 +1,6 @@
-import { NodeModel } from "@/libs/node/NodeModel";
+import type { NodeModel } from "@/libs/node/NodeModel";
 import type { NodeObject, NodeVariable, AssetObject, PageObject, Block, Edge, Coordinates, NodeData, NodeUpdateInput } from "./index";
 
-// Fixed DeepPartial to prevent infinite recursion on complex objects
 export type DeepPartial<T> = T extends Function | Map<any, any> | Set<any> | HTMLElement
     ? T
     : T extends Array<infer U>
@@ -10,20 +9,15 @@ export type DeepPartial<T> = T extends Function | Map<any, any> | Set<any> | HTM
     ? { [P in keyof T]?: DeepPartial<T[P]> }
     : T;
 
-// Convert any action payload map into a Discriminated Union of Actions
 export type ActionUnion<T extends Record<string, any>> = {
-    [K in keyof T]: T[K] extends never
+    [K in keyof T]: [T[K]] extends [never] | [void] | [undefined]
     ? { type: K }
-    : undefined extends T[K]
-    ? { type: K; payload?: T[K] }
     : { type: K; payload: T[K] };
 }[keyof T];
 
-// Generic Action that includes all actions from map T + the BULK action
 export type GenericAction<T extends Record<string, any>> =
     | ActionUnion<T>
     | { type: "BULK"; payload: GenericAction<T>[] };
-
 
 
 export type Viewport = {

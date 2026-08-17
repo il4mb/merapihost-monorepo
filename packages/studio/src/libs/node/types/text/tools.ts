@@ -2,114 +2,6 @@ import { nanoid } from "nanoid";
 import { findNode, getNodeAncestorChain, NodeModel } from "../..";
 import { TextTypeData } from "./TextType";
 
-// export const getFrameContext = (dom: HTMLElement | null) => {
-//     const el = dom;
-//     if (!el) return null;
-//     const doc = el.ownerDocument;
-//     const win = doc.defaultView;
-//     if (!win) return null;
-//     const selection = win.getSelection();
-//     return { el, doc, win, selection };
-// }
-
-// Helper to check equivalent formatting tags (e.g. <b> and <strong>)
-
-
-// // Calculate absolute character offsets relative to container text
-// export const getGlobalCharOffsets = (containerEl: HTMLElement, range: Range) => {
-//     const doc = containerEl.ownerDocument;
-//     const startRange = doc.createRange();
-//     startRange.selectNodeContents(containerEl);
-//     startRange.setEnd(range.startContainer, range.startOffset);
-//     const start = startRange.toString().length;
-
-//     const endRange = doc.createRange();
-//     endRange.selectNodeContents(containerEl);
-//     endRange.setEnd(range.endContainer, range.endOffset);
-//     const end = endRange.toString().length;
-
-//     return { start, end };
-// };
-
-// // Restore DOM range from absolute character offsets
-// export const setGlobalCharOffsets = (containerEl: HTMLElement, start: number, end: number) => {
-//     const doc = containerEl.ownerDocument;
-//     const win = doc.defaultView;
-//     if (!win) return;
-//     const selection = win.getSelection();
-//     if (!selection) return;
-
-//     let currentPos = 0;
-//     let startNode: Node | null = null;
-//     let startOffset = 0;
-//     let endNode: Node | null = null;
-//     let endOffset = 0;
-
-//     const walker = doc.createTreeWalker(containerEl, NodeFilter.SHOW_TEXT, null);
-//     let currentNode = walker.nextNode();
-
-//     while (currentNode) {
-//         const textLen = currentNode.nodeValue?.length || 0;
-
-//         if (!startNode && currentPos + textLen >= start) {
-//             startNode = currentNode;
-//             startOffset = start - currentPos;
-//         }
-//         if (!endNode && currentPos + textLen >= end) {
-//             endNode = currentNode;
-//             endOffset = end - currentPos;
-//             break;
-//         }
-
-//         currentPos += textLen;
-//         currentNode = walker.nextNode();
-//     }
-
-//     if (startNode && endNode) {
-//         const newRange = doc.createRange();
-//         newRange.setStart(startNode, Math.min(startOffset, startNode.nodeValue?.length || 0));
-//         newRange.setEnd(endNode, Math.min(endOffset, endNode.nodeValue?.length || 0));
-
-//         selection.removeAllRanges();
-//         selection.addRange(newRange);
-//     }
-// };
-
-// // Depth-First Search (DFS) traversal in strict document tree order
-// export const getTreeOrderedNodes = (rootId: string, map: Map<string, NodeModel>): NodeModel[] => {
-//     const result: NodeModel[] = [];
-//     const traverse = (parentId: string) => {
-//         const children = Array.from(map.values())
-//             .filter((n) => n.parent === parentId)
-//             .sort((a, b) => {
-//                 const diff = (a.order || 0) - (b.order || 0);
-//                 return diff !== 0 ? diff : a.id.localeCompare(b.id);
-//             });
-
-//         for (const child of children) {
-//             result.push(child);
-//             traverse(child.id);
-//         }
-//     };
-//     traverse(rootId);
-//     return result;
-// };
-
-
-// /**
-//  * Looking Upward Chain
-//  */
-// export const getAncestorChain = (startNode: NodeModel, map: Map<string, NodeModel>, rootId: string): NodeModel[] => {
-//     const chain: NodeModel[] = [];
-//     // check start node first
-//     let current = findNode(startNode.id, map);
-//     while (current && current.id !== rootId) {
-//         chain.push(current);
-//         current = findNode(current.parent, map);
-//     }
-//     return chain;
-// };
-
 // Clone a slice of wrapper chain (index start..end, inclusive) from OUTER to INNER
 export function cloneChainSlice(chain: NodeModel[], start: number, end: number, outerParentId: string | null, map: Map<string, NodeModel>) {
     if (start > end) {
@@ -128,36 +20,8 @@ export function cloneChainSlice(chain: NodeModel[], start: number, end: number, 
     return { innermostId: parentId as string, outermostId };
 }
 
-// export const normalizeOrders = (map: Map<string, NodeModel>, rootId: string) => {
 
-//     const normalize = (parentId: string) => {
-//         const children = Array.from(map.values())
-//             .filter((n) => n.parent === parentId)
-//             .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-//         children.forEach((child, index) => {
-//             child.order = index;
-//             normalize(child.id);
-//         });
-//     };
-
-//     normalize(rootId);
-// }
-
-
-// export const normalizeTree = (map: Map<string, NodeModel>, rootId: string) => {
-//     purgeOrphanNodes(map, rootId);
-//     mergeAdjacentFormatNodes(map);
-//     // cleanupEmptyFormatNodes(map);
-//     normalizeOrders(map, rootId);
-//     disableInteractions(map);
-// };
-
-
-// ==================================================================================
-
-
-const isSameFormatTag = (tagName: string, format: "bold" | "italic" | "underline") => {
+const isSameFormatTag = (tagName: string, format: FormattedType) => {
     const t = tagName.toLowerCase();
     if (format === "bold") return t === "strong" || t === "b";
     if (format === "italic") return t === "em" || t === "i";
@@ -176,7 +40,7 @@ const isEmptyContent = (node: NodeModel, map: Map<string, NodeModel>): boolean =
 }
 
 const isMergeable = (node: NodeModel) => {
-    return node.type.name === "spanned" || Boolean(node.content);
+    return node.type.isText; // name === "spanned" || Boolean(node.content);
 }
 
 const areMergeableFormatTags = (a: string, b: string): boolean => {
@@ -294,10 +158,10 @@ export type SelectionSegment = {
 /** Ambil semua text leaf dalam urutan dokumen */
 export const getTextNodes = (descendants: Map<string, NodeModel>, rootNode: NodeModel): NodeModel[] => {
     // Jika root sendiri yang punya content string (plain text, no descendants)
-    if (rootNode.isTextLeaf) return [rootNode];
+    if (rootNode.content) return [rootNode];
 
     return Array.from(descendants.values())
-        .filter(n => n.isTextLeaf)
+        .filter(n => n.content)
         .sort((a, b) => {
             if (!a.dom || !b.dom) return (a.order || 0) - (b.order || 0);
             const cmp = a.dom.compareDocumentPosition(b.dom);

@@ -1,5 +1,5 @@
 import { createContext, RefObject, useCallback, useContext, useEffect, useMemo, useRef } from "react";
-import { NodeModel, NodeRender } from ".";
+import { ModelContext, NodeModel, NodeRender } from ".";
 import { useNodes, useNodeCollectionRef } from "@/contexts";
 
 type NodeInternalProps = {
@@ -45,9 +45,9 @@ export default function NodeInternal({ node, ref }: NodeInternalProps) {
     const invokeCommand = useCallback((id: string, props?: any) => {
         return node.type.invokeCommand(
             id,
-            node.type.createContext(
+            new ModelContext(
                 dispatch,
-                collectionRef.current,
+                collectionRef.current
             ),
             props
         );

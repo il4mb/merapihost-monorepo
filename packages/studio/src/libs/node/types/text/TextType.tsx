@@ -137,14 +137,20 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
     },
     actions: (node) => {
         if (!node.data.editing) {
-            return !node.isTextLeaf && {
+            return {
                 clearFormat: {
                     icon: RemoveFormatting,
-                    title: "clear formatted"
+                    title: "clear formatted",
+                    disabled: Boolean(node.content)
                 }
             }
         }
         return {
+            clearFormat: {
+                icon: RemoveFormatting,
+                title: "clear formatted",
+                disabled: Boolean(node.content)
+            },
             bold: {
                 icon: BoldIcon,
                 active: node.data.formats.includes("strong")
@@ -175,12 +181,12 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
         clearFormat({ context, node }) {
             const textNodes = getTextNodes(context.getDescendants(), node);
             const contents = textNodes.map(n => n.content);
-            context.update({ content: contents.join("") });
+            context.update({ content: contents.join(""), data: { formats: [] } });
             context.updateChildren(new Map());
         },
 
         applyFormat({ context, format, node }) {
-            const selection = context.command("getSelection");
+            const selection = context.command("selection");
             if (!selection) {
                 console.warn("Selection is missing");
                 return;
@@ -199,7 +205,10 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
 
                 context.update({ content });
                 context.updateChildren(updatedContents);
-                context.command("renderCaret");
+                console.log(selection);
+                setTimeout(() => {
+                    context.withNode(node, () => context.command("renderCaret"));
+                }, 50);
 
             }
         },

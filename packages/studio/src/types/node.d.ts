@@ -1,3 +1,5 @@
+import type { DeepPartial } from "@/types";
+
 type StringVariable = {
     name: string;
     type: "string";

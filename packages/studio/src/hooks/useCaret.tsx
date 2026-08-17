@@ -4,11 +4,9 @@ import { useMutateNodeData } from "./useNodes";
 import { TextTypeData } from "@/libs/node/types/text/TextType";
 import { getTextNodes, Selection } from "@/libs/node/types/text/tools";
 
-type CustomSelection = { anchor: number; focus: number };
-
 export type CaretControl = {
     svgRef: RefObject<SVGSVGElement>;
-    selectionRef: RefObject<CustomSelection>;
+    selectionRef: RefObject<Selection>;
     activeFormatsRef: RefObject<string[]>; // ← NEW: live format state for toolbar
     render: () => void;
     getOffsetFromPoint: (x: number, y: number) => number;
@@ -64,7 +62,7 @@ const getSelectionSegments = (anchor: number, focus: number, descendantsMap: Map
 };
 
 /** compute active format tags for toolbar state ── */
-const computeActiveFormats = (selection: CustomSelection, descendantsMap: Map<string, NodeModel>, rootNode: NodeModel): string[] => {
+const computeActiveFormats = (selection: Selection, descendantsMap: Map<string, NodeModel>, rootNode: NodeModel): string[] => {
     // ── Collect text nodes dengan arsitektur baru ──
     const allNodes = Array.from(descendantsMap.values());
 
@@ -83,12 +81,12 @@ const computeActiveFormats = (selection: CustomSelection, descendantsMap: Map<st
 
     /** Walk up parent chain collecting formatted tagNames */
     const getFormatTags = (node: NodeModel): string[] => {
-        const tags: string[] = [];
+        const tags: string[] = node.isTextLeaf ? [node.tagName] : [];
         let currentId: string | null | undefined = node.parent;
         while (currentId && currentId !== rootNode.id) {
             const parent = descendantsMap.get(currentId);
             if (!parent) break;
-            if (parent.type.name.toLowerCase() === "formatted" && parent.tagName) {
+            if (parent.type.isText && parent.tagName) {
                 tags.push(parent.tagName.toLowerCase());
             }
             currentId = parent.parent;
@@ -113,6 +111,7 @@ const computeActiveFormats = (selection: CustomSelection, descendantsMap: Map<st
 
     // ── Range selection: return ONLY formats that wrap EVERY selected segment ──
     const segments = getSelectionSegments(selection.anchor, selection.focus, descendantsMap, rootNode);
+
     if (segments.length === 0) return [];
 
     // Build a Set of format tags for each segment
@@ -153,8 +152,7 @@ const globalOffsetBeforeNode = (target: NodeModel, map: Map<string, NodeModel>):
 };
 
 const offsetFromNativeNode = (nativeNode: Node, nativeOffset: number, map: Map<string, NodeModel>): number => {
-    const textNodes = Array.from(map.values());//.filter((n) => n.type.isText && n.dom);
-
+    const textNodes = Array.from(map.values()).filter((n) => n.content);
     let test: Node | null = nativeNode;
     while (test) {
         for (const node of textNodes) {
@@ -270,7 +268,7 @@ const getWordBounds = (offset: number, textNodes: NodeModel[]): { start: number;
     return { start, end };
 };
 
-export const useCaretControl = (node: NodeModel<TextTypeData>, descendantsRef: RefObject<Map<string, NodeModel>>): CaretControl => {
+export const useCaret = (node: NodeModel<TextTypeData>, descendantsRef: RefObject<Map<string, NodeModel>>): CaretControl => {
     const mutate = useMutateNodeData(node);
     const svgRef = useRef<SVGSVGElement>(null);
     const selectionRef = useRef<Selection>({ anchor: 0, focus: 0 });
@@ -280,7 +278,8 @@ export const useCaretControl = (node: NodeModel<TextTypeData>, descendantsRef: R
     const nodeRef = useRef(node);
     useEffect(() => {
         nodeRef.current = node;
-    }, [node])
+    }, [node]);
+
 
     const getOffsetFromPoint = useCallback((mouseX: number, mouseY: number): number => {
         const node = nodeRef.current;
@@ -288,15 +287,17 @@ export const useCaretControl = (node: NodeModel<TextTypeData>, descendantsRef: R
         const doc = node.dom.ownerDocument;
 
         // 1. Restricted Native API call
-        if (!node.isTextLeaf) {
+        if (!node.content) {
             if ("caretPositionFromPoint" in doc) {
-                const pos = (doc as any).caretPositionFromPoint(mouseX, mouseY);
+                const pos = doc.caretPositionFromPoint(mouseX, mouseY);
+                // console.log(pos);
                 if (pos?.offsetNode) return offsetFromNativeNode(pos.offsetNode, pos.offset, descendantsRef.current);
             } else if ("caretRangeFromPoint" in doc) {
                 const range = (doc as any).caretRangeFromPoint(mouseX, mouseY);
                 if (range?.startContainer) return offsetFromNativeNode(range.startContainer, range.startOffset, descendantsRef.current);
             }
         }
+
 
         // 2. Multi-line aware Binary Search for Text Leaves
         const textChild = node.dom.firstChild?.nodeType === Node.TEXT_NODE ? node.dom.firstChild as Text : null;
@@ -356,8 +357,7 @@ export const useCaretControl = (node: NodeModel<TextTypeData>, descendantsRef: R
         const distRight = Math.abs(mouseX - rightRect.left);
 
         return distLeft <= distRight ? targetLeft : targetRight;
-    }, [descendantsRef]); // getTextNodes removed as it's unused
-
+    }, [descendantsRef]);
 
     const render = useCallback(() => {
         const node = nodeRef.current;
@@ -365,12 +365,14 @@ export const useCaretControl = (node: NodeModel<TextTypeData>, descendantsRef: R
         const container = node.dom;
         if (!svg || !container) return;
 
-        // ── NEW: recompute active formats every render ──
-        activeFormatsRef.current = computeActiveFormats(
+        const newFormats = computeActiveFormats(
             selectionRef.current,
             descendantsRef.current,
             node
         );
+        const prevFormats = activeFormatsRef.current || [];
+        const isFormatsChanged = newFormats.length !== prevFormats.length || !newFormats.every((val, index) => val === prevFormats[index]);
+        activeFormatsRef.current = newFormats;
 
         while (svg.lastChild) svg.removeChild(svg.lastChild);
 
@@ -468,7 +470,11 @@ export const useCaretControl = (node: NodeModel<TextTypeData>, descendantsRef: R
         }
 
         svg.setAttribute("height", String(container.scrollHeight));
-        mutate({ formats: activeFormatsRef.current })
+        // console.log(isFormatsChanged);
+
+        if (isFormatsChanged) {
+            mutate({ formats: newFormats });
+        }
     }, [descendantsRef, mutate]);
 
     const handleMouseDown = useCallback((e: MouseEvent) => {
@@ -510,6 +516,14 @@ export const useCaretControl = (node: NodeModel<TextTypeData>, descendantsRef: R
     const handleMouseUp = useCallback(() => {
         isDraggingRef.current = false;
     }, []);
+
+    useEffect(() => {
+        // requestAnimationFrame ensures we measure the DOM *after* the browser 
+        // has painted the new bold weights or content changes.
+        const frame = requestAnimationFrame(() => render());
+        return () => cancelAnimationFrame(frame);
+    }, [node.data, render]);
+
 
     useEffect(() => {
         const node = nodeRef.current;
