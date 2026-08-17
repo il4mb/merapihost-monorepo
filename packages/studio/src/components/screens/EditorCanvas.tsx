@@ -3,19 +3,17 @@ import { inputsCustomizations, dataDisplayCustomizations, feedbackCustomizations
 import { colorSchemes, typography, shadows, shape } from '@/theme/themePrimitives';
 import { styled, ThemeProvider, createTheme } from "@mui/material/styles";
 import { Fragment, useEffect, useMemo, useState, useRef } from "react";
-import { useStudio } from "@/contexts/StudioProvider";
+import { useNodes, useGlobalKeyListener, CanvasProvider } from "@/contexts";
 import { CacheProvider } from "@emotion/react";
 import { CssBaseline } from "@mui/material";
 import createCache from "@emotion/cache";
 import { createPortal } from "react-dom";
 import { NodeModel } from "@/libs/node";
-import { Block, NodeObject } from "@/types";
-import { debounce } from "lodash";
+import { NodeObject } from "@/types";
 import SpotsContainer from "./SpotsContainer";
-import { useGlobalKeyListener } from '@/contexts/GlobalKeyListenerProvider';
-import { RootType } from '@/libs/node/types/RootType';
-import CanvasProvider from "@/contexts/CanvasProvider";
+import { REGISTRY } from '@/libs/node/types';
 
+const RootType = REGISTRY["root"];
 
 const Iframe = styled("iframe")({
     width: "100%",
@@ -50,8 +48,10 @@ type EditorCanvasProps = {
 };
 
 export default function EditorCanvas({ nodes }: EditorCanvasProps) {
+
     const { registerClient } = useGlobalKeyListener();
-    const { state, dispatch } = useStudio();
+    const { state, dispatch } = useNodes();;
+
     const [iframe, setIframe] = useState<HTMLIFrameElement | null>(null);
     const [isReady, setIsReady] = useState(false);
     const arrayNodeRef = useRef<NodeModel[]>([]);
@@ -63,8 +63,8 @@ export default function EditorCanvas({ nodes }: EditorCanvasProps) {
     }, [registerClient, iframe]);
 
     useEffect(() => {
-        arrayNodeRef.current = Array.from(state.nodes.collection.values());
-    }, [state.nodes.collection]);
+        arrayNodeRef.current = Array.from(state.collection.values());
+    }, [state.collection]);
 
     useEffect(() => {
         if (!iframe) return;

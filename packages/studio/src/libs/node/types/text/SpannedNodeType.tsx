@@ -1,6 +1,6 @@
 import { BoldIcon } from "lucide-react";
-import { createType } from "../../tools";
-import { createElement, JSX } from "react";
+import { createElement, JSX, useCallback } from "react";
+import { useNodeInternal, createType } from "@/libs/node";
 
 export const FORMAT_NODE_TAGS = ["strong", "em", "b", "i", "u", "small", "mark", "del", "ins", "sub", "sup", "span"];
 
@@ -10,10 +10,16 @@ export const FORMAT_NODE_TAGS = ["strong", "em", "b", "i", "u", "small", "mark",
  * Tidak punya `content` sendiri — murni pemegang tag + children.
  */
 export const SpannedNodeType = createType(({ node, ref, children }) => {
+    const { invokeCommand } = useNodeInternal();
     const TagName = (node.tagName || "strong").toLowerCase() as keyof JSX.IntrinsicElements;
     const FinalTagName = FORMAT_NODE_TAGS.includes(TagName) ? TagName : "span";
     const { sx, ...rest } = node.props;
-    return createElement(FinalTagName, { ...rest, ref }, node.content ? node.content : children);
+
+    const onDoubleClick = useCallback(() => {
+        invokeCommand("toggleEditing");
+    }, [invokeCommand]);
+
+    return createElement(FinalTagName, { ...rest, ref, onDoubleClick }, node.content ? node.content : children);
 }, {
     name: "Spanned",
     extends: "Text",

@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { NodeModel } from "../..";
 import RenderEditingType from "./RenderEditingType";
 import { cleanupEmptyFormatNodes, cloneChainSlice, disableInteractions, findNode, getAncestorChain, isSameFormatTag, mergeAdjacentFormatNodes, normalizeOrders, normalizeTree, setGlobalCharOffsets } from "./tools";
-import { useNodesReducer } from "@/contexts/StudioProvider";
+import { useNodes } from "@/contexts";
 import { useNodeDescendants } from "@/hooks";
 import { ShortcutHandler, useGlobalKeyListener } from "@/contexts/GlobalKeyListenerProvider";
 import { nanoid } from "nanoid";
@@ -14,7 +14,7 @@ type RenderEditingProps = { root: NodeModel };
 
 export default function RenderEditing({ root }: RenderEditingProps) {
     const { registerShortcuts } = useGlobalKeyListener();
-    const { dispatch } = useNodesReducer();
+    const { dispatch } = useNodes();;
 
     const descendants = useNodeDescendants(root);
     const nodeChildren = useMemo(() => {
@@ -365,7 +365,7 @@ export default function RenderEditing({ root }: RenderEditingProps) {
         }
 
         cleanupEmptyFormatNodes(newContents);
-        mergeAdjacentFormatNodes(newContents);
+        // mergeAdjacentFormatNodes(newContents);
         disableInteractions(newContents);
         newContents.delete(root.id); // root just for meansurements
 

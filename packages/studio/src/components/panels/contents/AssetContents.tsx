@@ -1,4 +1,4 @@
-import { useStudio } from "@/contexts/StudioProvider";
+import { useStudio } from "@/contexts";
 import { AssetObject } from "@/types";
 import { Box, Typography } from "@mui/material";
 import { FolderIcon } from "lucide-react";

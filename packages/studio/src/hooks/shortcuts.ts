@@ -1,10 +1,10 @@
 import type { ShortcutHandler } from "@/types";
 import { useMemo, useRef, useEffect, useCallback } from "react";
-import { useNodesReducer } from "@/contexts/StudioProvider";
+import { useNodes } from "@/contexts";
 
 export const useMainShortcutListener = () => {
 
-    const { state, dispatch } = useNodesReducer();
+    const { state, dispatch } = useNodes();;
     const nodesRef = useRef(state.collection);
     const selectedRef = useRef(state.selected);
     const statusRef = useRef(state.status);
@@ -24,11 +24,13 @@ export const useMainShortcutListener = () => {
     const handleUndo = useCallback((e: KeyboardEvent) => {
         console.log("Undo action triggered");
         e.preventDefault();
+        dispatch({ type: "UNDO" });
     }, []);
 
     const handleRedo = useCallback((e: KeyboardEvent) => {
         console.log("Redo action triggered");
         e.preventDefault();
+        dispatch({ type: "REDO" });
     }, []);
 
     const handleReload = useCallback((e: KeyboardEvent) => {

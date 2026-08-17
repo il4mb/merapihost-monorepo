@@ -1,6 +1,5 @@
-import { nanoid } from "nanoid";
-import { NodeState, NodeObject, Variable, BlockNodeObject, NodeActions, GenericAction } from "@/types";
-import { NodeModel } from "./NodeModel";
+import { NodeState, NodeObject, Variable, NodeHistory, NodeReducerAction } from "@/types";
+import { NodeModel } from "@/libs/node/NodeModel";
 
 export const ROOT_NODE = {
     id: "root",
@@ -20,14 +19,97 @@ export const ROOT_NODE = {
     parent: null
 } as NodeObject;
 
-export const initialNodesState: NodeState = {
+export const INITIAL_NODES_STATE: NodeState = {
     status: "editing",
     collection: new Map<string, NodeModel>(),
     variables: new Map<string, Map<string, Variable>>(),
     hovered: new Set<string>(),
-    selected: new Set<string>()
+    selected: new Set<string>(),
+    histories: {
+        past: [],
+        future: []
+    }
 }
 
+const MAX_HISTORY_VERSION = 100;
+
+/**
+ * Resets the undo/redo stacks (e.g., when loading a new document).
+ */
+const applyResetHistory = (state: NodeState): NodeState => {
+    return {
+        ...state,
+        histories: {
+            past: [],
+            future: []
+        }
+    };
+};
+
+/**
+ * Pushes the current collection into the `past` history stack.
+ * Call this BEFORE mutating `state.collection` on undoable actions.
+ */
+const pushHistory = (state: NodeState): NodeHistory => {
+    const past = [...state.histories.past, state.collection];
+
+    // Maintain maximum history depth limit
+    if (past.length > MAX_HISTORY_VERSION) {
+        past.shift();
+    }
+
+    return {
+        past,
+        future: [] // Any new edit clears the redo stack
+    };
+};
+
+/**
+ * Performs UNDO: moves current state to future, restores last past state.
+ */
+const applyUndo = (state: NodeState): NodeState => {
+    const { past, future } = state.histories;
+    if (past.length === 0) return state; // Nothing to undo
+
+    const previousCollection = past[past.length - 1];
+    const newPast = past.slice(0, past.length - 1);
+    const newFuture = [state.collection, ...future];
+
+    return {
+        ...state,
+        collection: previousCollection,
+        histories: {
+            past: newPast,
+            future: newFuture
+        },
+        // Clear selection to prevent references to deleted nodes
+        selected: new Set(),
+        hovered: new Set()
+    };
+};
+
+/**
+ * Performs REDO: moves current state to past, restores next future state.
+ */
+const applyRedo = (state: NodeState): NodeState => {
+    const { past, future } = state.histories;
+    if (future.length === 0) return state; // Nothing to redo
+
+    const nextCollection = future[0];
+    const newFuture = future.slice(1);
+    const newPast = [...past, state.collection];
+
+    return {
+        ...state,
+        collection: nextCollection,
+        histories: {
+            past: newPast,
+            future: newFuture
+        },
+        selected: new Set(),
+        hovered: new Set()
+    };
+};
 
 
 
@@ -66,10 +148,28 @@ const cleanOrphanedNodes = (collection: Map<string, NodeModel>) => {
 }
 
 
-export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>): NodeState => {
+
+export const nodeReducer = (state: NodeState, action: NodeReducerAction): NodeState => {
     switch (action.type) {
-        case "SET_NODE_STATE_STATUS": {
-            return { ...state, status: action.payload };
+
+        case "UNDO":
+            console.log("Undo History")
+            return applyUndo(state);
+
+        case "REDO":
+            console.log("Redo History")
+            return applyRedo(state);
+
+        case "CLEAR_HISTORY": {
+            console.log("History Cleared");
+            return applyResetHistory(state);
+        }
+
+        case "SET_STATUS": {
+            return applyResetHistory({
+                ...state,
+                status: action.payload
+            });
         }
 
         case "SET_NODES": {
@@ -92,7 +192,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
                     parentNode?.type.model.onChildAdded?.(node);
                 }
             }
-            return { ...state, collection: newNodes };
+            return applyResetHistory({ ...state, collection: newNodes });
         }
 
         // --- NODE MANAGEMENT ---
@@ -104,7 +204,11 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             newNodes.set(newNode.id, newNode);
 
             // newNode.type.model.onCreate?.(newNode, newNodes);
-            return { ...state, collection: newNodes }
+            return {
+                ...state,
+                histories: pushHistory(state),
+                collection: newNodes
+            }
         }
 
         case "INSERT_BLOCK": {
@@ -164,6 +268,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
             return {
                 ...state,
+                histories: pushHistory(state),
                 collection: newNodes,
                 selected: new Set([rootNode.id]),
                 hovered: new Set()
@@ -239,6 +344,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             // 8. Return updated state
             return {
                 ...state,
+                histories: pushHistory(state),
                 collection: newNodes
             };
         }
@@ -293,7 +399,11 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             }
 
             newNodes.set(action.payload.id, node);
-            return { ...state, collection: newNodes }
+            return {
+                ...state,
+                histories: pushHistory(state),
+                collection: newNodes
+            }
         }
 
         case "UPDATE_NODE_PROPS": {
@@ -309,7 +419,11 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
                 ...action.payload.props
             };
             newNodes.set(action.payload.id, updateNode);
-            return { ...state, collection: newNodes };
+            return {
+                ...state,
+                histories: pushHistory(state),
+                collection: newNodes
+            };
         }
 
         case "DELETE_NODE": {
@@ -353,6 +467,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
 
             return {
                 ...state,
+                histories: pushHistory(state),
                 collection: newNodes,
                 hovered: newHovered,
                 selected: newSelected
@@ -383,7 +498,11 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
                 newNodes.set(childNode.id, childNode);
             });
             cleanOrphanedNodes(newNodes);
-            return { ...state, collection: newNodes };
+            return {
+                ...state,
+                histories: pushHistory(state),
+                collection: newNodes
+            };
         }
 
         case "ADD_VARIABLE": {
@@ -400,7 +519,11 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             const nodeVariables = newVariables.get(nodeId)!;
             nodeVariables.set(variable.name, variable);
 
-            return { ...state, variables: newVariables };
+            return {
+                ...state,
+                histories: pushHistory(state),
+                variables: newVariables
+            };
         }
 
         case "REMOVE_VARIABLE": {
@@ -416,7 +539,11 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
                 newVariables.set(nodeId, nodeVariables);
             }
 
-            return { ...state, variables: newVariables };
+            return {
+                ...state,
+                histories: pushHistory(state),
+                variables: newVariables
+            };
         }
 
         case "UPDATE_VARIABLE": {
@@ -432,9 +559,15 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
                 newVariables.set(nodeId, nodeVariables);
             }
 
-            return { ...state, variables: newVariables };
+            return {
+                ...state,
+                histories: pushHistory(state),
+                variables: newVariables
+            };
         }
 
+
+        // --- NON-HISTORIC ACTIONS ---
         case "SET_DOM": {
 
             const node = state.collection.get(action.payload.id) ? new NodeModel(state.collection.get(action.payload.id)!) : null;
@@ -467,6 +600,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             }
         }
 
+        // --- NON-HISTORIC ACTIONS ---
         // --- INTERACTION STATES ---
         case "ADD_HOVERED":
             return { ...state, hovered: new Set(state.hovered).add(action.payload) }
@@ -480,6 +614,7 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
             return { ...state, hovered: newSet }
         }
 
+        // --- NON-HISTORIC ACTIONS ---
         case "ADD_SELECTED":
             return { ...state, selected: new Set(state.selected).add(action.payload) }
         case "SET_SELECTED":
@@ -493,19 +628,25 @@ export const nodeReducer = (state: NodeState, action: GenericAction<NodeActions>
         }
 
         case "BULK": {
+            // Push history snapshot once before starting the bulk execution
+            const stateWithHistory = {
+                ...state,
+                histories: pushHistory(state)
+            };
+
             return action.payload.reduce((currentState, bulkAction) => {
-                // @ts-ignore - TS might still complain about accessing type on a generic union, 
-                // but we know it exists on all actions.
                 if (bulkAction.type === "BULK") {
                     console.warn("Nested BULK actions are not allowed. Ignoring this action.");
                     return currentState;
                 }
 
-                // Just pass the entire action object directly. 
-                // It is already a valid EditorAction!
-                return nodeReducer(currentState, bulkAction);
-
-            }, state);
+                // Temporary override to avoid pushing multiple history entries during bulk operations
+                const resultState = nodeReducer(currentState, bulkAction);
+                return {
+                    ...resultState,
+                    histories: stateWithHistory.histories
+                };
+            }, stateWithHistory);
         }
 
 

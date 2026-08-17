@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, ReactNode } from "react";
-import { useStudio } from "@/contexts/StudioProvider";
-import { debounce } from "lodash";
+import { useStudio, DraggingProvider, useNodes } from "@/contexts";
 import { useArrayNodeRef } from "@/hooks/useNodes";
-import DraggingProvider from "@/contexts/DraggingProvider";
+import { debounce } from "lodash";
 
 interface CanvasProviderProps {
     children: ReactNode;
@@ -11,7 +10,8 @@ interface CanvasProviderProps {
 }
 export default function CanvasProvider({ children, iframe, isReady }: CanvasProviderProps) {
 
-    const { dispatch } = useStudio();
+    const { dispatch: dispatchNodes } = useNodes();
+    const { dispatch: dispatchStudio } = useStudio();
     const arrayNodeRef = useArrayNodeRef();
 
     const values = useMemo<CanvasContext>(() => ({
@@ -42,7 +42,7 @@ export default function CanvasProvider({ children, iframe, isReady }: CanvasProv
             const scrollLeft = iframeWindow.scrollX;
             const scrollTop = iframeWindow.scrollY;
             const rect = iframeWindow.document.documentElement.getBoundingClientRect();
-            dispatch({
+            dispatchStudio({
                 type: "UPDATE_VIEWPORT",
                 payload: {
                     width: rect.width,
@@ -75,15 +75,15 @@ export default function CanvasProvider({ children, iframe, isReady }: CanvasProv
                 return; // Ignore hover on non-hoverable nodes
             }
             if (targetNode) {
-                dispatch({ type: "SET_HOVERED", payload: targetNode.id });
+                dispatchNodes({ type: "SET_HOVERED", payload: targetNode.id });
             } else {
-                dispatch({ type: "CLEAR_HOVERED" });
+                dispatchNodes({ type: "CLEAR_HOVERED" });
             }
 
         }, 100);
 
         const onMouseLeave = debounce(() => {
-            dispatch({ type: "CLEAR_HOVERED" });
+            dispatchNodes({ type: "CLEAR_HOVERED" });
         }, 100);
 
         const onMouseUp = (e: MouseEvent) => {
@@ -113,12 +113,12 @@ export default function CanvasProvider({ children, iframe, isReady }: CanvasProv
 
             if (targetNode) {
                 if (e.shiftKey || e.ctrlKey || e.metaKey) {
-                    dispatch({ type: "ADD_SELECTED", payload: targetNode.id });
+                    dispatchNodes({ type: "ADD_SELECTED", payload: targetNode.id });
                 } else {
-                    dispatch({ type: "SET_SELECTED", payload: targetNode.id });
+                    dispatchNodes({ type: "SET_SELECTED", payload: targetNode.id });
                 }
             } else {
-                dispatch({ type: "CLEAR_SELECTED" });
+                dispatchNodes({ type: "CLEAR_SELECTED" });
             }
         };
 

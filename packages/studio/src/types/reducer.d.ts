@@ -1,7 +1,7 @@
 import { NodeModel } from "@/libs/node/NodeModel";
 import type { NodeObject, NodeVariable, AssetObject, PageObject, Block, Edge, Coordinates, NodeData } from "./index";
 
-// 2. Fixed DeepPartial to prevent infinite recursion on complex objects
+// Fixed DeepPartial to prevent infinite recursion on complex objects
 export type DeepPartial<T> = T extends Function | Map<any, any> | Set<any> | HTMLElement
     ? T
     : T extends Array<infer U>
@@ -9,6 +9,21 @@ export type DeepPartial<T> = T extends Function | Map<any, any> | Set<any> | HTM
     : T extends object
     ? { [P in keyof T]?: DeepPartial<T[P]> }
     : T;
+
+// Convert any action payload map into a Discriminated Union of Actions
+export type ActionUnion<T extends Record<string, any>> = {
+    [K in keyof T]: T[K] extends never
+    ? { type: K }
+    : undefined extends T[K]
+    ? { type: K; payload?: T[K] }
+    : { type: K; payload: T[K] };
+}[keyof T];
+
+// Generic Action that includes all actions from map T + the BULK action
+export type GenericAction<T extends Record<string, any>> =
+    | ActionUnion<T>
+    | { type: "BULK"; payload: GenericAction<T>[] };
+
 
 
 export type Viewport = {
@@ -21,17 +36,22 @@ export type Viewport = {
 }
 
 
-export interface NodeState {
+export type NodeHistory = {
+    past: Map<string, NodeModel>[];
+    future: Map<string, NodeModel>[];
+}
+
+export type NodeState = {
     status: "idle" | "editing" | "preview";
     collection: Map<string, NodeModel>;
+    histories: NodeHistory;
     variables: Map<string, Map<string, NodeVariable>>;
     hovered: Set<string>;
     selected: Set<string>;
 }
 
 
-
-export interface EditorState {
+export type StudioState = {
     devices: {
         id: string;
         name: string;
@@ -39,7 +59,6 @@ export interface EditorState {
         height?: number | string;
     }[];
     viewport: Viewport;
-    nodes: NodeState;
     device: string;
 
     assets: {
@@ -55,8 +74,18 @@ export interface EditorState {
     };
 }
 
-export type NodeActions = {
-    SET_NODE_STATE_STATUS: NodeState["status"];
+export type RootState = {
+    studio: StudioState;
+    nodes: NodeState;
+}
+type RootAction = StudioReducerAction | NodeReducerAction;
+
+
+export type NodeActionMap = {
+    REDO: void;
+    UNDO: void;
+    CLEAR_HISTORY: void;
+    SET_STATUS: NodeState["status"];
     ADD_NODE: NodeObject;
     INSERT_BLOCK: {
         block: Block;
@@ -121,8 +150,8 @@ export type NodeActions = {
     CLEAR_SELECTED: never;
 }
 
-export type CoreActionMap = {
-    UPDATE_VIEWPORT: Partial<EditorState["viewport"]>;
+export type StudioActionMap = {
+    UPDATE_VIEWPORT: Partial<StudioState["viewport"]>;
     SET_DEVICE: string;
     SET_ASSETS: Map<string, AssetObject>;
     SET_SELECTED_ASSET: AssetObject | null;
@@ -139,29 +168,13 @@ export type CoreActionMap = {
 };
 
 
-// 1. Convert any action payload map into a Discriminated Union of Actions
-export type ActionUnion<T extends Record<string, any>> = {
-    [K in keyof T]: T[K] extends never
-    ? { type: K }
-    : undefined extends T[K]
-    ? { type: K; payload?: T[K] }
-    : { type: K; payload: T[K] };
-}[keyof T];
+// Concrete action unions for your editor
+export type StudioReducerAction = GenericAction<StudioActionMap>;
+export type NodeReducerAction = GenericAction<NodeActionMap>;
 
-// 2. Generic Action that includes all actions from map T + the BULK action
-export type GenericAction<T extends Record<string, any>> =
-    | ActionUnion<T>
-    | { type: "BULK"; payload: GenericAction<T>[] };
-
-// 3. Concrete action unions for your editor
-export type CoreEditorAction = GenericAction<CoreActionMap>;
-export type NodeEditorAction = GenericAction<NodeActions>;
 
 // Combined action union if your editor handles both node and core actions
-export type EditorAction = GenericAction<CoreActionMap & NodeActions>;
+export type EditorAction = GenericAction<StudioActionMap & NodeActionMap>;
 
-// 4. Generic Reducer definition
-export type GenericReducer<S, A extends Record<string, any>> = (
-    state: S,
-    action: GenericAction<A>
-) => S;
+// Generic Reducer definition
+export type GenericReducer<S, A extends Record<string, any>> = (state: S, action: GenericAction<A>) => S;

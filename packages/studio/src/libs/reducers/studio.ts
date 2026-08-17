@@ -1,10 +1,10 @@
 import { nanoid } from "nanoid";
-import { AssetObject, EditorAction, EditorState, NodeObject, PageObject, BlockNodeObject } from "@/types";
-import { REGISTRY } from "./node";
+import { AssetObject, StudioState, NodeObject, PageObject, BlockNodeObject, StudioReducerAction } from "@/types";
+import { REGISTRY } from "../node";
 import { merge } from "lodash";
-import { initialNodesState, nodeReducer } from "./node/nodeReducer";
+// import { initialNodesState, nodeReducer } from "../node/nodeReducer";
 
-export const initialState: EditorState = {
+export const INITIAL_STUDIO_STATE: StudioState = {
     viewport: {
         scale: 1,
         width: 0,
@@ -13,7 +13,6 @@ export const initialState: EditorState = {
         edge: { top: 0, left: 0, bottom: 0, right: 0 },
         iframe: null
     },
-    nodes: initialNodesState,
     devices: [
         { id: "desktop", name: "Desktop", width: 1600, height: 1080 },
         { id: "tablet", name: "Tablet", width: 768, height: 1024 },
@@ -91,7 +90,7 @@ const fallbackNodeValidType = (node: NodeObject): NodeObject => ({
 // 3. STUDIO REDUCER
 // ==========================================
 
-export const studioReducer = (state: EditorState, action: EditorAction): EditorState => {
+export const studioReducer = (state: StudioState, action: StudioReducerAction): StudioState => {
     switch (action.type) {
         case "UPDATE_VIEWPORT": {
             return {
@@ -238,9 +237,9 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
         case "SET_OPENED_PAGE": {
             return {
                 ...state,
-                nodes: {
-                    ...state.nodes
-                },
+                // nodes: {
+                //     ...state.nodes
+                // },
                 pages: {
                     ...state.pages,
                     opened: action.payload,
@@ -258,18 +257,10 @@ export const studioReducer = (state: EditorState, action: EditorAction): EditorS
                     console.warn("Nested BULK actions are not allowed. Ignoring this action.");
                     return currentState;
                 }
-
-                // Just pass the entire action object directly. 
-                // It is already a valid EditorAction!
-                return studioReducer(currentState, bulkAction as EditorAction);
-
             }, state);
         }
 
         default:
-            return {
-                ...state,
-                nodes: nodeReducer(state.nodes, action)
-            }
+            return state;
     }
 }

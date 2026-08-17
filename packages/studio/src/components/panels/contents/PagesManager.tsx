@@ -4,7 +4,6 @@ import { usePages } from "@/contexts/PagesProvider";
 import { motion } from "motion/react";
 import { Typography, Divider, Box, LinearProgress, Stack, IconButton, Tooltip } from "@mui/material";
 import { memo, useCallback, useEffect, useState, useMemo } from "react";
-import { useStudio } from "@/contexts/StudioProvider";
 import type { PageObject } from "@/types";
 import { FileIcon, FilePenIcon, FilePlusCorner, SettingsIcon } from "lucide-react";
 import { useNavigate } from "@/hooks/useNavigate";
@@ -12,6 +11,7 @@ import { useParams } from "next/navigation";
 import { useNavigation } from "@/components/navigations/NavigationProvider";
 import PageSettingsDialog from "../dialogs/PageSettingsDialog";
 import PageCreateDialog from "../dialogs/PageCreateDialog";
+import { useStudio } from "@/contexts";
 
 const ELLIPSIS_STYLE = {
     overflow: "hidden",
@@ -26,9 +26,10 @@ type PageItemProps = {
 };
 const PageItem = memo(({ page, onClick, onSettingsClick }: PageItemProps) => {
 
-    const { loading } = useNavigation();
     const navigate = useNavigate();
+    const { loading } = useNavigation();
     const { state } = useStudio();
+
     const isSelected = state.pages.selected?.id === page.id;
     const isOpened = state.pages.opened?.id === page.id;
     const IconComponent = isOpened ? FilePenIcon : FileIcon;

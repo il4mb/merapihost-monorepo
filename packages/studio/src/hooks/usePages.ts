@@ -1,8 +1,8 @@
-import { useStudio } from "@/contexts/StudioProvider";
 import { useMemo } from "react";
+import { useStudio } from "@/contexts";
 
 export const usePages = () => {
-    const { state, dispatch } = useStudio();
+    const { state } = useStudio();
     return useMemo(() => Array.from(state.pages.collection.values()), [state.pages.collection]);
 }
 

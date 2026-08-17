@@ -1,14 +1,14 @@
 import { BinaryIcon } from "lucide-react";
 import { createType } from "../tools";
 import { createElement, JSX, useCallback } from "react";
-import { useNodesReducer } from "@/contexts/StudioProvider";
+import { useNodes } from "@/contexts";
 
 // TextNode sekarang HANYA leaf raw text — tagName di sini murni elemen HTML pembungkus
 // default (biasanya "span"), BUKAN representasi format lagi.
 export const TEXT_NODE_TAGS = ["span"];
 
 export const TextNodeType = createType(({ node, ref }) => {
-    const { state: { collection }, dispatch } = useNodesReducer();
+    const { state: { collection }, dispatch } = useNodes();;
 
     const findParentTextType = useCallback(() => {
         let currentNode = node;

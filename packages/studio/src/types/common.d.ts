@@ -4,6 +4,7 @@ import { NodeObject, NodeVariable } from "./node";
 import { AssetObject } from "./asset";
 import type { NodeContext, NodeModel } from "@/libs/node/NodeModel";
 import { SxProps } from "@mui/material";
+import { ModelActionContext } from "@/libs/node";
 
 export interface ShortcutHandler {
     /** List of keys required to trigger the action (e.g. ["Control", "s"]) */
@@ -151,7 +152,7 @@ export type TypeModel<T extends Record<string, unknown> = Record<string, unknown
     default?: TypeModelDefault<T>;
     actions?: TypeActionDefine | ((n: NodeModel<T>) => TypeActionDefine | undefined | void);
     commands?: {
-        [k: string]: (node: NodeModel) => void
+        [k: string]: (node: NodeModel, props: { context: ModelActionContext }) => void
     }
 }
 export type TypeActionDefine = {

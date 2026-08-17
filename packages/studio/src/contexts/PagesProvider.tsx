@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useStudio } from "./StudioProvider";
 import { PageObject } from "@/types/page";
+import { useStudio } from "@/contexts";
 
 export interface PagesContextType {
     pages: Map<string, PageObject>;

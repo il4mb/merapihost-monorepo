@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState, useMemo, ReactNode, useRef, RefObject } from "react";
-import { useStudio } from "@/contexts/StudioProvider";
 import DropIndicator from "@/components/screens/indicators/DropIndicator";
 import { debounce } from "lodash";
 import { Block } from "@/types";
 import { NodeModel } from "@/libs/node";
+import { useNodes, useStudio } from "@/contexts";
 
 const getGeometry = (el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
@@ -186,7 +186,8 @@ interface DraggingProviderProps {
 }
 export default function DraggingProvider({ children, iframe, isReady, arrayNodeRef }: DraggingProviderProps) {
 
-    const { state, dispatch } = useStudio();
+    const nodes = useNodes();
+    const { dispatch } = useNodes();
 
     const [dragging, setDragging] = useState(false);
     const [draggingClient, setDraggingClient] = useState(false);
@@ -235,7 +236,6 @@ export default function DraggingProvider({ children, iframe, isReady, arrayNodeR
 
         const resolved = computeDropTarget(rawTarget, event, sourceElement);
         if (!resolved) return;
-        // console.log(resolved);
 
         const { targetEl: initialTargetEl, position: initialPosition, isHorizontal } = resolved;
 
@@ -417,7 +417,7 @@ export default function DraggingProvider({ children, iframe, isReady, arrayNodeR
         const onDragOver = (e: DragEvent) => {
             e.preventDefault();
             setDragging(true);
-            if (state.nodes.status !== "editing") return;
+            if (nodes.state.status !== "editing") return;
             const dt = e.dataTransfer;
             if (!dt) return;
 
@@ -435,7 +435,7 @@ export default function DraggingProvider({ children, iframe, isReady, arrayNodeR
         const onDrop = (e: DragEvent) => {
             e.preventDefault();
             setDragging(false);
-            if (state.nodes.status !== "editing") return;
+            if (nodes.state.status !== "editing") return;
 
             const dt = e.dataTransfer;
             if (!dt) return;
@@ -504,7 +504,7 @@ export default function DraggingProvider({ children, iframe, isReady, arrayNodeR
         return () => {
             detachIframeListeners();
         };
-    }, [iframe, dispatch, isReady, state.nodes.status]);
+    }, [iframe, dispatch, isReady, nodes.state.status]);
 
 
     const values = useMemo<DraggingContext>(() => ({

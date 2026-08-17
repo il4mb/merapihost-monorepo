@@ -1,7 +1,17 @@
-import type { NodeModel, TypeActionDefine, TypeComponent, TypeModel } from "@/types";
+import type { NodeModel, NodeReducerAction, TypeActionDefine, TypeComponent, TypeModel } from "@/types";
+import { getNodeAncesors, getNodeChildren, getNodeDescendants, REGISTRY } from ".";
 import { NodeContext } from "./NodeModel";
-import { REGISTRY } from ".";
+import { Dispatch } from "react";
 import { merge } from "lodash";
+
+
+export type ModelActionContext = {
+    getChildren: () => NodeModel<Record<string, any>>[];
+    getAncesors: () => NodeModel<Record<string, any>>[];
+    getDescendants: () => Map<string, NodeModel<Record<string, any>>>;
+    updateChildren: (children: Map<string, NodeModel>) => void;
+    command: (id: string) => any;
+}
 
 /**
  * A proxy class that wraps a TypeModel and provides access to its properties, including inherited properties from parent models.
@@ -148,10 +158,20 @@ export class ModelProxy {
         };
     }
 
-    invokeCommand(id: string) {
+    createContext(dispatch: Dispatch<NodeReducerAction>, collection: Map<string, NodeModel>) {
+        return {
+            getChildren: () => getNodeChildren(this.node, collection),
+            getAncesors: () => getNodeAncesors(this.node, collection),
+            getDescendants: () => getNodeDescendants(this.node, collection),
+            updateChildren: (children: Map<string, NodeModel>) => dispatch({ type: "SET_NODE_CHILDREN", payload: { id: this.node.id, children } }),
+            command: this.invokeCommand
+        } as ModelActionContext;
+    }
+
+    invokeCommand(id: string, context: ModelActionContext, props?: any) {
         const command = this.commands[id];
         if (typeof command === "function") {
-            return command(this.node);
+            return command(this.node, { context, ...props });
         }
         console.warn(`Command with id "${id}" was not found at ${this.model.name}`);
     }

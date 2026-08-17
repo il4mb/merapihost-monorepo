@@ -2,7 +2,7 @@ import { Box, Divider, IconButton, styled, Typography } from "@mui/material";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { ChevronRight, CircleQuestionMark, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useNodesReducer } from "@/contexts/StudioProvider";
+import { useNodes } from "@/contexts";
 import { useNodeChildren } from "@/hooks/useNodes";
 import LabelField from "@/components/ui/fields/LabelField";
 import ScrollContainer from "@/components/ui/ScrollContainer";
@@ -272,7 +272,7 @@ const TreeVisual = memo(({
 // 2. The Context Wrapper
 // This lightweight component subscribes to the context but passes isolated values down.
 const Tree = (props: TreeProps) => {
-    const { state, dispatch } = useNodesReducer();
+    const { state, dispatch } = useNodes();;
     const { node } = props;
 
     // Isolate the exact boolean states this specific node cares about
@@ -294,7 +294,7 @@ const Tree = (props: TreeProps) => {
 interface TreeManagerProps { }
 
 export default function TreeManager({ }: TreeManagerProps) {
-    const { state } = useNodesReducer();
+    const { state } = useNodes();;
 
     const rootNode = useMemo(() => {
         return state.collection.get("root") || null;

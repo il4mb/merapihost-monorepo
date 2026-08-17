@@ -1,7 +1,7 @@
 "use client";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useStudio } from "./StudioProvider";
-import { AssetObject } from "@editor/types";
+import { AssetObject } from "@/types";
+import { useStudio } from "@/contexts";
 
 type AssetsProviderProps = {
     children: ReactNode;

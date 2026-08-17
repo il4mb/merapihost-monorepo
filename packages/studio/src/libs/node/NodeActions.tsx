@@ -1,8 +1,9 @@
 import { IconButton, Stack, Tooltip } from "@mui/material";
 import { NodeModel } from ".";
 import { ActivitySquare } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TypeAction } from "@/types";
+import { useNodeCollectionRef, useNodes } from "@/contexts";
 
 type NodeActionItem = TypeAction & { id: string; title?: string };
 type NodeActionsProps = {
@@ -10,17 +11,19 @@ type NodeActionsProps = {
 };
 
 export default function NodeActions({ node }: NodeActionsProps) {
+    const { dispatch } = useNodes();
+    const collectionRef = useNodeCollectionRef();
     const [actions, setActions] = useState<NodeActionItem[]>([]);
-    const prevActionsRef = useRef<NodeActionItem[]>([]);
 
     useEffect(() => {
         const nextActions = node.type.actions;
         setActions(nextActions);
     }, [node.data]);
 
-    const handleClick = (id: string) => {
-        node.type.invokeCommand(id);
-    }
+    const handleClick = useCallback((id: string) => {
+        node.type.invokeCommand(id, node.type.createContext(dispatch, collectionRef.current));
+    }, [node.type]);
+
     return (
         <Stack direction={"row"} sx={{ ml: 2, gap: 0, borderRadius: .2, overflow: "hidden" }}>
             {actions.map(act => (

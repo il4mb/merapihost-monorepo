@@ -1,5 +1,5 @@
 "use client";
-import { useStudio } from "@/contexts/StudioProvider";
+import { useStudio } from "@/contexts";
 import { TextField, MenuItem } from "@mui/material";
 
 export default function DeviceSwitch() {

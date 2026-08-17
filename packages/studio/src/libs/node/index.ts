@@ -1,4 +1,3 @@
-import { TypeComponent } from "@/types";
 import NodeRender from "./NodeRender"; // Not a type node
 import { REGISTRY } from "./types";
 
@@ -10,4 +9,4 @@ export {
 export * from "./tools";
 export * from "./ModelProxy";
 export * from "./NodeModel";
-export * from "./nodeReducer";
+export * from "./NodeInternal";

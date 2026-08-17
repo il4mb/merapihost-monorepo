@@ -1,20 +1,16 @@
 "use client";
-import { useNodesReducer } from "@/contexts/StudioProvider";
+import { useNodes } from "@/contexts";
 import { Box, Button, Typography } from "@mui/material";
 import WindowDialog from "../ui/WindowDialog";
 import { PenOff } from "lucide-react";
 
-type NodeStatusIndicatorProps = {
-
-};
-
-export default function NodeStatusIndicator({ }: NodeStatusIndicatorProps) {
-    const { state, dispatch } = useNodesReducer();
+export default function NodeStatusIndicator() {
+    const { state, dispatch } = useNodes();
     const isEditing = state.status === "editing";
-    const shouldOpen = !isEditing && state.status !== "saving";
+    const shouldOpen = !isEditing;
 
     const handleSwitchToEditingMode = () => {
-        dispatch({ type: "SET_NODE_STATE_STATUS", payload: "editing" });
+        dispatch({ type: "SET_STATUS", payload: "editing" });
     };
 
     if (!shouldOpen) return null;

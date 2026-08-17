@@ -1,19 +1,11 @@
 "use client";
-import { studioReducer, initialState } from "@/libs/reducer";
 import { createContext, useContext, ReactNode, useReducer, memo, Dispatch, useMemo } from "react";
-import type { EditorAction, EditorState, NodeState, GenericAction, NodeActions } from "@/types";
-import AssetsProvider from "./AssetsProvider";
-import PagesProvider from "./PagesProvider";
+import type { StudioReducerAction, StudioState } from "@/types";
+import { AssetsProvider, PagesProvider, NodesProvider, GlobalKeyListenerProvider, EventsProvider } from "@/contexts";
 import { useRegisterShortcuts, useMainShortcutListener } from "@/hooks";
-import GlobalKeyListenerProvider from "./GlobalKeyListenerProvider";
-import StudioEventsProvider from "./StudioEventsProvider";
+import { INITIAL_STUDIO_STATE, studioReducer } from "@/libs/reducers";
 
-
-interface StudioContextType {
-    state: EditorState;
-    dispatch: Dispatch<EditorAction>;
-
-}
+interface StudioContextType { state: StudioState; dispatch: Dispatch<StudioReducerAction>; }
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 export const useStudio = () => {
     const context = useContext(StudioContext);
@@ -23,37 +15,27 @@ export const useStudio = () => {
     return context;
 }
 
-export const useNodesReducer = () => {
-    const { state, dispatch } = useStudio();
-    return useMemo(() => ({
-        state: state.nodes,
-        dispatch
-    } as {
-        state: NodeState;
-        dispatch: Dispatch<GenericAction<NodeActions>>;
-    }), [state.nodes, dispatch]);
-}
-
-
 interface StudioProviderProps {
     children: ReactNode;
 }
 export default function StudioProvider({ children }: StudioProviderProps) {
-    const [state, dispatch] = useReducer(studioReducer, initialState);
+    const [state, dispatch] = useReducer(studioReducer, INITIAL_STUDIO_STATE);
     const value = useMemo(() => ({ state, dispatch }), [state, dispatch]);
     return (
         <StudioContext.Provider value={value}>
-            <GlobalKeyListenerProvider>
-                <StudioEventsProvider>
-                    <RegisterMainShortcuts>
-                        <AssetsProvider>
-                            <PagesProvider>
-                                {children}
-                            </PagesProvider>
-                        </AssetsProvider>
-                    </RegisterMainShortcuts>
-                </StudioEventsProvider>
-            </GlobalKeyListenerProvider>
+            <NodesProvider>
+                <GlobalKeyListenerProvider>
+                    <EventsProvider>
+                        <RegisterMainShortcuts>
+                            <AssetsProvider>
+                                <PagesProvider>
+                                    {children}
+                                </PagesProvider>
+                            </AssetsProvider>
+                        </RegisterMainShortcuts>
+                    </EventsProvider>
+                </GlobalKeyListenerProvider>
+            </NodesProvider>
         </StudioContext.Provider>
     );
 }

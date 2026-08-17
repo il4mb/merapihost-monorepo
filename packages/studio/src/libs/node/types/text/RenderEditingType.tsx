@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { NodeModel } from "../..";
 import { useNodeChildren } from "@/hooks";
-import { useNodesReducer } from "@/contexts/StudioProvider";
+import { useNodes } from "@/contexts";
 
 type RenderEditingTypeProps = {
     node: NodeModel;
@@ -9,7 +9,7 @@ type RenderEditingTypeProps = {
 
 export default function RenderEditingType({ node }: RenderEditingTypeProps) {
 
-    const { dispatch } = useNodesReducer();
+    const { dispatch } = useNodes();;
     const Component = useMemo(() => node.type.render, [node.type]);
 
     const childrenNode = useNodeChildren(node);

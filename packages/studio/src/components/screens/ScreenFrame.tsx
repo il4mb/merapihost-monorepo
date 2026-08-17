@@ -1,9 +1,9 @@
 "use client";
-import { useStudio } from "@/contexts/StudioProvider";
 import { useMemo, useRef, useCallback, useEffect } from "react";
 import { useScreenContainer } from "./ScreenContainer";
 import { styled } from "@mui/material/styles";
 import Typography from "@mui/material/Typography";
+import { useStudio } from "@/contexts";
 
 const FrameOfScreen = styled("div")({
     position: "absolute",

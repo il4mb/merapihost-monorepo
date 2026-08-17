@@ -1,19 +1,20 @@
 import { Typography } from "@mui/material";
-import { BoldIcon, ItalicIcon, TypeIcon, UnderlineIcon } from "lucide-react";
-import { createType } from "../../tools";
+import { BoldIcon, ItalicIcon, TypeIcon, UnderlineIcon, RemoveFormatting } from "lucide-react";
 import { JSX } from "react/jsx-runtime";
 import { useCallback, useEffect, useRef } from "react";
-import { useNodesReducer } from "@/contexts/StudioProvider";
+import { useNodes } from "@/contexts";
 import RenderEditing from "./RenderEditing";
 import { useNodeDescendantsRef } from "@/hooks/useNodes";
-import { NodeModel } from "../..";
+import { NodeModel, createType, useNodeInternal } from "@/libs/node";
 
 type TextTypeData = {
     editing: boolean;
     formats: string[]
 }
 export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
-    const { state, dispatch } = useNodesReducer();
+
+    const { invokeCommand } = useNodeInternal();
+    const { state, dispatch } = useNodes();;
     const tagName = (node.tagName || "span") as keyof JSX.IntrinsicElements;
     const descendantsRef = useNodeDescendantsRef(node);
     const textRootRef = useRef<NodeModel>(null);
@@ -89,24 +90,25 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
     }, [descendantsRef, dispatch, node.id, clearWindowSelection]);
 
     const handleDoubleClick = useCallback(() => {
-        const textRoot = textRootRef.current;
-        const isRootNode = textRoot?.id === node.id;
-        if (textRoot) {
-            if (!isRootNode) {
-                // pass event to text root
-                dispatch({ type: "SET_SELECTED", payload: textRoot.id });
-                setTimeout(() => {
-                    textRoot.dom?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-                }, 50);
-                return;
-            }
+        invokeCommand("toggleEditing");
+        // const textRoot = textRootRef.current;
+        // const isRootNode = textRoot?.id === node.id;
+        // if (textRoot) {
+        //     if (!isRootNode) {
+        //         // pass event to text root
+        //         dispatch({ type: "SET_SELECTED", payload: textRoot.id });
+        //         setTimeout(() => {
+        //             textRoot.dom?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+        //         }, 50);
+        //         return;
+        //     }
 
-            // only pass when not editing and in root text node
-            if (node.data.editing) return;
-            if (node.data.isSelected && ref.current) {
-                prepareStartEditing();
-            }
-        }
+        //     // only pass when not editing and in root text node
+        //     if (node.data.editing) return;
+        //     if (node.data.isSelected && ref.current) {
+        //         prepareStartEditing();
+        //     }
+        // }
     }, [node.data.isSelected, node.data.editing, ref, prepareStartEditing]);
 
     useEffect(() => {
@@ -159,7 +161,14 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
         }
     },
     actions: (node) => {
-        if (!node.data.editing) return;
+        if (!node.data.editing) {
+            return !node.isTextLeaf && {
+                clean: {
+                    icon: RemoveFormatting,
+                    title: "clear text"
+                }
+            }
+        }
         return {
             bold: {
                 icon: BoldIcon,
@@ -183,6 +192,10 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
         },
         italic: () => {
             console.log("Italic Command");
+        },
+
+        toggleEditing: (node, { context }) => {
+            console.log("Starting Editing", context.getChildren());
         }
     }
 });

@@ -1,10 +1,10 @@
 import { useMemo, useRef, useEffect, useCallback } from "react";
 import { NodeData, NodeModel } from "@/types";
-import { useNodesReducer } from "@/contexts/StudioProvider";
+import { useNodes } from "@/contexts";
 
 
 export const useMutateNodeData = <T extends Record<string, any> = Record<string, any>>(node: NodeModel<T>) => {
-    const { dispatch } = useNodesReducer();
+    const { dispatch } = useNodes();;
     const mutate = useCallback((data: Partial<NodeData<Record<string, any>>>) => {
         dispatch({
             type: "UPDATE_NODE",
@@ -18,7 +18,7 @@ export const useMutateNodeData = <T extends Record<string, any> = Record<string,
 }
 
 export const useArrayNodeRef = () => {
-    const { state } = useNodesReducer();
+    const { state } = useNodes();;
     const arrayNodeRef = useRef<NodeModel[]>([]);
     useEffect(() => {
         arrayNodeRef.current = Array.from(state.collection.values());
@@ -28,7 +28,7 @@ export const useArrayNodeRef = () => {
 }
 
 export const useNodeChildren = (node: NodeModel) => {
-    const { state } = useNodesReducer();
+    const { state } = useNodes();;
     return useMemo(() => {
         return Array.from(state.collection.values()).filter(n => n.parent === node.id).sort((a, b) => (a.order || 0) - (b.order || 0));
     }, [state.collection, node.id]);
@@ -48,7 +48,7 @@ export const useVisibleNodeChildren = (node: NodeModel) => {
  * @returns a map of descendant nodes keyed by their id
  */
 export const useNodeDescendants = (node: NodeModel) => {
-    const { state } = useNodesReducer();
+    const { state } = useNodes();;
 
     return useMemo(() => {
         const childrenMap = new Map<string, NodeModel[]>();
@@ -100,7 +100,7 @@ export const useNodeDescendantsRef = (node: NodeModel) => {
  * @returns an array of ancestor nodes
  */
 export const useNodeAncestors = (node: NodeModel) => {
-    const { state } = useNodesReducer();
+    const { state } = useNodes();;
     const ancestors = useMemo(() => {
         const result: NodeModel[] = [];
         let currentNode: NodeModel | undefined = node;
@@ -118,7 +118,7 @@ export const useNodeAncestors = (node: NodeModel) => {
 }
 
 export const useFindNodeParent = (node: NodeModel, iterate: (node: NodeModel) => boolean) => {
-    const { state } = useNodesReducer();
+    const { state } = useNodes();;
     const parent = useMemo(() => {
         let currentNode: NodeModel | undefined = node;
         while (currentNode.parent) {

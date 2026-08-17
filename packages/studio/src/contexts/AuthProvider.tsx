@@ -1,6 +1,6 @@
 "use client";
 import { auth } from "@/libs/firebase";
-import { Box, CircularProgress, Fade, Typography } from "@mui/material";
+import { CircularProgress, Typography } from "@mui/material";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { createContext, useContext, useEffect, useState } from "react";
 import CenteredFlexboxItem from "@/components/ui/CenteredFlexboxItem";

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState, useMemo, memo, Fragment } from "react";
 import { Box, Stack, Typography } from "@mui/material";
-import { useNodesReducer, useStudio } from "@/contexts/StudioProvider";
 import { getLayoutBoxes } from "@/libs/tools/layout";
 import type { Edge, LayoutBoxes } from "@/types";
 import { NodeModel } from "@/libs/node/NodeModel";
 import NodeActions from "@/libs/node/NodeActions";
+import { useNodes, useStudio } from "@/contexts";
 
 const COLORS = {
     margin: "rgba(243, 202, 18, 0.35)", // Orange
@@ -200,7 +200,7 @@ const Indicator = memo(({ node }: IndicatorProps) => {
 });
 
 export default function SelectedIndicators() {
-    const { state: { selected, collection } } = useNodesReducer();
+    const { state: { selected, collection } } = useNodes();;
     const selectedNodes = useMemo(() => {
         return Array.from(selected).map((id) =>
             collection.get(id)

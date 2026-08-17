@@ -1,6 +1,6 @@
 "use client";
 import { StudioEventContext, useStudioEvents } from "@/contexts/StudioEventsProvider";
-import { useNodesReducer } from "@/contexts/StudioProvider";
+import { useNodes } from "@/contexts";
 import { useCurrentPage } from "@/hooks/usePages";
 import { clientApi } from "@/libs/api-client.ts";
 import { Button, Tooltip } from "@mui/material";
@@ -21,7 +21,7 @@ type SaveActionProps = {};
 export default function SaveAction({ }: SaveActionProps) {
     const page = useCurrentPage();
     const { setAction, fireEvent } = useStudioEvents();
-    const { state } = useNodesReducer();
+    const { state, dispatch } = useNodes();;
     const [isSaving, setIsSaving] = useState(false);
     const isRunningRef = useRef(false);
     const isEditing = useMemo(() => state.status === "editing", [state.status]);
@@ -48,6 +48,7 @@ export default function SaveAction({ }: SaveActionProps) {
             if (!result.success) {
                 throw new Error(result.message || "Failed to save nodes.");
             }
+            dispatch({ type: "CLEAR_HISTORY" });
             return true;
         } catch (error: any) {
             enqueueSnackbar(`Error during save: ${error.message}`, { variant: "error" });
