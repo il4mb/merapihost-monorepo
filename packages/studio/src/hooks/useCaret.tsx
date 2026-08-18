@@ -22,7 +22,12 @@ export type SelectionSegment = {
     isPartial: boolean;
 };
 
-const getSelectionSegments = (anchor: number, focus: number, descendantsMap: Map<string, NodeModel>, rootNode: NodeModel): SelectionSegment[] => {
+const getSelectionSegments = (
+    anchor: number,
+    focus: number,
+    descendantsMap: Map<string, NodeModel>,
+    rootNode: NodeModel,
+): SelectionSegment[] => {
     const start = Math.min(anchor, focus);
     const end = Math.max(anchor, focus);
     if (start === end) return [];
@@ -62,20 +67,26 @@ const getSelectionSegments = (anchor: number, focus: number, descendantsMap: Map
 };
 
 /** compute active format tags for toolbar state ── */
-const computeActiveFormats = (selection: Selection, descendantsMap: Map<string, NodeModel>, rootNode: NodeModel): string[] => {
+const computeActiveFormats = (
+    selection: Selection,
+    descendantsMap: Map<string, NodeModel>,
+    rootNode: NodeModel,
+): string[] => {
     // ── Collect text nodes dengan arsitektur baru ──
     const allNodes = Array.from(descendantsMap.values());
 
-    const textNodes = allNodes.filter((n) => n.type.isText).sort((a, b) => {
-        if (!a.dom || !b.dom) return (a.order || 0) - (b.order || 0);
-        const cmp = a.dom.compareDocumentPosition(b.dom);
-        if (cmp & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-        if (cmp & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-        return (a.order || 0) - (b.order || 0);
-    });
+    const textNodes = allNodes
+        .filter((n) => n.type.isText)
+        .sort((a, b) => {
+            if (!a.dom || !b.dom) return (a.order || 0) - (b.order || 0);
+            const cmp = a.dom.compareDocumentPosition(b.dom);
+            if (cmp & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+            if (cmp & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+            return (a.order || 0) - (b.order || 0);
+        });
 
     // Jika root punya content string, root juga masuk
-    if (rootNode && typeof rootNode.content === 'string') {
+    if (rootNode && typeof rootNode.content === "string") {
         textNodes.unshift(rootNode);
     }
 
@@ -180,7 +191,12 @@ const offsetFromNativeNode = (nativeNode: Node, nativeOffset: number, map: Map<s
     return 0;
 };
 
-const getCaretRect = (doc: Document, textNode: Text, offset: number, containerRect: DOMRect): { x: number; y: number; h: number } | null => {
+const getCaretRect = (
+    doc: Document,
+    textNode: Text,
+    offset: number,
+    containerRect: DOMRect,
+): { x: number; y: number; h: number } | null => {
     const range = doc.createRange();
     const len = textNode.textContent?.length || 0;
     const safeOff = Math.max(0, Math.min(offset, len));
@@ -189,21 +205,29 @@ const getCaretRect = (doc: Document, textNode: Text, offset: number, containerRe
     range.collapse(true);
     let r = range.getBoundingClientRect();
 
-    if ((!r.width && !r.height) && safeOff > 0) {
+    if (!r.width && !r.height && safeOff > 0) {
         range.setStart(textNode, safeOff - 1);
         range.setEnd(textNode, safeOff);
         r = range.getBoundingClientRect();
         if (r.width || r.height) {
-            return { x: Math.round(r.right - containerRect.left), y: Math.round(r.top - containerRect.top), h: Math.round(r.height) };
+            return {
+                x: Math.round(r.right - containerRect.left),
+                y: Math.round(r.top - containerRect.top),
+                h: Math.round(r.height),
+            };
         }
     }
 
-    if ((!r.width && !r.height) && safeOff < len) {
+    if (!r.width && !r.height && safeOff < len) {
         range.setStart(textNode, safeOff);
         range.setEnd(textNode, safeOff + 1);
         r = range.getBoundingClientRect();
         if (r.width || r.height) {
-            return { x: Math.round(r.left - containerRect.left), y: Math.round(r.top - containerRect.top), h: Math.round(r.height) };
+            return {
+                x: Math.round(r.left - containerRect.left),
+                y: Math.round(r.top - containerRect.top),
+                h: Math.round(r.height),
+            };
         }
     }
 
@@ -211,15 +235,26 @@ const getCaretRect = (doc: Document, textNode: Text, offset: number, containerRe
         const parent = textNode.parentElement;
         if (parent) {
             const pr = parent.getBoundingClientRect();
-            return { x: Math.round(pr.left - containerRect.left), y: Math.round(pr.top - containerRect.top), h: Math.round(pr.height) };
+            return {
+                x: Math.round(pr.left - containerRect.left),
+                y: Math.round(pr.top - containerRect.top),
+                h: Math.round(pr.height),
+            };
         }
         return null;
     }
 
-    return { x: Math.round(r.left - containerRect.left), y: Math.round(r.top - containerRect.top), h: Math.round(r.height) };
+    return {
+        x: Math.round(r.left - containerRect.left),
+        y: Math.round(r.top - containerRect.top),
+        h: Math.round(r.height),
+    };
 };
 
-const mergeRectsByLine = (rawRects: DOMRectList | DOMRect[], containerRect: DOMRect): Array<{ x: number; y: number; w: number; h: number }> => {
+const mergeRectsByLine = (
+    rawRects: DOMRectList | DOMRect[],
+    containerRect: DOMRect,
+): Array<{ x: number; y: number; w: number; h: number }> => {
     const rects = Array.from(rawRects).map((r) => ({
         x: Math.round(r.left - containerRect.left),
         y: Math.round(r.top - containerRect.top),
@@ -268,7 +303,10 @@ const getWordBounds = (offset: number, textNodes: NodeModel[]): { start: number;
     return { start, end };
 };
 
-export const useCaret = (node: NodeModel<TextTypeData>, descendantsRef: RefObject<Map<string, NodeModel>>): CaretControl => {
+export const useCaret = (
+    node: NodeModel<TextTypeData>,
+    descendantsRef: RefObject<Map<string, NodeModel>>,
+): CaretControl => {
     const mutate = useMutateNodeData(node);
     const svgRef = useRef<SVGSVGElement>(null);
     const selectionRef = useRef<Selection>({ anchor: 0, focus: 0 });
@@ -280,84 +318,87 @@ export const useCaret = (node: NodeModel<TextTypeData>, descendantsRef: RefObjec
         nodeRef.current = node;
     }, [node]);
 
+    const getOffsetFromPoint = useCallback(
+        (mouseX: number, mouseY: number): number => {
+            const node = nodeRef.current;
+            if (!node.dom) return 0;
+            const doc = node.dom.ownerDocument;
 
-    const getOffsetFromPoint = useCallback((mouseX: number, mouseY: number): number => {
-        const node = nodeRef.current;
-        if (!node.dom) return 0;
-        const doc = node.dom.ownerDocument;
-
-        // 1. Restricted Native API call
-        if (!node.content) {
-            if ("caretPositionFromPoint" in doc) {
-                const pos = doc.caretPositionFromPoint(mouseX, mouseY);
-                // // console.log(pos);
-                if (pos?.offsetNode) return offsetFromNativeNode(pos.offsetNode, pos.offset, descendantsRef.current);
-            } else if ("caretRangeFromPoint" in doc) {
-                const range = (doc as any).caretRangeFromPoint(mouseX, mouseY);
-                if (range?.startContainer) return offsetFromNativeNode(range.startContainer, range.startOffset, descendantsRef.current);
-            }
-        }
-
-
-        // 2. Multi-line aware Binary Search for Text Leaves
-        const textChild = node.dom.firstChild?.nodeType === Node.TEXT_NODE ? node.dom.firstChild as Text : null;
-        if (!textChild) return 0;
-
-        const len = textChild.textContent?.length || 0;
-        if (len === 0) return 0;
-
-        const range = doc.createRange();
-        let low = 0;
-        let high = len;
-
-        while (low < high) {
-            const mid = Math.floor((low + high) / 2);
-            range.setStart(textChild, mid);
-            range.collapse(true);
-            const r = range.getBoundingClientRect();
-
-            // Check Y coordinate first (Row detection)
-            if (mouseY > r.bottom) {
-                // Mouse is below this line, move forward
-                low = mid + 1;
-            } else if (mouseY < r.top) {
-                // Mouse is above this line, move backward
-                high = mid;
-            } else {
-                // Mouse is on the same row, now check X coordinate
-                if (mouseX > r.left) {
-                    low = mid + 1;
-                } else {
-                    high = mid;
+            // 1. Restricted Native API call
+            if (!node.content) {
+                if ("caretPositionFromPoint" in doc) {
+                    const pos = doc.caretPositionFromPoint(mouseX, mouseY);
+                    // // console.log(pos);
+                    if (pos?.offsetNode)
+                        return offsetFromNativeNode(pos.offsetNode, pos.offset, descendantsRef.current);
+                } else if ("caretRangeFromPoint" in doc) {
+                    const range = (doc as any).caretRangeFromPoint(mouseX, mouseY);
+                    if (range?.startContainer)
+                        return offsetFromNativeNode(range.startContainer, range.startOffset, descendantsRef.current);
                 }
             }
-        }
 
-        // 3. Final Boundary Resolution
-        const targetLeft = Math.max(0, low - 1);
-        const targetRight = Math.min(len, low);
+            // 2. Multi-line aware Binary Search for Text Leaves
+            const textChild = node.dom.firstChild?.nodeType === Node.TEXT_NODE ? (node.dom.firstChild as Text) : null;
+            if (!textChild) return 0;
 
-        range.setStart(textChild, targetLeft);
-        range.collapse(true);
-        const leftRect = range.getBoundingClientRect();
+            const len = textChild.textContent?.length || 0;
+            if (len === 0) return 0;
 
-        range.setStart(textChild, targetRight);
-        range.collapse(true);
-        const rightRect = range.getBoundingClientRect();
+            const range = doc.createRange();
+            let low = 0;
+            let high = len;
 
-        // Check if the boundaries crossed a line break (word wrap)
-        const isLeftOnLine = mouseY >= leftRect.top && mouseY <= leftRect.bottom;
-        const isRightOnLine = mouseY >= rightRect.top && mouseY <= rightRect.bottom;
+            while (low < high) {
+                const mid = Math.floor((low + high) / 2);
+                range.setStart(textChild, mid);
+                range.collapse(true);
+                const r = range.getBoundingClientRect();
 
-        if (isLeftOnLine && !isRightOnLine) return targetLeft;
-        if (isRightOnLine && !isLeftOnLine) return targetRight;
+                // Check Y coordinate first (Row detection)
+                if (mouseY > r.bottom) {
+                    // Mouse is below this line, move forward
+                    low = mid + 1;
+                } else if (mouseY < r.top) {
+                    // Mouse is above this line, move backward
+                    high = mid;
+                } else {
+                    // Mouse is on the same row, now check X coordinate
+                    if (mouseX > r.left) {
+                        low = mid + 1;
+                    } else {
+                        high = mid;
+                    }
+                }
+            }
 
-        // If both are on the same row (or both off), pick the closest X
-        const distLeft = Math.abs(mouseX - leftRect.left);
-        const distRight = Math.abs(mouseX - rightRect.left);
+            // 3. Final Boundary Resolution
+            const targetLeft = Math.max(0, low - 1);
+            const targetRight = Math.min(len, low);
 
-        return distLeft <= distRight ? targetLeft : targetRight;
-    }, [descendantsRef]);
+            range.setStart(textChild, targetLeft);
+            range.collapse(true);
+            const leftRect = range.getBoundingClientRect();
+
+            range.setStart(textChild, targetRight);
+            range.collapse(true);
+            const rightRect = range.getBoundingClientRect();
+
+            // Check if the boundaries crossed a line break (word wrap)
+            const isLeftOnLine = mouseY >= leftRect.top && mouseY <= leftRect.bottom;
+            const isRightOnLine = mouseY >= rightRect.top && mouseY <= rightRect.bottom;
+
+            if (isLeftOnLine && !isRightOnLine) return targetLeft;
+            if (isRightOnLine && !isLeftOnLine) return targetRight;
+
+            // If both are on the same row (or both off), pick the closest X
+            const distLeft = Math.abs(mouseX - leftRect.left);
+            const distRight = Math.abs(mouseX - rightRect.left);
+
+            return distLeft <= distRight ? targetLeft : targetRight;
+        },
+        [descendantsRef],
+    );
 
     const render = useCallback(() => {
         const node = nodeRef.current;
@@ -365,13 +406,10 @@ export const useCaret = (node: NodeModel<TextTypeData>, descendantsRef: RefObjec
         const container = node.dom;
         if (!svg || !container) return;
 
-        const newFormats = computeActiveFormats(
-            selectionRef.current,
-            descendantsRef.current,
-            node
-        );
+        const newFormats = computeActiveFormats(selectionRef.current, descendantsRef.current, node);
         const prevFormats = activeFormatsRef.current || [];
-        const isFormatsChanged = newFormats.length !== prevFormats.length || !newFormats.every((val, index) => val === prevFormats[index]);
+        const isFormatsChanged =
+            newFormats.length !== prevFormats.length || !newFormats.every((val, index) => val === prevFormats[index]);
         activeFormatsRef.current = newFormats;
 
         while (svg.lastChild) svg.removeChild(svg.lastChild);
@@ -477,53 +515,58 @@ export const useCaret = (node: NodeModel<TextTypeData>, descendantsRef: RefObjec
         }
     }, [descendantsRef, mutate]);
 
-    const handleMouseDown = useCallback((e: MouseEvent) => {
-        e.preventDefault();
-        const offset = getOffsetFromPoint(e.clientX, e.clientY);
-        const textNodes = getTextNodes(descendantsRef.current, node);
+    const handleMouseDown = useCallback(
+        (e: MouseEvent) => {
+            e.preventDefault();
+            const offset = getOffsetFromPoint(e.clientX, e.clientY);
+            const textNodes = getTextNodes(descendantsRef.current, node);
 
-        if (e.detail === 3) {
-            const fullText = textNodes.map((n) => n.content || "").join("");
-            let lineStart = offset;
-            while (lineStart > 0 && fullText[lineStart - 1] !== "\n") lineStart--;
-            let lineEnd = offset;
-            while (lineEnd < fullText.length && fullText[lineEnd] !== "\n") lineEnd++;
-            selectionRef.current = { anchor: lineStart, focus: lineEnd };
-            isDraggingRef.current = false;
+            if (e.detail === 3) {
+                const fullText = textNodes.map((n) => n.content || "").join("");
+                let lineStart = offset;
+                while (lineStart > 0 && fullText[lineStart - 1] !== "\n") lineStart--;
+                let lineEnd = offset;
+                while (lineEnd < fullText.length && fullText[lineEnd] !== "\n") lineEnd++;
+                selectionRef.current = { anchor: lineStart, focus: lineEnd };
+                isDraggingRef.current = false;
+                render();
+                return;
+            }
+
+            if (e.detail === 2) {
+                const { start, end } = getWordBounds(offset, textNodes);
+                selectionRef.current = { anchor: start, focus: end };
+                isDraggingRef.current = false;
+                render();
+                return;
+            }
+
+            selectionRef.current = { anchor: offset, focus: offset };
+            isDraggingRef.current = true;
             render();
-            return;
-        }
+        },
+        [getOffsetFromPoint, render],
+    );
 
-        if (e.detail === 2) {
-            const { start, end } = getWordBounds(offset, textNodes);
-            selectionRef.current = { anchor: start, focus: end };
-            isDraggingRef.current = false;
+    const handleMouseMove = useCallback(
+        (e: MouseEvent) => {
+            if (!isDraggingRef.current) return;
+            selectionRef.current.focus = getOffsetFromPoint(e.clientX, e.clientY);
             render();
-            return;
-        }
-
-        selectionRef.current = { anchor: offset, focus: offset };
-        isDraggingRef.current = true;
-        render();
-    }, [getOffsetFromPoint, render]);
-
-    const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!isDraggingRef.current) return;
-        selectionRef.current.focus = getOffsetFromPoint(e.clientX, e.clientY);
-        render();
-    }, [getOffsetFromPoint, render]);
+        },
+        [getOffsetFromPoint, render],
+    );
 
     const handleMouseUp = useCallback(() => {
         isDraggingRef.current = false;
     }, []);
 
     useEffect(() => {
-        // requestAnimationFrame ensures we measure the DOM *after* the browser 
+        // requestAnimationFrame ensures we measure the DOM *after* the browser
         // has painted the new bold weights or content changes.
         const frame = requestAnimationFrame(() => render());
         return () => cancelAnimationFrame(frame);
     }, [node.data, render]);
-
 
     useEffect(() => {
         const node = nodeRef.current;
@@ -539,7 +582,14 @@ export const useCaret = (node: NodeModel<TextTypeData>, descendantsRef: RefObjec
         };
     }, [handleMouseDown, handleMouseMove, handleMouseUp]);
 
-    return useMemo(() => ({
-        svgRef, selectionRef, activeFormatsRef, render, getOffsetFromPoint,
-    }), [render, getOffsetFromPoint]);
+    return useMemo(
+        () => ({
+            svgRef,
+            selectionRef,
+            activeFormatsRef,
+            render,
+            getOffsetFromPoint,
+        }),
+        [render, getOffsetFromPoint],
+    );
 };

@@ -54,10 +54,12 @@ export const ElementType = createType(({ node, children, ref }) => {
     actions: {
         parent: {
             icon: Maximize,
-            title: "select parent"
+            title: "select parent",
+            order: 1
         },
         delete: {
-            icon: Delete
+            icon: Delete,
+            order: 2
         }
     },
     commands: {

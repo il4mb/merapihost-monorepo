@@ -1,49 +1,6 @@
 import { nanoid } from "nanoid";
-import {
-    findNode,
-    getNodeAncestorChain,
-    getNodeChildren,
-    getNodeDescendants,
-    NodeModel,
-    normalizeNodeOrders,
-    toNodeTree,
-} from "../..";
+import { NodeModel } from "@/libs/node";
 import { TextTypeData } from "./TextType";
-
-type Contents = Map<string, NodeModel>;
-
-// ---------------------------------------------------------------------------
-// Konstanta spacing untuk `order`
-// ---------------------------------------------------------------------------
-const ORDER_EPS = 0.001;
-const ORDER_MINOR = 0.01;
-const ORDER_MAJOR = 0.02;
-const ORDER_STEP = 0.002;
-
-const MAX_FIXPOINT_ITERATIONS = 5000;
-
-// ---------------------------------------------------------------------------
-// Helper: index anak per parent
-// ---------------------------------------------------------------------------
-function buildChildIndex(collections: Map<string, NodeModel>): Map<string, NodeModel[]> {
-    const index = new Map<string, NodeModel[]>();
-
-    for (const node of collections.values()) {
-        if (!node.parent) continue;
-        const group = index.get(node.parent);
-        if (group) {
-            group.push(node);
-        } else {
-            index.set(node.parent, [node]);
-        }
-    }
-
-    for (const group of index.values()) {
-        group.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    }
-
-    return index;
-}
 
 // ---------------------------------------------------------------------------
 // Helper kecil untuk membuat node "spanned"
@@ -54,7 +11,7 @@ function makeSpannedNode(params: {
     parent: string | null;
     order: number;
 }): NodeModel {
-    const node = new NodeModel({
+    return new NodeModel({
         id: nanoid(),
         type: "spanned",
         tagName: params.tagName,
@@ -62,163 +19,7 @@ function makeSpannedNode(params: {
         parent: params.parent,
         order: params.order,
     });
-
-    if (params.tagName.toLowerCase() === "em") {
-        const emType = Object.create(node.type);
-        Object.defineProperty(emType, "name", {
-            get: () => undefined,
-            configurable: true,
-        });
-        (node as any).type = emType;
-    }
-
-    return node;
 }
-
-type FormatFamily = "bold" | "italic" | "underline";
-
-const getFormatFamily = (tagName: string): FormatFamily | null => {
-    const tag = tagName.toLowerCase();
-    if (tag === "strong" || tag === "b") return "bold";
-    if (tag === "em" || tag === "i") return "italic";
-    if (tag === "u") return "underline";
-    return null;
-};
-
-const isMergeable = (node: NodeModel): boolean => node.type.isText;
-const isWhitespaceOnly = (content: string | undefined): boolean =>
-    Boolean(content) && /^\s*$/.test(content || "");
-
-const areMergeableFormatTags = (a: string, b: string) => {
-    const ta = a.toLowerCase();
-    const tb = b.toLowerCase();
-    if (ta === tb) return true;
-    if ((ta === "b" || ta === "strong") && (tb === "b" || tb === "strong")) return true;
-    if ((ta === "i" || ta === "em") && (tb === "i" || tb === "em")) return true;
-    return ta === "u" && tb === "u";
-};
-
-// ---------------------------------------------------------------------------
-// Loop fixpoint dengan batas aman
-// ---------------------------------------------------------------------------
-function runFixpoint(label: string, step: () => boolean): void {
-    let changed = true;
-    let iterations = 0;
-
-    while (changed) {
-        if (++iterations > MAX_FIXPOINT_ITERATIONS) {
-            console.warn(`${label}: melebihi ${MAX_FIXPOINT_ITERATIONS} iterasi, dihentikan.`);
-            break;
-        }
-        changed = step();
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Merge node berformat sama yang bersebelahan (termasuk dipisah whitespace)
-// ---------------------------------------------------------------------------
-const mergeAdjacentFormatNodesWithWhitespace = (descendants: Map<string, NodeModel>): void => {
-    runFixpoint("mergeAdjacentFormatNodesWithWhitespace", () => {
-        const childIndex = buildChildIndex(descendants);
-
-        for (const children of childIndex.values()) {
-            for (let i = 0; i < children.length - 1; i++) {
-                const current = children[i];
-                const next = children[i + 1];
-
-                if (
-                    isMergeable(current) &&
-                    isMergeable(next) &&
-                    areMergeableFormatTags(current.tagName, next.tagName)
-                ) {
-                    const merged = new NodeModel(current);
-                    merged.content = (current.content ?? "") + (next.content ?? "");
-                    descendants.set(current.id, merged);
-                    descendants.delete(next.id);
-                    return true;
-                }
-
-                if (i < children.length - 2) {
-                    const whitespace = next;
-                    const afterWhitespace = children[i + 2];
-
-                    if (
-                        isWhitespaceOnly(whitespace.content) &&
-                        isMergeable(current) &&
-                        isMergeable(afterWhitespace) &&
-                        areMergeableFormatTags(current.tagName, afterWhitespace.tagName)
-                    ) {
-                        const merged = new NodeModel(current);
-                        merged.content =
-                            (current.content ?? "") +
-                            (whitespace.content ?? "") +
-                            (afterWhitespace.content ?? "");
-                        descendants.set(current.id, merged);
-                        descendants.delete(whitespace.id);
-                        descendants.delete(afterWhitespace.id);
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    });
-};
-
-// ---------------------------------------------------------------------------
-// Promosikan anak dari <span> yang tidak perlu (fixpoint)
-// ---------------------------------------------------------------------------
-const promoteNestedFormatNodes = (descendants: Map<string, NodeModel>): void => {
-    runFixpoint("promoteNestedFormatNodes", () => {
-        const childIndex = buildChildIndex(descendants);
-        let changed = false;
-
-        for (const id of childIndex.keys()) {
-            const target = descendants.get(id);
-            if (!target) continue;
-
-            if (target.tagName === "span" && (childIndex.get(id)?.length ?? 0) > 0) {
-                const children = childIndex.get(id)!;
-                for (const child of children) {
-                    child.parent = target.parent;
-                    child.order = target.order + ORDER_EPS * child.order;
-                }
-                descendants.delete(target.id);
-                changed = true;
-            }
-        }
-
-        return changed;
-    });
-};
-
-// ---------------------------------------------------------------------------
-// Hapus node kosong (bottom-up, fixpoint)
-// ---------------------------------------------------------------------------
-const cleanupEmptyFormatNodes = (descendants: Map<string, NodeModel>): void => {
-    runFixpoint("cleanupEmptyFormatNodes", () => {
-        const childIndex = buildChildIndex(descendants);
-        const emptyCache = new Map<string, boolean>();
-
-        const computeEmpty = (node: NodeModel): boolean => {
-            const cached = emptyCache.get(node.id);
-            if (cached !== undefined) return cached;
-
-            const children = childIndex.get(node.id) ?? [];
-            const result =
-                children.length > 0 ? children.every((child) => computeEmpty(child)) : !Boolean(node.content);
-
-            emptyCache.set(node.id, result);
-            return result;
-        };
-
-        const empties = Array.from(descendants.values()).filter((n) => computeEmpty(n));
-        for (const node of empties) descendants.delete(node.id);
-
-        return empties.length > 0;
-    });
-};
 
 const disableInteractions = (descendants: Map<string, NodeModel>): void => {
     descendants.forEach((node) => {
@@ -240,14 +41,11 @@ export type SelectionSegment = {
     isPartial: boolean;
 };
 
-export const getTextNodes = (
-    descendants: Map<string, NodeModel>,
-    rootNode: NodeModel
-): NodeModel[] => {
+export const getTextNodes = (descendants: Map<string, NodeModel>, rootNode: NodeModel): NodeModel[] => {
     if (rootNode.content) return [rootNode];
 
     return Array.from(descendants.values())
-        .filter((n) => n.content)
+        .filter((node) => node.content)
         .sort((a, b) => {
             if (!a.dom || !b.dom) return (a.order || 0) - (b.order || 0);
             const cmp = a.dom.compareDocumentPosition(b.dom);
@@ -255,68 +53,6 @@ export const getTextNodes = (
             if (cmp & Node.DOCUMENT_POSITION_PRECEDING) return 1;
             return (a.order || 0) - (b.order || 0);
         });
-};
-
-const getSelectionSegments = (
-    anchor: number,
-    focus: number,
-    descendants: Map<string, NodeModel>,
-    rootNode: NodeModel
-): SelectionSegment[] => {
-    const start = Math.min(anchor, focus);
-    const end = Math.max(anchor, focus);
-    if (start === end) return [];
-
-    const textNodes = getTextNodes(descendants, rootNode);
-    const segments: SelectionSegment[] = [];
-    let globalPos = 0;
-
-    for (const node of textNodes) {
-        const len = (node.content || "").length;
-        const nodeStart = globalPos;
-        const nodeEnd = globalPos + len;
-
-        if (end <= nodeStart || start >= nodeEnd) {
-            globalPos += len;
-            continue;
-        }
-
-        const segStart = Math.max(start, nodeStart);
-        const segEnd = Math.min(end, nodeEnd);
-        const localStart = segStart - nodeStart;
-        const localEnd = segEnd - nodeStart;
-
-        segments.push({
-            node,
-            globalStart: segStart,
-            globalEnd: segEnd,
-            localStart,
-            localEnd,
-            isFull: localStart === 0 && localEnd === len,
-            isPartial: localStart > 0 || localEnd < len,
-        });
-
-        globalPos += len;
-    }
-
-    return segments;
-};
-
-// ---------------------------------------------------------------------------
-// Helper: cek apakah node atau salah satu ancestor-nya punya format target
-// ---------------------------------------------------------------------------
-const isNodeFormatted = (
-    node: NodeModel,
-    targetTagName: string,
-    contents: Map<string, NodeModel>,
-    rootId: string
-): boolean => {
-    // 1. Cek node itu sendiri (leaf yang langsung berformat)
-    if (node.tagName === targetTagName) return true;
-
-    // 2. Cek ancestor
-    const chain = getNodeAncestorChain(node.id, rootId, contents);
-    return chain.some((w) => w.tagName === targetTagName);
 };
 
 export type FormattedType = "bold" | "italic" | "underline";
@@ -409,9 +145,7 @@ function applyFormattedInternal({
         return true;
     };
 
-    const normalizeFragments = (
-        sourceFragments: Array<{ text: string; tags: string[]; order: number }>,
-    ) => {
+    const normalizeFragments = (sourceFragments: Array<{ text: string; tags: string[]; order: number }>) => {
         const normalized = sourceFragments.map((fragment) => ({
             ...fragment,
             tags: [...fragment.tags],
@@ -503,7 +237,8 @@ function applyFormattedInternal({
         cursor = fragmentEnd;
     }
 
-    const targetAction: "APPLY" | "REMOVE" = totalSelected > 0 && selectedTargetChars === totalSelected ? "REMOVE" : "APPLY";
+    const targetAction: "APPLY" | "REMOVE" =
+        totalSelected > 0 && selectedTargetChars === totalSelected ? "REMOVE" : "APPLY";
 
     const outputFragments: Array<{ text: string; tags: string[]; order: number }> = [];
     cursor = 0;
@@ -526,9 +261,14 @@ function applyFormattedInternal({
             }
 
             if (selectedText) {
-                const nextTags = targetAction === "APPLY"
-                    ? [...new Set([...fragment.tags, targetTagName])].sort((a, b) => formatOrder.indexOf(a) - formatOrder.indexOf(b))
-                    : [...new Set(fragment.tags.filter((tag) => tag !== targetTagName))].sort((a, b) => formatOrder.indexOf(a) - formatOrder.indexOf(b));
+                const nextTags =
+                    targetAction === "APPLY"
+                        ? [...new Set([...fragment.tags, targetTagName])].sort(
+                              (a, b) => formatOrder.indexOf(a) - formatOrder.indexOf(b),
+                          )
+                        : [...new Set(fragment.tags.filter((tag) => tag !== targetTagName))].sort(
+                              (a, b) => formatOrder.indexOf(a) - formatOrder.indexOf(b),
+                          );
 
                 outputFragments.push({ text: selectedText, tags: nextTags, order: fragment.order + 0.001 });
             }

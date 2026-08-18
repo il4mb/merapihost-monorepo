@@ -168,6 +168,7 @@ export type TypeAction = {
     active?: boolean;
     disabled?: boolean;
     visible?: boolean;
+    order?: number;
 }
 
 export type TypeComponent<T extends Record<string, unknown> = Record<string, unknown>> = React.FC<T> & {

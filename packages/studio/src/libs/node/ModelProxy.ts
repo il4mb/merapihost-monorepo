@@ -4,13 +4,11 @@ import { NodeContext } from "./NodeModel";
 import { merge } from "lodash";
 import { ModelContext } from "./ModelContext";
 
-
 /**
  * A proxy class that wraps a TypeModel and provides access to its properties, including inherited properties from parent models.
  * This class allows for easy retrieval of model information, including default values and properties that may be defined in parent models.
  */
 export class ModelProxy {
-
     private wiredCommands: Map<string, (p?: any) => void> = new Map();
     readonly node: NodeModel;
     readonly type: TypeComponent;
@@ -38,7 +36,7 @@ export class ModelProxy {
         // Merge them: child actions overwrite parent actions automatically
         return {
             ...parentActions,
-            ...currentActions
+            ...currentActions,
         };
     }
 
@@ -53,8 +51,8 @@ export class ModelProxy {
     }
 
     get extends(): ModelProxy | null {
-        // You could pass a Set of visited names into an overloaded or private constructor 
-        // to block circular instantiation completely. 
+        // You could pass a Set of visited names into an overloaded or private constructor
+        // to block circular instantiation completely.
         const extendsType = this.model?.extends;
         if (!extendsType) return null;
 
@@ -134,11 +132,18 @@ export class ModelProxy {
         // Pass the node into our recursive merger
         const mergedRecord = this.mergedActionsRecord;
 
-        return Object.entries(mergedRecord).map(([key, action]) => action && ({
-            id: key,
-            title: key,
-            ...action // This will gracefully allow action to override 'title' if it provides one
-        })).filter(Boolean);
+        return Object.entries(mergedRecord)
+            .map(
+                ([key, action], index) =>
+                    action && {
+                        id: key,
+                        title: key,
+                        order: action.order ?? index,
+                        ...action, // This will gracefully allow action to override 'title' if it provides one
+                    },
+            )
+            .filter(Boolean)
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     }
 
     get commands() {
@@ -147,7 +152,7 @@ export class ModelProxy {
 
         return {
             ...parentCommands,
-            ...thisCommands
+            ...thisCommands,
         };
     }
 
@@ -207,7 +212,8 @@ export class ModelProxy {
             return droppable(target);
         }
         if (Array.isArray(droppable)) {
-            return droppable.map(e => String(e).toLocaleLowerCase())
+            return droppable
+                .map((e) => String(e).toLocaleLowerCase())
                 .includes(String(target.type.name).toLocaleLowerCase());
         }
         return Boolean(droppable);
@@ -225,7 +231,8 @@ export class ModelProxy {
             return accepts(source);
         }
         if (Array.isArray(accepts)) {
-            return accepts.map(e => String(e).toLocaleLowerCase())
+            return accepts
+                .map((e) => String(e).toLocaleLowerCase())
                 .includes(String(source.type.name).toLocaleLowerCase());
         }
         return Boolean(accepts);
