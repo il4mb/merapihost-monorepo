@@ -1,3 +1,4 @@
+import { NodeModel, useNodeInternal } from "@/libs/node";
 import { Typography } from "@mui/material";
 import { BoldIcon, ItalicIcon, TypeIcon, UnderlineIcon, RemoveFormatting } from "lucide-react";
 import { JSX } from "react/jsx-runtime";
@@ -5,8 +6,8 @@ import { useCallback, useEffect } from "react";
 import { useNodes } from "@/contexts";
 import RenderEditing from "./RenderEditing";
 import { useNodeDescendantsRef } from "@/hooks/useNodes";
-import { NodeModel, createType, useNodeInternal } from "@/libs/node";
 import { applyFormatted, getTextNodes } from "./tools";
+import { createType } from "@/libs/node/createType";
 
 export type TextTypeData = {
     editing: boolean;
@@ -85,9 +86,9 @@ export const TextType = createType<TextTypeData>(({ node, children, ref }) => {
 
     useEffect(() => {
         // blur detection
-        if (!node.data.isSelected) return;
+        if (!node.data.editing) return;
         return prepareStopEditing;
-    }, [node.data.isSelected, prepareStopEditing]);
+    }, [node.data.isSelected, node.data.editing, prepareStopEditing]);
 
     return (
         <Typography

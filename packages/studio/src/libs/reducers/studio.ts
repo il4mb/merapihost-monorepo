@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { AssetObject, StudioState, NodeObject, PageObject, BlockNodeObject, StudioReducerAction } from "@/types";
-import { REGISTRY } from "../node";
+import { REGISTRY } from "@/libs/node/types";
 import { merge } from "lodash";
 // import { initialNodesState, nodeReducer } from "../node/nodeReducer";
 

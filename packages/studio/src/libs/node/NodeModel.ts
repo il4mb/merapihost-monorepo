@@ -1,5 +1,5 @@
 import type { NodeObject, BlockNodeObject, NodeData } from "@/types";
-import { REGISTRY } from ".";
+import { REGISTRY } from "./types";
 import { ModelProxy } from "./ModelProxy";
 import { merge, pickBy } from "lodash";
 import { nanoid } from "nanoid";

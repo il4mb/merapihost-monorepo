@@ -1,4 +1,4 @@
-import { createType } from "@/libs/node";
+import { createType } from "@/libs/node/createType";
 import { Grid2X2Icon, LayoutPanelLeft } from "lucide-react";
 import { Grid } from "@mui/material";
 

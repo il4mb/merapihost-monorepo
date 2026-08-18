@@ -1,6 +1,7 @@
 import { BoldIcon } from "lucide-react";
 import { createElement, JSX, useCallback } from "react";
-import { useNodeInternal, createType } from "@/libs/node";
+import { createType } from "@/libs/node/createType";
+import { useNodeInternal } from "@/libs/node";
 
 export const FORMAT_NODE_TAGS = ["strong", "em", "b", "i", "u", "small", "mark", "del", "ins", "sub", "sup", "span"];
 

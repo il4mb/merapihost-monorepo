@@ -1,7 +1,6 @@
-import { NodeModel, NodeReducerAction, TypeActionDefine, TypeComponent, TypeModel } from "@/types";
-import { REGISTRY } from ".";
+import { NodeModel, TypeActionDefine, TypeComponent, TypeModel } from "@/types";
+import { REGISTRY } from "./types";
 import { NodeContext } from "./NodeModel";
-import { Dispatch } from "react";
 import { merge } from "lodash";
 import { ModelContext } from "./ModelContext";
 
@@ -159,7 +158,7 @@ export class ModelProxy {
         this.wiredCommands.set(id, callback);
         return () => this.unWireCommand(id);
     }
-    
+
     invokeCommand(id: string, context: ModelContext, props?: any) {
         const wiredCommand = this.wiredCommands.get(id);
         if (wiredCommand) return wiredCommand(props);

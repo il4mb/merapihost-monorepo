@@ -1,4 +1,4 @@
-import { createType } from "../tools";
+import { createType } from "@/libs/node/createType";
 import PageIcon from "@/components/icons/PageIcon";
 import { Fragment, useEffect, useMemo } from "react";
 import { useNodes } from "@/contexts";

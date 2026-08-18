@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { PageObject } from "@/types/page";
 import { useStudio } from "@/contexts";
+import { useParams } from "next/navigation";
 
 export interface PagesContextType {
     pages: Map<string, PageObject>;
@@ -16,6 +17,7 @@ type PagesProviderProps = {
 };
 
 export default function PagesProvider({ children }: PagesProviderProps) {
+    const { pageId } = useParams<{ pageId: string }>();
     const { state, dispatch } = useStudio();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,13 @@ export default function PagesProvider({ children }: PagesProviderProps) {
     useEffect(() => {
         fetchPages();
     }, [fetchPages]);
+
+    useEffect(() => {
+        const collection = state.pages.collection;
+        if (state.pages.opened || !collection.has(pageId)) return;
+        const page = collection.get(pageId);
+        dispatch({ type: "SET_OPENED_PAGE", payload: page });
+    }, [pageId, dispatch, state.pages.collection]);
 
     const values = useMemo(() => ({
         pages: state.pages.collection,
