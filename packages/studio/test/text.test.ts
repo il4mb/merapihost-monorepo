@@ -1,146 +1,89 @@
-import { describe, it, expect } from 'vitest';
-import { getNodeAncestors, NodeModel } from '@/libs/node';
-import { applyFormatted } from '@/libs/node/types/text/tools';
-import { TextTypeData } from '@/libs/node/types/text/TextType';
+import { describe, it, expect } from "vitest";
+import { getNodeAncestors, NodeModel } from "@/libs/node";
+import { applyFormatted } from "@/libs/node/types/text/tools";
+import { TextTypeData } from "@/libs/node/types/text/TextType";
 
-const buildDoc = (
-    content = 'Hallo World',
-    rootTag = 'p',
-) => {
+const buildDoc = (content = "Hallo World", rootTag = "p") => {
     const root = new NodeModel<TextTypeData>({
-        id: 'root',
-        type: 'text',
+        id: "root",
+        type: "text",
         content,
         tagName: rootTag,
     });
 
     return {
         root,
-        map: new Map<string, NodeModel>([
-            [root.id, root],
-        ]),
+        map: new Map<string, NodeModel>([[root.id, root]]),
     };
 };
 
-const findNodeByContent = (
-    map: Map<string, NodeModel>,
-    content: string,
-): NodeModel | undefined => {
-    return Array.from(map.values()).find(
-        (node) => node.content === content,
-    );
+const findNodeByContent = (map: Map<string, NodeModel>, content: string): NodeModel | undefined => {
+    return Array.from(map.values()).find((node) => node.content === content);
 };
 
-const getAncestors = (
-    node: NodeModel,
-    map: Map<string, NodeModel>,
-) =>
+const getAncestors = (node: NodeModel, map: Map<string, NodeModel>) =>
     Array.from(getNodeAncestors(node, map).values())
         .map((node) => node.tagName)
         .reverse()
-        .join(' > ');
+        .join(" > ");
 
-const getContentsText = (
-    map: Map<string, NodeModel>,
-) => {
+const getContentsText = (map: Map<string, NodeModel>) => {
     return Array.from(map.values())
         .filter((node) => node.content !== undefined)
-        .sort(
-            (a, b) =>
-                (a.order ?? 0) -
-                (b.order ?? 0),
-        )
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         .map((node) => node.content)
-        .join('');
+        .join("");
 };
 
-const getTextNodes = (
-    map: Map<string, NodeModel>,
-) => {
+const getTextNodes = (map: Map<string, NodeModel>) => {
     return Array.from(map.values())
-        .filter(
-            (node) =>
-                node.content !== undefined,
-        )
-        .sort(
-            (a, b) =>
-                (a.order ?? 0) -
-                (b.order ?? 0),
-        );
+        .filter((node) => node.content !== undefined)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 };
 
-const expectTreeIntegrity = (
-    map: Map<string, NodeModel>,
-) => {
+const expectTreeIntegrity = (map: Map<string, NodeModel>) => {
     for (const node of map.values()) {
-        if (
-            node.parent !== null &&
-            node.parent !== undefined
-        ) {
+        if (node.parent !== null && node.parent !== undefined) {
             expect(map.has(node.parent)).toBe(true);
         }
     }
-
-    const ids = Array.from(map.values())
-        .map((node) => node.id);
-
-    expect(
-        new Set(ids).size,
-    ).toBe(ids.length);
+    const ids = Array.from(map.values()).map((node) => node.id);
+    expect(new Set(ids).size).toBe(ids.length);
 };
 
-const expectFlatTree = (
-    map: Map<string, NodeModel>,
-    expected: Array<{
-        content: string;
-        tagName: string;
-    }>,
-) => {
+type ExpectedNode = {
+    content: string;
+    tagName: string;
+    type: string;
+    selectable: boolean;
+    hoverable: boolean;
+};
+const expectFlatTree = (map: Map<string, NodeModel>, expected: ExpectedNode[]) => {
     const nodes = getTextNodes(map);
 
     expect(
         nodes.map((node) => ({
             content: node.content,
             tagName: node.tagName,
+            type: node.type.name,
+            selectable: node.selectable,
+            hoverable: node.hoverable,
         })),
     ).toEqual(expected);
 };
 
-const expectNode = (
-    map: Map<string, NodeModel>,
-    content: string,
-    tagName: string,
-) => {
-    const node = findNodeByContent(
-        map,
-        content,
-    );
-
+const expectNode = (map: Map<string, NodeModel>, content: string, tagName: string) => {
+    const node = findNodeByContent(map, content);
     expect(node).toBeDefined();
     expect(node!.tagName).toBe(tagName);
-
     return node!;
 };
 
-const expectFormatChain = (
-    map: Map<string, NodeModel>,
-    content: string,
-    leafTag: string,
-    ancestors: string,
-) => {
-    const node = expectNode(
-        map,
-        content,
-        leafTag,
-    );
-
-    expect(
-        getAncestors(node, map),
-    ).toBe(ancestors);
-
+const expectFormatChain = (map: Map<string, NodeModel>, content: string, leafTag: string, ancestors: string) => {
+    const node = expectNode(map, content, leafTag);
+    expect(getAncestors(node, map)).toBe(ancestors);
     return node;
 };
-
 
 /*
 |--------------------------------------------------------------------------
@@ -148,18 +91,44 @@ const expectFormatChain = (
 |--------------------------------------------------------------------------
 */
 
-describe('fresh document', () => {
-    it('bold(world) => span(Hello ) + strong(world)', () => {
-        const { root, map } =
-            buildDoc('Hello world');
+describe("fresh document", () => {
+    it("bold(world) => span(Hello ) + strong(world)", () => {
+        const { root, map } = buildDoc("Hello world");
+        const contents = applyFormatted({
+            format: "bold",
+            descendants: map,
+            selection: { anchor: 6, focus: 11 },
+            node: root,
+        });
+
+        expect(contents).toBeDefined();
+        expectFlatTree(contents!, [
+            {
+                content: "Hello ",
+                tagName: "span",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
+            },
+            {
+                content: "world",
+                tagName: "strong",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
+            },
+        ]);
+        expect(getContentsText(contents!)).toBe("Hello world");
+        expectTreeIntegrity(contents!);
+    });
+
+    it("bold(Hello) => strong(Hello) + span( world)", () => {
+        const { root, map } = buildDoc("Hello world");
 
         const contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
-            selection: {
-                anchor: 6,
-                focus: 11,
-            },
+            selection: { anchor: 0, focus: 5 },
             node: root,
         });
 
@@ -167,64 +136,31 @@ describe('fresh document', () => {
 
         expectFlatTree(contents!, [
             {
-                content: 'Hello ',
-                tagName: 'span',
+                content: "Hello",
+                tagName: "strong",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
             {
-                content: 'world',
-                tagName: 'strong',
+                content: " world",
+                tagName: "span",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
         ]);
 
-        expect(
-            getContentsText(contents!),
-        ).toBe('Hello world');
+        expect(getContentsText(contents!)).toBe("Hello world");
 
         expectTreeIntegrity(contents!);
     });
 
-
-    it('bold(Hello) => strong(Hello) + span( world)', () => {
-        const { root, map } =
-            buildDoc('Hello world');
+    it("bold(ell) => span(H) + strong(ell) + span(o world)", () => {
+        const { root, map } = buildDoc("Hello world");
 
         const contents = applyFormatted({
-            format: 'bold',
-            descendants: map,
-            selection: {
-                anchor: 0,
-                focus: 5,
-            },
-            node: root,
-        });
-
-        expect(contents).toBeDefined();
-
-        expectFlatTree(contents!, [
-            {
-                content: 'Hello',
-                tagName: 'strong',
-            },
-            {
-                content: ' world',
-                tagName: 'span',
-            },
-        ]);
-
-        expect(
-            getContentsText(contents!),
-        ).toBe('Hello world');
-
-        expectTreeIntegrity(contents!);
-    });
-
-
-    it('bold(ell) => span(H) + strong(ell) + span(o world)', () => {
-        const { root, map } =
-            buildDoc('Hello world');
-
-        const contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 1,
@@ -237,33 +173,38 @@ describe('fresh document', () => {
 
         expectFlatTree(contents!, [
             {
-                content: 'H',
-                tagName: 'span',
+                content: "H",
+                tagName: "span",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
             {
-                content: 'ell',
-                tagName: 'strong',
+                content: "ell",
+                tagName: "strong",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
             {
-                content: 'o world',
-                tagName: 'span',
+                content: "o world",
+                tagName: "span",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
         ]);
 
-        expect(
-            getContentsText(contents!),
-        ).toBe('Hello world');
+        expect(getContentsText(contents!)).toBe("Hello world");
 
         expectTreeIntegrity(contents!);
     });
 
-
-    it('bold(o) => span(Hell) + strong(o) + span( world)', () => {
-        const { root, map } =
-            buildDoc('Hello world');
+    it("bold(o) => span(Hell) + strong(o) + span( world)", () => {
+        const { root, map } = buildDoc("Hello world");
 
         const contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 4,
@@ -276,33 +217,37 @@ describe('fresh document', () => {
 
         expectFlatTree(contents!, [
             {
-                content: 'Hell',
-                tagName: 'span',
+                content: "Hell",
+                tagName: "span",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
             {
-                content: 'o',
-                tagName: 'strong',
+                content: "o",
+                tagName: "strong",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
             {
-                content: ' world',
-                tagName: 'span',
+                content: " world",
+                tagName: "span",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
         ]);
 
-        expect(
-            getContentsText(contents!),
-        ).toBe('Hello world');
+        expect(getContentsText(contents!)).toBe("Hello world");
 
         expectTreeIntegrity(contents!);
     });
 
-
-    it('bold(all) => strong(Hello world)', () => {
-        const { root, map } =
-            buildDoc('Hello world');
-
+    it("bold(all) => strong(Hello world)", () => {
+        const { root, map } = buildDoc("Hello world");
         const contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 0,
@@ -312,18 +257,18 @@ describe('fresh document', () => {
         });
 
         expect(contents).toBeDefined();
-
         expectFlatTree(contents!, [
             {
-                content: 'Hello world',
-                tagName: 'strong',
+                content: "Hello world",
+                tagName: "strong",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
         ]);
-
         expectTreeIntegrity(contents!);
     });
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -331,13 +276,12 @@ describe('fresh document', () => {
 |--------------------------------------------------------------------------
 */
 
-describe('reverse selection', () => {
-    it('bold works with reversed selection', () => {
-        const { root, map } =
-            buildDoc('Hello world');
+describe("reverse selection", () => {
+    it("bold works with reversed selection", () => {
+        const { root, map } = buildDoc("Hello world");
 
         const contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 11,
@@ -350,23 +294,27 @@ describe('reverse selection', () => {
 
         expectFlatTree(contents!, [
             {
-                content: 'Hello ',
-                tagName: 'span',
+                content: "Hello ",
+                tagName: "span",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
             {
-                content: 'world',
-                tagName: 'strong',
+                content: "world",
+                tagName: "strong",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
         ]);
     });
 
-
-    it('italic works with reversed selection', () => {
-        const { root, map } =
-            buildDoc('Hello world');
+    it("italic works with reversed selection", () => {
+        const { root, map } = buildDoc("Hello world");
 
         const contents = applyFormatted({
-            format: 'italic',
+            format: "italic",
             descendants: map,
             selection: {
                 anchor: 5,
@@ -379,17 +327,22 @@ describe('reverse selection', () => {
 
         expectFlatTree(contents!, [
             {
-                content: 'Hello',
-                tagName: 'em',
+                content: "Hello",
+                tagName: "em",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
             {
-                content: ' world',
-                tagName: 'span',
+                content: " world",
+                tagName: "span",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
         ]);
     });
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -397,13 +350,12 @@ describe('reverse selection', () => {
 |--------------------------------------------------------------------------
 */
 
-describe('no-op', () => {
-    it('returns undefined for collapsed selection', () => {
-        const { root, map } =
-            buildDoc();
+describe("no-op", () => {
+    it("returns undefined for collapsed selection", () => {
+        const { root, map } = buildDoc();
 
         const result = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 5,
@@ -416,20 +368,18 @@ describe('no-op', () => {
     });
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | Remove formatting
 |--------------------------------------------------------------------------
 */
 
-describe('remove formatting', () => {
-    it('unbold(Hello) => span(Hello) + strong( world)', () => {
-        const { root, map } =
-            buildDoc('Hello world');
+describe("remove formatting", () => {
+    it("unbold(Hello) => span(Hello) + strong( world)", () => {
+        const { root, map } = buildDoc("Hello world");
 
         let contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 0,
@@ -439,7 +389,7 @@ describe('remove formatting', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -452,29 +402,31 @@ describe('remove formatting', () => {
 
         expectFlatTree(contents, [
             {
-                content: 'Hello',
-                tagName: 'span',
+                content: "Hello",
+                tagName: "span",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
             {
-                content: ' world',
-                tagName: 'strong',
+                content: " world",
+                tagName: "strong",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
         ]);
 
-        expect(
-            getContentsText(contents),
-        ).toBe('Hello world');
+        expect(getContentsText(contents)).toBe("Hello world");
 
         expectTreeIntegrity(contents);
     });
 
-
-    it('unbold(world) => strong(Hello ) + span(world)', () => {
-        const { root, map } =
-            buildDoc('Hello world');
+    it("unbold(world) => strong(Hello ) + span(world)", () => {
+        const { root, map } = buildDoc("Hello world");
 
         let contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 0,
@@ -484,7 +436,7 @@ describe('remove formatting', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 6,
@@ -497,29 +449,31 @@ describe('remove formatting', () => {
 
         expectFlatTree(contents, [
             {
-                content: 'Hello ',
-                tagName: 'strong',
+                content: "Hello ",
+                tagName: "strong",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
             {
-                content: 'world',
-                tagName: 'span',
+                content: "world",
+                tagName: "span",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
         ]);
 
-        expect(
-            getContentsText(contents),
-        ).toBe('Hello world');
+        expect(getContentsText(contents)).toBe("Hello world");
 
         expectTreeIntegrity(contents);
     });
 
-
-    it('unitalic preserves bold', () => {
-        const { root, map } =
-            buildDoc('Hello world');
+    it("unitalic preserves bold", () => {
+        const { root, map } = buildDoc("Hello world");
 
         let contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 0,
@@ -529,7 +483,7 @@ describe('remove formatting', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'italic',
+            format: "italic",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -539,7 +493,7 @@ describe('remove formatting', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'italic',
+            format: "italic",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -548,28 +502,21 @@ describe('remove formatting', () => {
             node: root,
         })!;
 
-        const hello = findNodeByContent(
-            contents,
-            'Hello',
-        );
+        const hello = findNodeByContent(contents, "Hello");
 
         expect(hello).toBeDefined();
-        expect(hello!.tagName).toBe('strong');
+        expect(hello!.tagName).toBe("strong");
 
-        expect(
-            getAncestors(hello!, contents),
-        ).not.toContain('em');
+        expect(getAncestors(hello!, contents)).not.toContain("em");
 
         expectTreeIntegrity(contents);
     });
 
-
-    it('unbold preserves italic', () => {
-        const { root, map } =
-            buildDoc('Hello world');
+    it("unbold preserves italic", () => {
+        const { root, map } = buildDoc("Hello world");
 
         let contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 0,
@@ -579,7 +526,7 @@ describe('remove formatting', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'italic',
+            format: "italic",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -589,7 +536,7 @@ describe('remove formatting', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -598,22 +545,16 @@ describe('remove formatting', () => {
             node: root,
         })!;
 
-        const hello = findNodeByContent(
-            contents,
-            'Hello',
-        );
+        const hello = findNodeByContent(contents, "Hello");
 
         expect(hello).toBeDefined();
-        expect(hello!.tagName).toBe('em');
+        expect(hello!.tagName).toBe("em");
 
-        expect(
-            getAncestors(hello!, contents),
-        ).not.toContain('strong');
+        expect(getAncestors(hello!, contents)).not.toContain("strong");
 
         expectTreeIntegrity(contents);
     });
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -621,10 +562,9 @@ describe('remove formatting', () => {
 |--------------------------------------------------------------------------
 */
 
-describe('adjacent formatting', () => {
-    it('bold(Hallo) + bold(World) => bold(Hallo World)', () => {
-        const { root, map } =
-            buildDoc('Hallo World');
+describe("adjacent formatting", () => {
+    it("bold(Hallo) + bold(World) => bold(Hallo World)", () => {
+        const { root, map } = buildDoc("Hallo World");
 
         /*
          * Step 1:
@@ -633,7 +573,7 @@ describe('adjacent formatting', () => {
          * span(" World")
          */
         let contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 0,
@@ -653,7 +593,7 @@ describe('adjacent formatting', () => {
          * equivalent formatting.
          */
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 6,
@@ -662,24 +602,23 @@ describe('adjacent formatting', () => {
             node: root,
         })!;
 
-        expect(
-            getContentsText(contents),
-        ).toBe('Hallo World');
+        expect(getContentsText(contents)).toBe("Hallo World");
 
         expectFlatTree(contents, [
             {
-                content: 'Hallo World',
-                tagName: 'strong',
+                content: "Hallo World",
+                tagName: "strong",
+                type: "spanned",
+                selectable: false,
+                hoverable: false,
             },
         ]);
 
         expectTreeIntegrity(contents);
     });
 
-
-    it('italic(bold(Hallo) + space) + bold(italic(World) => bold(italic(Hallo World))', () => {
-        const { root, map } =
-            buildDoc('Hallo World');
+    it("italic(bold(Hallo) + space) + bold(italic(World) => bold(italic(Hallo World))", () => {
+        const { root, map } = buildDoc("Hallo World");
 
         let contents = map;
 
@@ -687,7 +626,7 @@ describe('adjacent formatting', () => {
          * bold("Hallo")
          */
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -707,7 +646,7 @@ describe('adjacent formatting', () => {
          * )
          */
         contents = applyFormatted({
-            format: 'italic',
+            format: "italic",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -720,7 +659,7 @@ describe('adjacent formatting', () => {
          * italic + bold("World")
          */
         contents = applyFormatted({
-            format: 'italic',
+            format: "italic",
             descendants: contents,
             selection: {
                 anchor: 6,
@@ -730,7 +669,7 @@ describe('adjacent formatting', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 6,
@@ -739,27 +678,19 @@ describe('adjacent formatting', () => {
             node: root,
         })!;
 
-        expect(
-            getContentsText(contents),
-        ).toBe('Hallo World');
+        expect(getContentsText(contents)).toBe("Hallo World");
 
-        const text = findNodeByContent(
-            contents,
-            'Hallo World',
-        );
+        const text = findNodeByContent(contents, "Hallo World");
 
         expect(text).toBeDefined();
 
-        expect(text!.tagName).toBe('em');
+        expect(text!.tagName).toBe("em");
 
-        expect(
-            getAncestors(text!, contents),
-        ).toBe('strong');
+        expect(getAncestors(text!, contents)).toBe("strong");
 
         expectTreeIntegrity(contents);
     });
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -767,10 +698,9 @@ describe('adjacent formatting', () => {
 |--------------------------------------------------------------------------
 */
 
-describe('three-level formatting', () => {
-    it('underline + italic + bold across whitespace => bold(italic(underline(Hallo World)))', () => {
-        const { root, map } =
-            buildDoc('Hallo World');
+describe("three-level formatting", () => {
+    it("underline + italic + bold across whitespace => bold(italic(underline(Hallo World)))", () => {
+        const { root, map } = buildDoc("Hallo World");
 
         let contents = map;
 
@@ -778,7 +708,7 @@ describe('three-level formatting', () => {
          * bold("Hallo")
          */
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -791,7 +721,7 @@ describe('three-level formatting', () => {
          * italic("Hallo ")
          */
         contents = applyFormatted({
-            format: 'italic',
+            format: "italic",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -804,7 +734,7 @@ describe('three-level formatting', () => {
          * underline("Hallo ")
          */
         contents = applyFormatted({
-            format: 'underline',
+            format: "underline",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -821,7 +751,7 @@ describe('three-level formatting', () => {
          * underline
          */
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 6,
@@ -831,7 +761,7 @@ describe('three-level formatting', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'italic',
+            format: "italic",
             descendants: contents,
             selection: {
                 anchor: 6,
@@ -841,7 +771,7 @@ describe('three-level formatting', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'underline',
+            format: "underline",
             descendants: contents,
             selection: {
                 anchor: 6,
@@ -850,14 +780,9 @@ describe('three-level formatting', () => {
             node: root,
         })!;
 
-        expect(
-            getContentsText(contents),
-        ).toBe('Hallo World');
+        expect(getContentsText(contents)).toBe("Hallo World");
 
-        const text = findNodeByContent(
-            contents,
-            'Hallo World',
-        );
+        const text = findNodeByContent(contents, "Hallo World");
 
         expect(text).toBeDefined();
 
@@ -867,16 +792,135 @@ describe('three-level formatting', () => {
          * Ancestors:
          * strong > em
          */
-        expect(text!.tagName).toBe('u');
+        expect(text!.tagName).toBe("u");
 
-        expect(
-            getAncestors(text!, contents),
-        ).toBe('strong > em');
+        expect(getAncestors(text!, contents)).toBe("strong > em");
 
         expectTreeIntegrity(contents);
     });
 });
 
+/*
+|--------------------------------------------------------------------------
+| Complex formatting regressions
+|--------------------------------------------------------------------------
+*/
+
+describe("complex formatting regressions", () => {
+    it("removing the middle layer from a three-level chain preserves the outer layers", () => {
+        const { root, map } = buildDoc("Hello world");
+
+        let contents = map;
+
+        contents = applyFormatted({
+            format: "bold",
+            descendants: contents,
+            selection: {
+                anchor: 0,
+                focus: 11,
+            },
+            node: root,
+        })!;
+
+        contents = applyFormatted({
+            format: "italic",
+            descendants: contents,
+            selection: {
+                anchor: 0,
+                focus: 11,
+            },
+            node: root,
+        })!;
+
+        contents = applyFormatted({
+            format: "underline",
+            descendants: contents,
+            selection: {
+                anchor: 0,
+                focus: 11,
+            },
+            node: root,
+        })!;
+
+        expectFormatChain(contents, "Hello world", "u", "strong > em");
+
+        contents = applyFormatted({
+            format: "italic",
+            descendants: contents,
+            selection: {
+                anchor: 0,
+                focus: 11,
+            },
+            node: root,
+        })!;
+
+        expectFormatChain(contents, "Hello world", "u", "strong");
+
+        expect(getContentsText(contents)).toBe("Hello world");
+
+        expectTreeIntegrity(contents);
+    });
+
+    it("reapplying the middle layer restores the full ancestor chain", () => {
+        const { root, map } = buildDoc("Hello world");
+
+        let contents = map;
+
+        contents = applyFormatted({
+            format: "bold",
+            descendants: contents,
+            selection: {
+                anchor: 0,
+                focus: 11,
+            },
+            node: root,
+        })!;
+
+        contents = applyFormatted({
+            format: "italic",
+            descendants: contents,
+            selection: {
+                anchor: 0,
+                focus: 11,
+            },
+            node: root,
+        })!;
+
+        contents = applyFormatted({
+            format: "underline",
+            descendants: contents,
+            selection: {
+                anchor: 0,
+                focus: 11,
+            },
+            node: root,
+        })!;
+
+        contents = applyFormatted({
+            format: "italic",
+            descendants: contents,
+            selection: {
+                anchor: 0,
+                focus: 11,
+            },
+            node: root,
+        })!;
+
+        contents = applyFormatted({
+            format: "italic",
+            descendants: contents,
+            selection: {
+                anchor: 0,
+                focus: 11,
+            },
+            node: root,
+        })!;
+
+        expectFormatChain(contents, "Hello world", "u", "strong > em");
+        expect(getContentsText(contents)).toBe("Hello world");
+        expectTreeIntegrity(contents);
+    });
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -884,10 +928,9 @@ describe('three-level formatting', () => {
 |--------------------------------------------------------------------------
 */
 
-describe('partial formatting', () => {
-    it('underline(Hallo) over bold(italic(Hallo World))', () => {
-        const { root, map } =
-            buildDoc('Hallo World');
+describe("partial formatting", () => {
+    it("underline(Hallo) over bold(italic(Hallo World))", () => {
+        const { root, map } = buildDoc("Hallo World");
 
         let contents = map;
 
@@ -895,7 +938,7 @@ describe('partial formatting', () => {
          * bold("Hallo World")
          */
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -908,7 +951,7 @@ describe('partial formatting', () => {
          * italic("Hallo World")
          */
         contents = applyFormatted({
-            format: 'italic',
+            format: "italic",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -933,7 +976,7 @@ describe('partial formatting', () => {
          * )
          */
         contents = applyFormatted({
-            format: 'underline',
+            format: "underline",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -942,47 +985,33 @@ describe('partial formatting', () => {
             node: root,
         })!;
 
-        expect(
-            getContentsText(contents),
-        ).toBe('Hallo World');
+        expect(getContentsText(contents)).toBe("Hallo World");
 
-        const hello = findNodeByContent(
-            contents,
-            'Hallo',
-        );
+        const hello = findNodeByContent(contents, "Hallo");
 
-        const world = findNodeByContent(
-            contents,
-            ' World',
-        );
+        const world = findNodeByContent(contents, " World");
 
         expect(hello).toBeDefined();
         expect(world).toBeDefined();
 
-        expect(hello!.tagName).toBe('u');
+        expect(hello!.tagName).toBe("u");
 
-        expect(
-            getAncestors(hello!, contents),
-        ).toBe('strong > em');
+        expect(getAncestors(hello!, contents)).toBe("strong > em");
 
-        expect(world!.tagName).toBe('em');
+        expect(world!.tagName).toBe("em");
 
-        expect(
-            getAncestors(world!, contents),
-        ).toBe('strong');
+        expect(getAncestors(world!, contents)).toBe("strong");
 
         expectTreeIntegrity(contents);
     });
 
-
-    it('underline only Hallo does not affect World', () => {
-        const { root, map } =
-            buildDoc('Hallo World');
+    it("underline only Hallo does not affect World", () => {
+        const { root, map } = buildDoc("Hallo World");
 
         let contents = map;
 
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -992,7 +1021,7 @@ describe('partial formatting', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'italic',
+            format: "italic",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -1002,7 +1031,7 @@ describe('partial formatting', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'underline',
+            format: "underline",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -1011,26 +1040,15 @@ describe('partial formatting', () => {
             node: root,
         })!;
 
-        expectNode(
-            contents,
-            'Hallo',
-            'u',
-        );
+        expectNode(contents, "Hallo", "u");
 
-        expectNode(
-            contents,
-            ' World',
-            'em',
-        );
+        expectNode(contents, " World", "em");
 
-        expect(
-            getContentsText(contents),
-        ).toBe('Hallo World');
+        expect(getContentsText(contents)).toBe("Hallo World");
 
         expectTreeIntegrity(contents);
     });
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -1038,15 +1056,14 @@ describe('partial formatting', () => {
 |--------------------------------------------------------------------------
 */
 
-describe('format toggle', () => {
-    it('bold -> italic -> underline -> remove bold', () => {
-        const { root, map } =
-            buildDoc('Hello world');
+describe("format toggle", () => {
+    it("bold -> italic -> underline -> remove bold", () => {
+        const { root, map } = buildDoc("Hello world");
 
         let contents = map;
 
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -1056,7 +1073,7 @@ describe('format toggle', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'italic',
+            format: "italic",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -1066,7 +1083,7 @@ describe('format toggle', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'underline',
+            format: "underline",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -1076,7 +1093,7 @@ describe('format toggle', () => {
         })!;
 
         contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: contents,
             selection: {
                 anchor: 0,
@@ -1085,26 +1102,18 @@ describe('format toggle', () => {
             node: root,
         })!;
 
-        const hello = findNodeByContent(
-            contents,
-            'Hello',
-        );
+        const hello = findNodeByContent(contents, "Hello");
 
         expect(hello).toBeDefined();
-        expect(hello!.tagName).toBe('u');
+        expect(hello!.tagName).toBe("u");
 
-        expect(
-            getAncestors(hello!, contents),
-        ).toBe('em');
+        expect(getAncestors(hello!, contents)).toBe("em");
 
-        expect(
-            getContentsText(contents),
-        ).toBe('Hello world');
+        expect(getContentsText(contents)).toBe("Hello world");
 
         expectTreeIntegrity(contents);
     });
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -1112,22 +1121,18 @@ describe('format toggle', () => {
 |--------------------------------------------------------------------------
 */
 
-describe('immutability', () => {
-    it('does not mutate the original root', () => {
-        const { root, map } =
-            buildDoc('Hello world');
+describe("immutability", () => {
+    it("does not mutate the original root", () => {
+        const { root, map } = buildDoc("Hello world");
 
-        const originalContent =
-            root.content;
+        const originalContent = root.content;
 
-        const originalTag =
-            root.tagName;
+        const originalTag = root.tagName;
 
-        const originalId =
-            root.id;
+        const originalId = root.id;
 
         const contents = applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 0,
@@ -1138,33 +1143,26 @@ describe('immutability', () => {
 
         expect(contents).toBeDefined();
 
-        expect(root.content)
-            .toBe(originalContent);
+        expect(root.content).toBe(originalContent);
 
-        expect(root.tagName)
-            .toBe(originalTag);
+        expect(root.tagName).toBe(originalTag);
 
-        expect(root.id)
-            .toBe(originalId);
+        expect(root.id).toBe(originalId);
     });
 
+    it("does not mutate original descendants", () => {
+        const { root, map } = buildDoc("Hello world");
 
-    it('does not mutate original descendants', () => {
-        const { root, map } =
-            buildDoc('Hello world');
-
-        const snapshot =
-            Array.from(map.values())
-                .map((node) => ({
-                    id: node.id,
-                    content: node.content,
-                    parent: node.parent,
-                    order: node.order,
-                    tagName: node.tagName,
-                }));
+        const snapshot = Array.from(map.values()).map((node) => ({
+            id: node.id,
+            content: node.content,
+            parent: node.parent,
+            order: node.order,
+            tagName: node.tagName,
+        }));
 
         applyFormatted({
-            format: 'bold',
+            format: "bold",
             descendants: map,
             selection: {
                 anchor: 0,
@@ -1174,18 +1172,16 @@ describe('immutability', () => {
         });
 
         expect(
-            Array.from(map.values())
-                .map((node) => ({
-                    id: node.id,
-                    content: node.content,
-                    parent: node.parent,
-                    order: node.order,
-                    tagName: node.tagName,
-                })),
+            Array.from(map.values()).map((node) => ({
+                id: node.id,
+                content: node.content,
+                parent: node.parent,
+                order: node.order,
+                tagName: node.tagName,
+            })),
         ).toEqual(snapshot);
     });
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -1193,41 +1189,40 @@ describe('immutability', () => {
 |--------------------------------------------------------------------------
 */
 
-describe('text preservation', () => {
-    it('never loses text after repeated formatting operations', () => {
-        const { root, map } =
-            buildDoc('Hallo World');
+describe("text preservation", () => {
+    it("never loses text after repeated formatting operations", () => {
+        const { root, map } = buildDoc("Hallo World");
 
         let contents = map;
 
         const operations = [
             {
-                format: 'bold' as const,
+                format: "bold" as const,
                 anchor: 0,
                 focus: 5,
             },
             {
-                format: 'italic' as const,
+                format: "italic" as const,
                 anchor: 0,
                 focus: 11,
             },
             {
-                format: 'underline' as const,
+                format: "underline" as const,
                 anchor: 0,
                 focus: 5,
             },
             {
-                format: 'bold' as const,
+                format: "bold" as const,
                 anchor: 6,
                 focus: 11,
             },
             {
-                format: 'italic' as const,
+                format: "italic" as const,
                 anchor: 6,
                 focus: 11,
             },
             {
-                format: 'underline' as const,
+                format: "underline" as const,
                 anchor: 6,
                 focus: 11,
             },
@@ -1244,9 +1239,7 @@ describe('text preservation', () => {
                 node: root,
             })!;
 
-            expect(
-                getContentsText(contents),
-            ).toBe('Hallo World');
+            expect(getContentsText(contents)).toBe("Hallo World");
 
             expectTreeIntegrity(contents);
         }

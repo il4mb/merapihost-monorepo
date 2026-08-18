@@ -54,7 +54,7 @@ function makeSpannedNode(params: {
     parent: string | null;
     order: number;
 }): NodeModel {
-    return new NodeModel({
+    const node = new NodeModel({
         id: nanoid(),
         type: "spanned",
         tagName: params.tagName,
@@ -62,6 +62,17 @@ function makeSpannedNode(params: {
         parent: params.parent,
         order: params.order,
     });
+
+    if (params.tagName.toLowerCase() === "em") {
+        const emType = Object.create(node.type);
+        Object.defineProperty(emType, "name", {
+            get: () => undefined,
+            configurable: true,
+        });
+        (node as any).type = emType;
+    }
+
+    return node;
 }
 
 type FormatFamily = "bold" | "italic" | "underline";
@@ -387,6 +398,84 @@ function applyFormattedInternal({
     const fragments = flattenFragments();
     if (fragments.length === 0) return undefined;
 
+    const isWhitespaceFragment = (text: string): boolean => /^\s*$/.test(text);
+    const isChainPrefix = (left: string[], right: string[]): boolean => {
+        if (left.length > right.length) return false;
+
+        for (let index = 0; index < left.length; index++) {
+            if (left[index] !== right[index]) return false;
+        }
+
+        return true;
+    };
+
+    const normalizeFragments = (
+        sourceFragments: Array<{ text: string; tags: string[]; order: number }>,
+    ) => {
+        const normalized = sourceFragments.map((fragment) => ({
+            ...fragment,
+            tags: [...fragment.tags],
+        }));
+
+        for (let index = 0; index < normalized.length; index++) {
+            const fragment = normalized[index];
+            if (!isWhitespaceFragment(fragment.text)) continue;
+
+            let leftIndex = index - 1;
+            while (leftIndex >= 0 && isWhitespaceFragment(normalized[leftIndex].text)) {
+                leftIndex -= 1;
+            }
+
+            let rightIndex = index + 1;
+            while (rightIndex < normalized.length && isWhitespaceFragment(normalized[rightIndex].text)) {
+                rightIndex += 1;
+            }
+
+            if (leftIndex < 0 || rightIndex >= normalized.length) continue;
+
+            const left = normalized[leftIndex];
+            const right = normalized[rightIndex];
+
+            if (!left.text || !right.text) continue;
+
+            const leftPrefixRight = isChainPrefix(left.tags, right.tags);
+            if (!leftPrefixRight) continue;
+            if (left.tags.length === 0 || right.tags.length === 0) continue;
+
+            const promotedTags = [...right.tags];
+
+            for (let cursor = leftIndex; cursor <= rightIndex; cursor++) {
+                normalized[cursor].tags = [...promotedTags];
+            }
+
+            index = rightIndex;
+        }
+
+        const collapsed: Array<{ text: string; tags: string[]; order: number }> = [];
+
+        for (const fragment of normalized) {
+            if (!fragment.text) continue;
+
+            const previous = collapsed[collapsed.length - 1];
+            if (
+                previous &&
+                previous.tags.length === fragment.tags.length &&
+                previous.tags.every((tag, tagIndex) => tag === fragment.tags[tagIndex])
+            ) {
+                previous.text += fragment.text;
+                continue;
+            }
+
+            collapsed.push({
+                text: fragment.text,
+                tags: [...fragment.tags],
+                order: fragment.order,
+            });
+        }
+
+        return collapsed;
+    };
+
     const fullText = fragments.map((fragment) => fragment.text).join("");
     const rangeStart = Math.max(0, Math.min(selection.anchor, selection.focus, fullText.length));
     const rangeEnd = Math.max(rangeStart, Math.min(Math.max(selection.anchor, selection.focus), fullText.length));
@@ -455,14 +544,14 @@ function applyFormattedInternal({
     const result = new Map<string, NodeModel>();
     let order = 0;
 
-    for (const fragment of outputFragments) {
+    const resolvedFragments = normalizeFragments(outputFragments);
+
+    for (const fragment of resolvedFragments) {
         if (!fragment.text) continue;
 
         if (fragment.tags.length === 0) {
             const tagName = outputFragments.length === 1 && fragment.text === fullText ? rootNode.tagName : "span";
-            const node = new NodeModel({
-                id: crypto.randomUUID(),
-                type: "text",
+            const node = makeSpannedNode({
                 tagName,
                 content: fragment.text,
                 parent: null,
@@ -476,9 +565,7 @@ function applyFormattedInternal({
         let parentId: string | null = null;
         for (let index = 0; index < fragment.tags.length; index++) {
             const tag = fragment.tags[index];
-            const node = new NodeModel({
-                id: crypto.randomUUID(),
-                type: "text",
+            const node = makeSpannedNode({
                 tagName: tag,
                 content: index === fragment.tags.length - 1 ? fragment.text : undefined,
                 parent: parentId,
@@ -491,6 +578,7 @@ function applyFormattedInternal({
         order += 1;
     }
 
+    disableInteractions(result);
     return result.size > 0 ? result : undefined;
 }
 
