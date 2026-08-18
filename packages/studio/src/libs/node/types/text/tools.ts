@@ -328,163 +328,170 @@ function applyFormattedInternal({
 }: ApplyFormattedProps): Map<string, NodeModel> | undefined {
     if (selection.anchor === selection.focus) return undefined;
 
-    const selStart = Math.min(selection.anchor, selection.focus);
-    const selEnd = Math.max(selection.anchor, selection.focus);
-
     const targetTagName = format === "bold" ? "strong" : format === "italic" ? "em" : "u";
+    const formatOrder = ["strong", "em", "u"];
 
-    const contents = new Map(descendants);
-    contents.set(rootNode.id, rootNode);
+    const canonicalizeTag = (tagName?: string | null): string | null => {
+        const normalized = tagName?.toLowerCase();
+        if (!normalized) return null;
+        if (normalized === "b" || normalized === "strong") return "strong";
+        if (normalized === "i" || normalized === "em") return "em";
+        if (normalized === "u") return "u";
+        return null;
+    };
 
-    const segments = getSelectionSegments(selStart, selEnd, contents, rootNode);
-    if (segments.length === 0) return undefined;
+    const flattenFragments = (): Array<{ text: string; tags: string[]; order: number }> => {
+        const sourceMap = new Map(descendants);
+        const nodes = Array.from(sourceMap.values())
+            .filter((node) => typeof node.content === "string" && node.content.length > 0)
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-    // Tentukan aksi berdasarkan apakah SEMUA segmen sudah berformat target
-    const isAllFormatted = segments.every((seg) =>
-        isNodeFormatted(seg.node, targetTagName, contents, rootNode.id)
-    );
-    const targetAction: "APPLY" | "REMOVE" = isAllFormatted ? "REMOVE" : "APPLY";
-
-    for (const seg of segments) {
-        const segIdx = segments.indexOf(seg);
-        const targetNode = seg.node;
-        const targetIsRoot = targetNode.id === rootNode.id;
-
-        const startOffset = seg.localStart;
-        const endOffset = seg.localEnd;
-        const overlapLength = endOffset - startOffset;
-        if (overlapLength === 0) continue;
-
-        const originalContent = targetNode.content || "";
-        const before = originalContent.slice(0, startOffset);
-        const selectedText = originalContent.slice(startOffset, endOffset);
-        const after = originalContent.slice(endOffset);
-        const hasBefore = before.length > 0;
-        const hasAfter = after.length > 0;
-        const baseOrder = targetNode.order || 0;
-        const chain = getNodeAncestorChain(targetNode.id, rootNode.id, contents);
-        const matchedAncestorIdx = chain.findIndex((w) => w.tagName === targetTagName);
-        const selfFormatted = targetNode.tagName === targetTagName;
-
-        if (targetAction === "APPLY") {
-            // Jika sudah terformat (di node sendiri atau ancestor), lewati
-            if (isNodeFormatted(targetNode, targetTagName, contents, rootNode.id)) continue;
-
-            // Ubah targetNode menjadi wrapper
-            targetNode.content = undefined;
-
-            // Buat node format untuk teks terpilih
-            const newFormatNode = makeSpannedNode({
-                tagName: targetTagName,
-                content: selectedText,
-                parent: targetNode.id,
-                order: baseOrder + ORDER_EPS + segIdx * ORDER_EPS,
-            });
-
-            // Node sebelum/sesudah yang tidak terpilih harus tetap plain text agar
-            // tidak mewarisi tag blok root seperti p/h1 ketika sebagian teks dibold.
-            const plainTextTag = targetNode.id === rootNode.id ? "span" : targetNode.tagName;
-
-            if (hasBefore) {
-                const beforeNode = newFormatNode.clone();
-                beforeNode.content = before;
-                beforeNode.tagName = plainTextTag;
-                beforeNode.order = baseOrder + segIdx * ORDER_EPS;
-                beforeNode.parent = targetNode.id;
-                contents.set(beforeNode.id, beforeNode);
-            }
-
-            if (hasAfter) {
-                const afterNode = newFormatNode.clone();
-                afterNode.content = after;
-                afterNode.tagName = plainTextTag;
-                afterNode.order = baseOrder + ORDER_MAJOR + segIdx * ORDER_EPS;
-                afterNode.parent = targetNode.id;
-                contents.set(afterNode.id, afterNode);
-            }
-
-            contents.set(newFormatNode.id, newFormatNode);
-        } else {
-            // ── REMOVE formatting ──
-            if (!selfFormatted && matchedAncestorIdx === -1) continue;
-
-            const relevantChain = chain.length > 0 ? chain : [targetNode];
-            const lastIdx = relevantChain.length - 1;
-            const outermostWrapper = relevantChain[lastIdx];
-            const isOutermostTarget = matchedAncestorIdx === lastIdx;
-
-            // Jangan menghapus root node atau parent yang memegang teks utama.
-            if (targetNode.id !== rootNode.id) {
-                contents.delete(targetNode.id);
-            }
-
-            for (let i = 0; i <= lastIdx; i++) {
-                if (i === lastIdx && !isOutermostTarget) {
-                    continue;
-                }
-                if (relevantChain[i].id === rootNode.id) {
-                    continue;
-                }
-                contents.delete(relevantChain[i].id);
-            }
-
-            const createBranch = (text: string, isSelected: boolean, orderOffset: number) => {
-                const fallbackParentId = outermostWrapper?.parent ?? rootNode.parent ?? rootNode.id;
-                let currentParentId: string | null = fallbackParentId;
-
-                if (!isOutermostTarget && outermostWrapper) {
-                    currentParentId = outermostWrapper.id;
-                    for (let i = lastIdx - 1; i >= 0; i--) {
-                        if (isSelected && i === matchedAncestorIdx) continue;
-                        const clone = relevantChain[i].clone();
-                        clone.parent = currentParentId;
-                        clone.order = baseOrder + orderOffset;
-                        contents.set(clone.id, clone);
-                        currentParentId = clone.id;
-                    }
-                } else {
-                    for (let i = lastIdx; i >= 0; i--) {
-                        if (isSelected && i === matchedAncestorIdx) continue;
-                        const clone = relevantChain[i].clone();
-                        clone.parent = currentParentId;
-                        clone.order = baseOrder + orderOffset;
-                        contents.set(clone.id, clone);
-                        currentParentId = clone.id;
-                    }
-                }
-
-                const newTextNode = targetNode.clone();
-                newTextNode.content = text;
-                if (selfFormatted) {
-                    newTextNode.tagName = "span";
-                }
-                newTextNode.parent = currentParentId;
-                newTextNode.order = baseOrder + orderOffset;
-                contents.set(newTextNode.id, newTextNode);
-            };
-
-            if (hasBefore) createBranch(before, false, segIdx * ORDER_EPS);
-            createBranch(selectedText, true, ORDER_EPS + segIdx * ORDER_EPS);
-            if (hasAfter) createBranch(after, false, ORDER_MAJOR + segIdx * ORDER_EPS);
+        if (nodes.length === 0 && rootNode.content) {
+            return [{ text: rootNode.content, tags: [], order: 0 }];
         }
+
+        const fragments: Array<{ text: string; tags: string[]; order: number }> = [];
+
+        for (const node of nodes) {
+            const tags: string[] = [];
+            let current: NodeModel | null = node;
+
+            while (current && current.parent && sourceMap.has(current.parent)) {
+                const parent = sourceMap.get(current.parent);
+                if (parent) {
+                    const canonical = canonicalizeTag(parent.tagName);
+                    if (canonical) {
+                        tags.unshift(canonical);
+                    }
+                    current = parent;
+                } else {
+                    current = null;
+                }
+            }
+
+            const selfTag = canonicalizeTag(node.tagName);
+            if (selfTag) {
+                tags.push(selfTag);
+            }
+
+            fragments.push({
+                text: node.content || "",
+                tags: [...new Set(tags)],
+                order: node.order ?? 0,
+            });
+        }
+
+        return fragments;
+    };
+
+    const fragments = flattenFragments();
+    if (fragments.length === 0) return undefined;
+
+    const fullText = fragments.map((fragment) => fragment.text).join("");
+    const rangeStart = Math.max(0, Math.min(selection.anchor, selection.focus, fullText.length));
+    const rangeEnd = Math.max(rangeStart, Math.min(Math.max(selection.anchor, selection.focus), fullText.length));
+
+    if (rangeStart === rangeEnd) return undefined;
+
+    let totalSelected = 0;
+    let selectedTargetChars = 0;
+    let cursor = 0;
+
+    for (const fragment of fragments) {
+        const fragmentStart = cursor;
+        const fragmentEnd = fragmentStart + fragment.text.length;
+        const overlapStart = Math.max(rangeStart, fragmentStart);
+        const overlapEnd = Math.min(rangeEnd, fragmentEnd);
+
+        if (overlapStart < overlapEnd) {
+            const piece = fragment.text.slice(overlapStart - fragmentStart, overlapEnd - fragmentStart);
+            totalSelected += piece.length;
+            if (fragment.tags.includes(targetTagName)) {
+                selectedTargetChars += piece.length;
+            }
+        }
+
+        cursor = fragmentEnd;
     }
 
-    // contents.delete(rootNode.id);
+    const targetAction: "APPLY" | "REMOVE" = totalSelected > 0 && selectedTargetChars === totalSelected ? "REMOVE" : "APPLY";
 
-    // Pasca-pemrosesan
-    normalizeNodeOrders(contents);
-    promoteNestedFormatNodes(contents);
-    cleanupEmptyFormatNodes(contents);
-    mergeAdjacentFormatNodesWithWhitespace(contents);
-    disableInteractions(contents);
-    normalizeNodeOrders(contents);
+    const outputFragments: Array<{ text: string; tags: string[]; order: number }> = [];
+    cursor = 0;
 
-    if (contents.size === 1 && contents.has(rootNode.id) && !rootNode.content) {
-        console.warn("applyFormatted: semua node terhapus, update dibatalkan.");
-        return undefined;
+    for (const fragment of fragments) {
+        const fragmentStart = cursor;
+        const fragmentEnd = fragmentStart + fragment.text.length;
+        const overlapStart = Math.max(rangeStart, fragmentStart);
+        const overlapEnd = Math.min(rangeEnd, fragmentEnd);
+
+        if (overlapStart >= overlapEnd) {
+            outputFragments.push({ text: fragment.text, tags: [...fragment.tags], order: fragment.order });
+        } else {
+            const beforeText = fragment.text.slice(0, overlapStart - fragmentStart);
+            const selectedText = fragment.text.slice(overlapStart - fragmentStart, overlapEnd - fragmentStart);
+            const afterText = fragment.text.slice(overlapEnd - fragmentStart);
+
+            if (beforeText) {
+                outputFragments.push({ text: beforeText, tags: [...fragment.tags], order: fragment.order });
+            }
+
+            if (selectedText) {
+                const nextTags = targetAction === "APPLY"
+                    ? [...new Set([...fragment.tags, targetTagName])].sort((a, b) => formatOrder.indexOf(a) - formatOrder.indexOf(b))
+                    : [...new Set(fragment.tags.filter((tag) => tag !== targetTagName))].sort((a, b) => formatOrder.indexOf(a) - formatOrder.indexOf(b));
+
+                outputFragments.push({ text: selectedText, tags: nextTags, order: fragment.order + 0.001 });
+            }
+
+            if (afterText) {
+                outputFragments.push({ text: afterText, tags: [...fragment.tags], order: fragment.order + 0.002 });
+            }
+        }
+
+        cursor = fragmentEnd;
     }
 
-    return contents;
+    const result = new Map<string, NodeModel>();
+    let order = 0;
+
+    for (const fragment of outputFragments) {
+        if (!fragment.text) continue;
+
+        if (fragment.tags.length === 0) {
+            const tagName = outputFragments.length === 1 && fragment.text === fullText ? rootNode.tagName : "span";
+            const node = new NodeModel({
+                id: crypto.randomUUID(),
+                type: "text",
+                tagName,
+                content: fragment.text,
+                parent: null,
+                order,
+            });
+            result.set(node.id, node);
+            order += 1;
+            continue;
+        }
+
+        let parentId: string | null = null;
+        for (let index = 0; index < fragment.tags.length; index++) {
+            const tag = fragment.tags[index];
+            const node = new NodeModel({
+                id: crypto.randomUUID(),
+                type: "text",
+                tagName: tag,
+                content: index === fragment.tags.length - 1 ? fragment.text : undefined,
+                parent: parentId,
+                order: order + index * 0.01,
+            });
+            result.set(node.id, node);
+            parentId = node.id;
+        }
+
+        order += 1;
+    }
+
+    return result.size > 0 ? result : undefined;
 }
 
 export const applyFormatted = (props: ApplyFormattedProps): Map<string, NodeModel> | undefined => {
