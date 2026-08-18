@@ -1,8 +1,8 @@
 import { Block } from "@/types";
-import { TypeIcon } from "lucide-react";
+import { CodeIcon, TypeIcon } from "lucide-react";
 import { HeadingIcon } from "lucide-react";
 
-export const TypographyBlock = {
+const TypographyBlock = {
     label: "Typography",
     category: "Text",
     icon: TypeIcon,
@@ -11,13 +11,26 @@ export const TypographyBlock = {
         tagName: "p",
         content: "This is a paragraph of text. You can edit this text to add your own content.",
         props: {
-            style: { fontSize: "16px", lineHeight: "1.5" }
-        }
-    }
-
+            style: { fontSize: "16px", lineHeight: "1.5" },
+        },
+    },
 } as Block;
 
-export const HeadingBlock = {
+const SpanBlock = {
+    label: "Span",
+    category: "Text",
+    icon: CodeIcon,
+    content: {
+        type: "spanned",
+        tagName: "span",
+        content: "This is a span of text.",
+        props: {
+            style: { fontSize: "16px" },
+        },
+    },
+} as Block;
+
+const HeadingBlock = {
     label: "Heading",
     category: "Text",
     icon: HeadingIcon,
@@ -26,7 +39,9 @@ export const HeadingBlock = {
         tagName: "h1",
         content: "This is a heading.",
         props: {
-            style: { fontSize: "32px", fontWeight: "bold" }
-        }
-    }
-} as Block; 
+            style: { fontSize: "32px", fontWeight: "bold" },
+        },
+    },
+} as Block;
+
+export const TEXT_BLOCKS = [TypographyBlock, SpanBlock, HeadingBlock] as Block[];

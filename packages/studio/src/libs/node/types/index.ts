@@ -8,6 +8,7 @@ import { ImageType } from "./ImageType";
 import { RootType } from "./RootType";
 import { VideoType } from "./VideoType";
 import { YoutubeType } from "./YoutubeType";
+import { ButtonType } from "./ButtonType";
 
 export const REGISTRY = {
     // core types
@@ -21,6 +22,7 @@ export const REGISTRY = {
     "grid": GridType,
     "griditem": GridItemType,
     "image": ImageType,
+    "button": ButtonType,
     "video": VideoType,
     "youtube": YoutubeType,
     "googlemap": GoogleMapType,

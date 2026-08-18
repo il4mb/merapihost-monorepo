@@ -220,10 +220,10 @@ const TreeVisual = memo(
                             </ToggleIcon>
                         </ToggleButton>
                     ) : (
-                        <Box sx={{ width: "24px" }} />
+                        <Box sx={{ width: "27px" }} />
                     )}
                     <Box sx={{ mr: 0.5 }}>
-                        <IconComponent color={color} size={14} />
+                        <IconComponent color={color} size={14} node={node} />
                     </Box>
                     <LabelField
                         sx={{ color: color || "inherit" }}

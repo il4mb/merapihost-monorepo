@@ -105,7 +105,7 @@ export type NodeData<T extends Record<string, unknown> = Record<string, unknown>
 export type TypeModel<T extends Record<string, unknown> = Record<string, unknown>> = {
     name: string;
     extends?: string;
-    icon?: FC<{ size?: number, color?: string }>;
+    icon?: FC<{ size?: number, color?: string, node: NodeModel<T> }>;
     color?: string | {
         light: string;
         dark: string;

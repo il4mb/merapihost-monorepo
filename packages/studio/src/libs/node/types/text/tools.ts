@@ -55,7 +55,7 @@ export const getTextNodes = (descendants: Map<string, NodeModel>, rootNode: Node
         });
 };
 
-export type FormattedType = "bold" | "italic" | "underline";
+export type FormattedType = "bold" | "italic" | "underline" | "link";
 export type Selection = { anchor: number; focus: number };
 export type ApplyFormattedProps = {
     format: FormattedType;
@@ -75,8 +75,18 @@ function applyFormattedInternal({
 }: ApplyFormattedProps): Map<string, NodeModel> | undefined {
     if (selection.anchor === selection.focus) return undefined;
 
-    const targetTagName = format === "bold" ? "strong" : format === "italic" ? "em" : "u";
-    const formatOrder = ["strong", "em", "u"];
+    const targetTagName =
+        format === "bold"
+            ? "strong"
+            : format === "italic"
+              ? "em"
+              : format === "underline"
+                ? "u"
+                : format === "link"
+                  ? "a"
+                  : null;
+    if (!targetTagName) return undefined;
+    const formatOrder = ["strong", "em", "u", "a"];
 
     const canonicalizeTag = (tagName?: string | null): string | null => {
         const normalized = tagName?.toLowerCase();
@@ -84,6 +94,7 @@ function applyFormattedInternal({
         if (normalized === "b" || normalized === "strong") return "strong";
         if (normalized === "i" || normalized === "em") return "em";
         if (normalized === "u") return "u";
+        if (normalized === "a") return "a";
         return null;
     };
 

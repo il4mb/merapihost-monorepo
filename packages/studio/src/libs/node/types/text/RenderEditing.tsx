@@ -37,6 +37,156 @@ export default function RenderEditing({ root }: RenderEditingProps) {
         [invokeCommand],
     );
 
+    const getSelectedText = useCallback(() => {
+        const root = rootRef.current;
+        const textNodes = getTextNodes(descendantsRef.current, root);
+        const selection = caret.selectionRef.current;
+        const start = Math.min(selection.anchor, selection.focus);
+        const end = Math.max(selection.anchor, selection.focus);
+
+        if (start === end) return "";
+
+        let globalPos = 0;
+        let result = "";
+
+        for (const node of textNodes) {
+            const len = (node.content || "").length;
+            const nodeStart = globalPos;
+            const nodeEnd = nodeStart + len;
+
+            if (end <= nodeStart || start >= nodeEnd) {
+                globalPos += len;
+                continue;
+            }
+
+            const overlapStart = Math.max(start, nodeStart);
+            const overlapEnd = Math.min(end, nodeEnd);
+            result += (node.content || "").slice(overlapStart - nodeStart, overlapEnd - nodeStart);
+            globalPos += len;
+        }
+
+        return result;
+    }, [caret]);
+
+    const replaceSelectionWithText = useCallback(
+        (text: string): { anchor: number; focus: number } => {
+            const root = rootRef.current;
+            const selection = caret.selectionRef.current;
+            const textNodes = getTextNodes(descendantsRef.current, root);
+            const newContents = new Map(descendantsRef.current);
+            const start = Math.min(selection.anchor, selection.focus);
+            const end = Math.max(selection.anchor, selection.focus);
+            let newPos = start;
+
+            if (start !== end) {
+                const offsets = textNodes.map((node) => ({ node, start: 0, len: 0 }));
+                let cursor = 0;
+
+                for (const offset of offsets) {
+                    offset.start = cursor;
+                    offset.len = (offset.node.content || "").length;
+                    cursor += offset.len;
+                }
+
+                const firstIdx = offsets.findIndex((offset) => end > offset.start && start < offset.start + offset.len);
+                const lastIdx = offsets.findLastIndex((offset) => end > offset.start && start < offset.start + offset.len);
+
+                if (firstIdx !== -1) {
+                    const first = offsets[firstIdx];
+                    const last = offsets[lastIdx];
+                    const firstLocal = Math.max(0, start - first.start);
+                    const lastLocal = Math.min(last.len, end - last.start);
+
+                    if (firstIdx === lastIdx) {
+                        const merged =
+                            (first.node.content || "").slice(0, firstLocal) +
+                            (first.node.content || "").slice(lastLocal);
+                        const updated = new NodeModel(first.node);
+                        updated.content = merged;
+                        newContents.set(first.node.id, updated);
+                    } else {
+                        const merged =
+                            (first.node.content || "").slice(0, firstLocal) +
+                            (last.node.content || "").slice(lastLocal);
+                        const updated = new NodeModel(first.node);
+                        updated.content = merged;
+                        newContents.set(first.node.id, updated);
+
+                        for (let index = firstIdx + 1; index <= lastIdx; index++) {
+                            newContents.delete(offsets[index].node.id);
+                        }
+                    }
+                }
+            }
+
+            const insertionNodes = getTextNodes(newContents, root);
+            let globalPos = 0;
+            let targetNode: NodeModel | null = null;
+            let localOffset = 0;
+
+            for (const node of insertionNodes) {
+                const len = (node.content || "").length;
+                if (newPos >= globalPos && newPos <= globalPos + len) {
+                    targetNode = node;
+                    localOffset = newPos - globalPos;
+                    break;
+                }
+                globalPos += len;
+            }
+
+            if (!targetNode) {
+                if (insertionNodes.length > 0) {
+                    const last = insertionNodes[insertionNodes.length - 1];
+                    const updated = new NodeModel(last);
+                    updated.content = (last.content || "") + text;
+                    newContents.set(last.id, updated);
+                } else {
+                    const node = new NodeModel({
+                        id: nanoid(),
+                        type: "textnode",
+                        content: text,
+                        parent: root.id,
+                    });
+                    newContents.set(node.id, node);
+                }
+            } else {
+                const content = targetNode.content || "";
+                const updated = new NodeModel(targetNode);
+                updated.content = content.slice(0, localOffset) + text + content.slice(localOffset);
+                newContents.set(targetNode.id, updated);
+            }
+
+            normalizeNodeOrders(newContents);
+
+            flushSync(() => {
+                dispatch({ type: "SET_NODE_CHILDREN", payload: { id: root.id, children: newContents } });
+            });
+
+            const nextPos = newPos + text.length;
+            return { anchor: nextPos, focus: nextPos };
+        },
+        [caret, dispatch],
+    );
+
+    const handleCopy = useCallback((e: ClipboardEvent) => {
+        const text = getSelectedText();
+        if (!text) return;
+
+        e.preventDefault();
+        e.clipboardData?.setData("text/plain", text);
+    }, [getSelectedText]);
+
+    const handlePaste = useCallback((e: ClipboardEvent) => {
+        const text = e.clipboardData?.getData("text/plain") ?? "";
+        if (!text) return;
+
+        e.preventDefault();
+
+        const selection = replaceSelectionWithText(text);
+        caret.selectionRef.current = selection;
+        requestAnimationFrame(() => caret.render());
+    }, [caret, replaceSelectionWithText]);
+
     // ═════════════════════════════════════════════════════════════════
     // DELETE (range or single)
     // ═════════════════════════════════════════════════════════════════
@@ -325,13 +475,17 @@ export default function RenderEditing({ root }: RenderEditingProps) {
         if (!win) return;
 
         win.addEventListener("keydown", handleInput, true);
+        win.addEventListener("copy", handleCopy, true);
+        win.addEventListener("paste", handlePaste, true);
         const unregister = registerShortcuts(shortcutHandlers, true);
 
         return () => {
             unregister();
             win.removeEventListener("keydown", handleInput, true);
+            win.removeEventListener("copy", handleCopy, true);
+            win.removeEventListener("paste", handlePaste, true);
         };
-    }, [handleInput, handleInput]);
+    }, [handleCopy, handleInput, handlePaste, registerShortcuts, shortcutHandlers]);
 
     return (
         <Fragment>

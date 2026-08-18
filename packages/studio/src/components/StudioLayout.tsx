@@ -12,7 +12,7 @@ export default function StudioLayout({ children }: StudioLayoutProps) {
         <StudioProvider>
             <Fragment>
                 <Toolbar />
-                <Stack direction="row" sx={{ flex: 1, overflow: "hidden" }}>
+                <Stack direction="row" sx={{ flex: 1, overflow: "visible" }}>
                     <LeftPanel />
                     <Stack sx={{ flex: 1, overflow: "visible" }}>
                         {children}

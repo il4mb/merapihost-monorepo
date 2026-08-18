@@ -9,11 +9,12 @@ const VOID_ELEMENTS = new Set([
     "link", "meta", "param", "source", "track", "wbr"
 ]);
 
-export const ElementType = createType(({ node, children, ref }) => {
+export const ElementType = createType(({ node, children, ref, childrenNode }) => {
 
     const { dragging } = useDragging();
     const tagName = (node.tagName || "div").toLowerCase() as keyof JSX.IntrinsicElements;
     const isVoidTag = VOID_ELEMENTS.has(tagName);
+    const shouldGrow = childrenNode.length === 0 && dragging;
 
     if (isVoidTag) {
         return (
@@ -28,7 +29,7 @@ export const ElementType = createType(({ node, children, ref }) => {
             sx={{
                 ...node.props.sx,
                 transition: "all .2s ease-in-out",
-                ...(dragging ? {
+                ...(shouldGrow ? {
                     minWidth: 15,
                     minHeight: 15,
                     pb: 2.5,

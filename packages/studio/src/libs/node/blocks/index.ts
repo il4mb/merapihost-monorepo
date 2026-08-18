@@ -1,15 +1,16 @@
 import type { Block } from "@/types";
 import { GridBlock, GridItemBlock } from "./GridBlock";
-import { TypographyBlock, HeadingBlock } from "./Typography";
+import { TEXT_BLOCKS } from "./Typography";
 import { ContainerBlock, BoxBlock } from "./Container";
-import { MediaBlocks } from "./MediaBlock";
+import { MEDIA_BLOCKS } from "./MediaBlock";
+import { BUTTONS_BLOCKS } from "./Button";
 
 export const BLOCKS = [
     GridBlock,
     GridItemBlock,
     ContainerBlock,
     BoxBlock,
-    TypographyBlock,
-    HeadingBlock,
-    ...MediaBlocks
+    ...TEXT_BLOCKS,
+    ...BUTTONS_BLOCKS,
+    ...MEDIA_BLOCKS,
 ] as Block[];

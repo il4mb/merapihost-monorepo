@@ -1,6 +1,6 @@
 import { NodeModel, useNodeInternal, useWireEffect } from "@/libs/node";
 import { Typography } from "@mui/material";
-import { BoldIcon, ItalicIcon, TypeIcon, UnderlineIcon, RemoveFormatting } from "lucide-react";
+import { BoldIcon, ItalicIcon, TypeIcon, UnderlineIcon, RemoveFormatting, LinkIcon } from "lucide-react";
 import { JSX } from "react/jsx-runtime";
 import { useCallback, useEffect } from "react";
 import { useNodes } from "@/contexts";
@@ -140,7 +140,7 @@ export const TextType = createType<TextTypeData>(
                         icon: RemoveFormatting,
                         title: "clear formatted",
                         disabled: Boolean(node.content),
-                        order: 0
+                        order: 0,
                     },
                 };
             }
@@ -149,6 +149,10 @@ export const TextType = createType<TextTypeData>(
                     icon: RemoveFormatting,
                     title: "clear formatted",
                     disabled: Boolean(node.content),
+                },
+                link: {
+                    icon: LinkIcon,
+                    active: node.data.formats.includes("a"),
                 },
                 bold: {
                     icon: BoldIcon,
@@ -176,7 +180,9 @@ export const TextType = createType<TextTypeData>(
             underline({ context }) {
                 context.command("applyFormat", { format: "underline" });
             },
-
+            link({ context }) {
+                context.command("applyFormat", { format: "link" });
+            },
             clearFormat({ context, node }) {
                 const textNodes = getTextNodes(context.getDescendants(), node);
                 const contents = textNodes.map((n) => n.content);

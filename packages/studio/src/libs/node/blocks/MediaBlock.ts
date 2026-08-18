@@ -54,4 +54,4 @@ export const GoogleMapsBlock = {
     }
 } as Block; 
 
-export const MediaBlocks = [ImageBlock, VideoBlock, YoutubeBlock, GoogleMapsBlock] as Block[];
+export const MEDIA_BLOCKS = [ImageBlock, VideoBlock, YoutubeBlock, GoogleMapsBlock] as Block[];
