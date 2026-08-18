@@ -3,44 +3,68 @@ import { findNode, getNodeAncestorChain, NodeModel, normalizeNodeOrders } from "
 import { TextTypeData } from "./TextType";
 
 // ---------------------------------------------------------------------------
-// Order-spacing constants
+// Konstanta spacing untuk `order`
 // ---------------------------------------------------------------------------
-// NodeModel.order values are floats. These small increments let a newly
-// split/inserted sibling slot in between existing nodes without a full
-// re-normalization on every insert (normalizeNodeOrders() runs once at the
-// end instead). The exact magnitudes below are copied 1:1 from the values
-// used throughout the original implementation — do not change them without
-// re-checking every call site, since normalizeNodeOrders() only guarantees
-// correct *relative* ordering, not correct *values*.
-const ORDER_EPS = 0.001; // smallest increment, usually multiplied by segIdx
-const ORDER_MINOR = 0.01; // "before"-style offset
-const ORDER_MAJOR = 0.02; // "after"-style offset
-const ORDER_STEP = 0.002; // "after" offset used in the REMOVE branch
+// NodeModel.order bertipe float. Increment kecil ini memungkinkan sibling baru
+// (hasil split/insert) disisipkan di antara node yang sudah ada tanpa perlu
+// re-normalisasi penuh setiap kali insert (normalizeNodeOrders() cukup
+// dijalankan sekali di akhir). Nilai-nilai di bawah ini dipertahankan persis
+// seperti implementasi awal — JANGAN diubah tanpa mengecek ulang semua
+// pemanggilnya, karena normalizeNodeOrders() hanya menjamin urutan *relatif*
+// yang benar, bukan nilai absolutnya.
+const ORDER_EPS = 0.001; // increment terkecil, biasanya dikalikan segIdx
+const ORDER_MINOR = 0.01; // offset gaya "before"
+const ORDER_MAJOR = 0.02; // offset gaya "after"
+const ORDER_STEP = 0.002; // offset "after" khusus untuk cabang REMOVE
 
-// Safety cap for the various `while (changed) { ... }` fixed-point loops
-// below. None of them should ever need this many passes for real documents;
-// it exists purely so a future bug (e.g. a merge condition that never
-// stabilizes) degrades into a console warning instead of hanging the tab.
+// Batas aman untuk loop fixed-point `while (changed) { ... }` di bawah.
+// Secara normal tidak ada loop ini yang butuh iterasi sebanyak ini untuk
+// dokumen nyata; nilai ini murni jaring pengaman supaya bug di masa depan
+// (mis. kondisi merge yang tidak pernah stabil) berakhir dengan warning di
+// console, bukan hang di tab browser.
 const MAX_FIXPOINT_ITERATIONS = 5000;
 
+// ---------------------------------------------------------------------------
+// Helper: index anak per parent
+// ---------------------------------------------------------------------------
+// Dipakai di banyak tempat untuk menghindari pola
+// `Array.from(map.values()).filter(n => n.parent === id)` yang diulang-ulang
+// di dalam loop/rekursi (yang bisa membuat kompleksitas menjadi O(n^2) pada
+// dokumen besar). Index ini dibangun sekali per "pass", lalu dipakai untuk
+// semua lookup anak dalam pass tersebut.
+function buildChildIndex(collections: Map<string, NodeModel>): Map<string, NodeModel[]> {
+    const index = new Map<string, NodeModel[]>();
+
+    for (const node of collections.values()) {
+        if (!node.parent) continue;
+        const group = index.get(node.parent);
+        if (group) {
+            group.push(node);
+        } else {
+            index.set(node.parent, [node]);
+        }
+    }
+
+    for (const group of index.values()) {
+        group.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    }
+
+    return index;
+}
+
 /**
- * Clone a slice of a wrapper chain (index start..end, inclusive), from
- * OUTER to INNER, re-parenting the clones under `outerParentId`.
+ * Kloning sebagian rantai wrapper (index start..end, inklusif), dari OUTER
+ * ke INNER, lalu re-parent hasil kloningnya di bawah `outerParentId`.
  *
- * Returns:
- *  - innermostId: id of the innermost clone (or `outerParentId` if the
- *    slice is empty, i.e. start > end)
- *  - outermostId: id of the outermost clone, or null if the slice is empty
+ * Return:
+ *  - innermostId: id dari clone paling dalam (atau `outerParentId` jika slice
+ *    kosong, yaitu start > end)
+ *  - outermostId: id dari clone paling luar, atau null jika slice kosong
  */
-export function cloneChainSlice(
-    chain: NodeModel[],
-    start: number,
-    end: number,
-    outerParentId: string | null,
-    map: Map<string, NodeModel>
-): { innermostId: string; outermostId: string | null } {
+export function cloneChainSlice(chain: NodeModel[], start: number, end: number, outerParentId: string | null, map: Map<string, NodeModel>): { innermostId: string; outermostId: string | null } {
     if (start > end) {
-        // Empty slice: nothing to clone, "innermost" collapses to the parent.
+        // Slice kosong: tidak ada yang perlu dikloning, "innermost" langsung
+        // jadi parent aslinya.
         return { innermostId: outerParentId as string, outermostId: null };
     }
 
@@ -56,17 +80,17 @@ export function cloneChainSlice(
         parentId = clone.id;
     }
 
-    // Loop ran at least once (start <= end), so parentId was reassigned to a
-    // real clone id and is guaranteed non-null here.
+    // Loop pasti berjalan minimal sekali (start <= end), jadi parentId sudah
+    // pasti berupa id clone yang valid (non-null) di titik ini.
     return { innermostId: parentId as string, outermostId };
 }
 
 // ---------------------------------------------------------------------------
-// Small node-construction helper
+// Helper kecil untuk membuat node "spanned"
 // ---------------------------------------------------------------------------
-// Used for every place that builds a *brand new* "spanned" node from scratch
-// (as opposed to `.clone()`-ing an existing node, which intentionally
-// preserves the source node's other properties and is left untouched below).
+// Dipakai di setiap tempat yang membuat node "spanned" baru dari nol (beda
+// dengan `.clone()` sebuah node yang sudah ada, yang sengaja mempertahankan
+// properti lain dari node sumbernya).
 function makeSpannedNode(params: {
     tagName: string;
     content?: string;
@@ -83,6 +107,130 @@ function makeSpannedNode(params: {
     });
 }
 
+type FormatFamily = "bold" | "italic" | "underline";
+
+const getFormatFamily = (tagName: string): FormatFamily | null => {
+    const tag = tagName.toLowerCase();
+
+    if (tag === "strong" || tag === "b") return "bold";
+    if (tag === "em" || tag === "i") return "italic";
+    if (tag === "u") return "underline";
+
+    return null;
+};
+
+/**
+ * Cek apakah rantai wrapper dari `leaf` sampai ke atas aman untuk
+ * "dikolaps"/ditulis ulang — yaitu setiap wrapper di rantainya cuma punya
+ * satu anak. Dioptimalkan dengan `childIndex` (bukan filter ulang seluruh
+ * map di setiap level rantai).
+ */
+const canCollapseChain = (
+    leaf: NodeModel,
+    collections: Map<string, NodeModel>,
+    childIndex: Map<string, NodeModel[]> = buildChildIndex(collections)
+): boolean => {
+    let current = leaf;
+
+    while (current.parent) {
+        const parent = collections.get(current.parent);
+        if (!parent) break;
+
+        const siblingCount = childIndex.get(parent.id)?.length ?? 0;
+        if (siblingCount !== 1) return false;
+
+        if (!isMergeable(parent)) break;
+
+        current = parent;
+    }
+
+    return true;
+};
+
+const mergeEquivalentChains = (
+    left: NodeModel,
+    right: NodeModel,
+    whitespaceNodes: NodeModel[],
+    canonicalTags: string[],
+    collections: Map<string, NodeModel>
+) => {
+    const parentId = left.parent;
+    if (!parentId) return;
+
+    // Gabungkan teksnya (left + spasi di antara + right).
+    const whitespace = whitespaceNodes.map((node) => node.content ?? "").join("");
+    const content = (left.content ?? "") + whitespace + (right.content ?? "");
+
+    // Hapus rantai formatting lama.
+    const removeChain = (leaf: NodeModel) => {
+        let current: NodeModel | undefined = leaf;
+
+        while (current) {
+            const parentId = current.parent;
+            collections.delete(current.id);
+
+            if (!parentId) break;
+
+            const parent = collections.get(parentId);
+            if (!parent || !isMergeable(parent)) break;
+
+            current = parent;
+        }
+    };
+
+    removeChain(left);
+    removeChain(right);
+
+    for (const whitespaceNode of whitespaceNodes) {
+        collections.delete(whitespaceNode.id);
+    }
+
+    // Bangun ulang memakai urutan format sisi kiri sebagai bentuk kanonik.
+    // Contoh: strong > em  =>  strong > em > "Hello World"
+    let currentParent = parentId;
+    let order = left.order;
+
+    for (let i = 0; i < canonicalTags.length; i++) {
+        const isLast = i === canonicalTags.length - 1;
+
+        const node = makeSpannedNode({
+            tagName: canonicalTags[i],
+            content: isLast ? content : undefined,
+            parent: currentParent,
+            order,
+        });
+
+        collections.set(node.id, node);
+        currentParent = node.id;
+        order = 0;
+    }
+};
+
+const getFormatChain = (
+    node: NodeModel,
+    rootId: string,
+    collections: Map<string, NodeModel>
+): NodeModel[] => {
+    const chain: NodeModel[] = [];
+    let current: NodeModel | undefined = node;
+
+    while (current && current.id !== rootId) {
+        if (isMergeable(current)) chain.unshift(current);
+        if (!current.parent) break;
+        current = collections.get(current.parent);
+    }
+
+    return chain;
+};
+
+const getFormatSignature = (chain: NodeModel[]): string => {
+    return chain
+        .map((node) => getFormatFamily(node.tagName))
+        .filter((x): x is FormatFamily => x !== null)
+        .sort()
+        .join("|");
+};
+
 const isSameFormatTag = (tagName: string, format: FormattedType): boolean => {
     const t = tagName.toLowerCase();
     if (format === "bold") return t === "strong" || t === "b";
@@ -91,178 +239,187 @@ const isSameFormatTag = (tagName: string, format: FormattedType): boolean => {
     return false;
 };
 
-const isEmptyContent = (node: NodeModel, map: Map<string, NodeModel>): boolean => {
-    const children = Array.from(map.values()).filter((n) => n.parent === node.id);
-    if (children.length > 0) {
-        return children.every((child) => isEmptyContent(child, map));
-    }
-    return !Boolean(node.content); // empty | null | undefined | false
-};
-
 const isMergeable = (node: NodeModel): boolean => node.type.isText;
 
-/** True if `content` is present and consists only of whitespace. */
+/** True jika `content` ada dan isinya hanya whitespace. */
 const isWhitespaceOnly = (content: string | undefined): boolean => {
     return Boolean(content) && /^\s*$/.test(content || "");
 };
 
-const areMergeableFormatTags = (a: string, b: string): boolean => {
+const areMergeableFormatTags = (a: string, b: string) => {
     const ta = a.toLowerCase();
     const tb = b.toLowerCase();
-    if (ta === tb) return true; // span===span, div===div, etc.
+
+    if (ta === tb) return true;
     if ((ta === "b" || ta === "strong") && (tb === "b" || tb === "strong")) return true;
     if ((ta === "i" || ta === "em") && (tb === "i" || tb === "em")) return true;
-    if (ta === "u" && tb === "u") return true;
-    return false;
+
+    return ta === "u" && tb === "u";
 };
 
-/** Two nodes can merge if mergeable, same format tag family, siblings, and
- *  adjacent (optionally with only whitespace-only nodes between them). */
-const canMergeAcrossWhitespace = (
-    node1: NodeModel,
-    node2: NodeModel,
-    descendants: Map<string, NodeModel>
-): boolean => {
-    if (!isMergeable(node1) || !isMergeable(node2)) return false;
-    if (!areMergeableFormatTags(node1.tagName, node2.tagName)) return false;
-    if (node1.parent !== node2.parent) return false;
-
-    const siblings = Array.from(descendants.values())
-        .filter((n) => n.parent === node1.parent)
-        .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-    const idx1 = siblings.findIndex((n) => n.id === node1.id);
-    const idx2 = siblings.findIndex((n) => n.id === node2.id);
-
-    if (Math.abs(idx1 - idx2) === 1) return true;
-
-    const minIdx = Math.min(idx1, idx2);
-    const maxIdx = Math.max(idx1, idx2);
-
-    for (let i = minIdx + 1; i < maxIdx; i++) {
-        const between = siblings[i];
-        if (!isWhitespaceOnly(between.content) || between.type.isText === false) {
-            return false;
-        }
-    }
-
-    return true;
-};
-
-/** Runs a `while (changed)` fix-point loop with a safety cap so a stray bug
- *  in the merge condition can't hang the tab — it just stops and warns. */
+/** Jalankan loop fix-point `while (changed)` dengan batas aman, supaya bug
+ *  di kondisi merge tidak bisa menggantung tab — cukup berhenti + warning. */
 function runFixpoint(label: string, step: () => boolean): void {
     let changed = true;
     let iterations = 0;
+
     while (changed) {
         if (++iterations > MAX_FIXPOINT_ITERATIONS) {
-            console.warn(`${label}: exceeded ${MAX_FIXPOINT_ITERATIONS} iterations, aborting to avoid a hang.`);
+            console.warn(`${label}: melebihi ${MAX_FIXPOINT_ITERATIONS} iterasi, dihentikan untuk mencegah hang.`);
             break;
         }
         changed = step();
     }
 }
 
+const normalizeEquivalentFormatChains = (collections: Map<string, NodeModel>): void => {
+    runFixpoint("normalizeEquivalentFormatChains", () => {
+        const childIndex = buildChildIndex(collections);
+
+        for (const children of childIndex.values()) {
+            for (let i = 0; i < children.length - 1; i++) {
+                const left = children[i];
+
+                // Cari text node berikutnya yang "bermakna" (punya content),
+                // lewati whitespace-only node di antaranya.
+                let j = i + 1;
+                const whitespaceNodes: NodeModel[] = [];
+
+                while (j < children.length) {
+                    const candidate = children[j];
+
+                    if (isMergeable(candidate) && candidate.content) break;
+
+                    if (isMergeable(candidate) && isWhitespaceOnly(candidate.content)) {
+                        whitespaceNodes.push(candidate);
+                        j++;
+                        continue;
+                    }
+
+                    break;
+                }
+
+                if (j >= children.length) continue;
+
+                const right = children[j];
+                if (!isMergeable(left) || !isMergeable(right)) continue;
+                if (!left.content || !right.content) continue;
+
+                // Ambil rantai formatting lengkap masing-masing sisi.
+                const leftChain = getFormatChain(left, left.parent!, collections);
+                const rightChain = getFormatChain(right, right.parent!, collections);
+
+                if (leftChain.length === 0 || rightChain.length === 0) continue;
+
+                // Bandingkan formatting efektifnya.
+                // strong>em dan em>strong sama-sama jadi "bold|italic".
+                const leftSignature = getFormatSignature(leftChain);
+                const rightSignature = getFormatSignature(rightChain);
+
+                if (!leftSignature || leftSignature !== rightSignature) continue;
+
+                const canonicalTags = leftChain.map((node) => node.tagName);
+
+                // Hanya aman menulis ulang rantai kalau tiap wrapper punya
+                // tepat satu anak.
+                if (!canCollapseChain(left, collections, childIndex) || !canCollapseChain(right, collections, childIndex)) {
+                    continue;
+                }
+
+                mergeEquivalentChains(left, right, whitespaceNodes, canonicalTags, collections);
+                return true;
+            }
+        }
+
+        return false;
+    });
+};
+
 const mergeAdjacentFormatNodesWithWhitespace = (descendants: Map<string, NodeModel>): void => {
     runFixpoint("mergeAdjacentFormatNodesWithWhitespace", () => {
-        const parentGroups = new Map<string, NodeModel[]>();
-        descendants.forEach((node) => {
-            if (node.parent) {
-                const group = parentGroups.get(node.parent) || [];
-                group.push(node);
-                parentGroups.set(node.parent, group);
-            }
-        });
+        const childIndex = buildChildIndex(descendants);
 
-        for (const children of parentGroups.values()) {
-            children.sort((a, b) => (a.order || 0) - (b.order || 0));
-
+        for (const children of childIndex.values()) {
             for (let i = 0; i < children.length - 1; i++) {
                 const current = children[i];
                 const next = children[i + 1];
 
-                if (
-                    canMergeAcrossWhitespace(current, next, descendants) &&
-                    isMergeable(current) &&
-                    isMergeable(next) &&
-                    areMergeableFormatTags(current.tagName, next.tagName)
-                ) {
+                if (isMergeable(current) && isMergeable(next) && areMergeableFormatTags(current.tagName, next.tagName)) {
                     const merged = new NodeModel(current);
-                    merged.content = (merged.content || "") + (next.content || "");
+                    merged.content = (current.content ?? "") + (next.content ?? "");
+
                     descendants.set(current.id, merged);
                     descendants.delete(next.id);
                     return true;
                 }
 
+                // Node whitespace di antara dua format yang sama.
                 if (i < children.length - 2) {
-                    const afterNext = children[i + 2];
+                    const whitespace = next;
+                    const afterWhitespace = children[i + 2];
+
                     if (
-                        isWhitespaceOnly(next.content) &&
-                        canMergeAcrossWhitespace(current, afterNext, descendants) &&
+                        isWhitespaceOnly(whitespace.content) &&
                         isMergeable(current) &&
-                        isMergeable(afterNext) &&
-                        areMergeableFormatTags(current.tagName, afterNext.tagName)
+                        isMergeable(afterWhitespace) &&
+                        areMergeableFormatTags(current.tagName, afterWhitespace.tagName)
                     ) {
                         const merged = new NodeModel(current);
-                        merged.content = (merged.content || "") + (next.content || "") + (afterNext.content || "");
+                        merged.content = (current.content ?? "") + (whitespace.content ?? "") + (afterWhitespace.content ?? "");
+
                         descendants.set(current.id, merged);
-                        descendants.delete(next.id);
-                        descendants.delete(afterNext.id);
+                        descendants.delete(whitespace.id);
+                        descendants.delete(afterWhitespace.id);
                         return true;
                     }
                 }
             }
         }
+
         return false;
     });
 };
 
 const mergeAdjacentFormatNodes = (descendants: Map<string, NodeModel>): void => {
     runFixpoint("mergeAdjacentFormatNodes", () => {
-        const parentGroups = new Map<string, NodeModel[]>();
-        descendants.forEach((n) => {
-            if (n.parent) {
-                const group = parentGroups.get(n.parent) || [];
-                group.push(n);
-                parentGroups.set(n.parent, group);
-            }
-        });
+        const childIndex = buildChildIndex(descendants);
 
-        for (const children of parentGroups.values()) {
-            children.sort((a, b) => (a.order || 0) - (b.order || 0));
+        for (const children of childIndex.values()) {
             for (let i = 0; i < children.length - 1; i++) {
                 const curr = children[i];
                 const next = children[i + 1];
+
                 if (isMergeable(curr) && isMergeable(next) && areMergeableFormatTags(curr.tagName, next.tagName)) {
                     const merged = new NodeModel(curr);
                     merged.content = (merged.content || "") + (next.content || "");
+
                     descendants.set(curr.id, merged);
                     descendants.delete(next.id);
                     return true;
                 }
             }
         }
+
         return false;
     });
 };
 
 const mergeNestedFormatNodes = (descendants: Map<string, NodeModel>): void => {
     runFixpoint("mergeNestedFormatNodes", () => {
+        const childIndex = buildChildIndex(descendants);
+
         for (const node of descendants.values()) {
             if (!isMergeable(node)) continue;
 
-            const children = Array.from(descendants.values())
-                .filter((n) => n.parent === node.id)
-                .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-            // Only flatten a single-child wrapper.
+            const children = childIndex.get(node.id) ?? [];
+            // Hanya flatten wrapper yang punya tepat satu anak.
             if (children.length !== 1) continue;
 
             const nested = children[0];
             if (!isMergeable(nested) || !areMergeableFormatTags(node.tagName, nested.tagName)) continue;
 
-            // Move nested's children directly under `node`.
-            const grandchildren = Array.from(descendants.values()).filter((n) => n.parent === nested.id);
+            // Pindahkan cucu langsung ke bawah `node`.
+            const grandchildren = childIndex.get(nested.id) ?? [];
             for (const grandchild of grandchildren) {
                 grandchild.parent = node.id;
             }
@@ -274,16 +431,36 @@ const mergeNestedFormatNodes = (descendants: Map<string, NodeModel>): void => {
             descendants.delete(nested.id);
             return true;
         }
+
         return false;
     });
 };
 
+/**
+ * Hapus node yang "kosong" (tidak punya content sendiri maupun keturunan
+ * dengan content). Status kosong dihitung bottom-up dalam satu pass memakai
+ * childIndex + cache, sehingga satu pass = O(n) — bukan O(n^2) seperti versi
+ * yang memfilter ulang seluruh map untuk setiap node/pemanggilan rekursif.
+ */
 const cleanupEmptyFormatNodes = (descendants: Map<string, NodeModel>): void => {
     runFixpoint("cleanupEmptyFormatNodes", () => {
-        const empties = Array.from(descendants.values()).filter((n) => isEmptyContent(n, descendants));
-        for (const node of empties) {
-            descendants.delete(node.id);
-        }
+        const childIndex = buildChildIndex(descendants);
+        const emptyCache = new Map<string, boolean>();
+
+        const computeEmpty = (node: NodeModel): boolean => {
+            const cached = emptyCache.get(node.id);
+            if (cached !== undefined) return cached;
+
+            const children = childIndex.get(node.id) ?? [];
+            const result = children.length > 0 ? children.every((child) => computeEmpty(child)) : !Boolean(node.content);
+
+            emptyCache.set(node.id, result);
+            return result;
+        };
+
+        const empties = Array.from(descendants.values()).filter((n) => computeEmpty(n));
+        for (const node of empties) descendants.delete(node.id);
+
         return empties.length > 0;
     });
 };
@@ -336,6 +513,7 @@ const getSelectionSegments = (
 
         globalPos += len;
     }
+
     return segments;
 };
 
@@ -349,10 +527,9 @@ export type SelectionSegment = {
     isPartial: boolean;
 };
 
-
 /** Ambil semua text leaf dalam urutan dokumen */
 export const getTextNodes = (descendants: Map<string, NodeModel>, rootNode: NodeModel): NodeModel[] => {
-    // Jika root sendiri yang punya content string (plain text, no descendants)
+    // Jika root sendiri yang punya content string (plain text, tanpa descendant)
     if (rootNode.content) return [rootNode];
 
     return Array.from(descendants.values())
@@ -376,27 +553,20 @@ export type ApplyFormattedProps = {
 };
 
 /**
- * Core implementation. Kept separate from the exported `applyFormatted` so
- * the export can wrap it in a try/catch (see below) without indenting this
- * whole function body.
+ * Implementasi inti. Dipisah dari `applyFormatted` yang di-export supaya
+ * fungsi export bisa membungkusnya dengan try/catch (lihat di bawah) tanpa
+ * perlu menge-indent seluruh isi fungsi ini.
  */
-function applyFormattedInternal({
-    format,
-    node: rootNode,
-    selection,
-    descendants,
-}: ApplyFormattedProps): Map<string, NodeModel> | undefined {
+function applyFormattedInternal({ format, node: rootNode, selection, descendants }: ApplyFormattedProps): Map<string, NodeModel> | undefined {
     if (selection.anchor === selection.focus) return undefined;
 
-    const originalAnchor = selection.anchor;
-    const originalFocus = selection.focus;
-    const selStart = Math.min(originalAnchor, originalFocus);
-    const selEnd = Math.max(originalAnchor, originalFocus);
+    const selStart = Math.min(selection.anchor, selection.focus);
+    const selEnd = Math.max(selection.anchor, selection.focus);
 
     const formattedTagName = format === "bold" ? "strong" : format === "italic" ? "em" : "u";
 
     const contents = new Map(descendants);
-    contents.set(rootNode.id, rootNode); // ensure root is present for chain lookups
+    contents.set(rootNode.id, rootNode); // pastikan root ikut tersedia untuk lookup rantai
 
     const segments = getSelectionSegments(selStart, selEnd, contents, rootNode);
     if (segments.length === 0) return undefined;
@@ -422,10 +592,13 @@ function applyFormattedInternal({
         const after = originalContent.slice(endOffset);
         const hasBefore = before.length > 0;
         const hasAfter = after.length > 0;
+
+        // Nilai order asli node target — dipakai di semua cabang di bawah
+        // (sebelumnya ada dua variabel terpisah `baseOrder`/`nodeOrder`
+        // dengan nilai yang identik; disatukan jadi satu).
         const baseOrder = targetNode.order || 0;
         const originalParentId = targetIsRoot ? rootNode.id : targetNode.parent;
 
-        const nodeOrder = targetNode.order || 0;
         const isTargetFormatted = targetNode.type.name.toLowerCase() === "spanned";
         const isFormatTargetEqual = isSameFormatTag(targetNode.tagName, format);
 
@@ -455,17 +628,11 @@ function applyFormattedInternal({
 
                 if (selectedText.length > 0) {
                     if (chain.length > 0) {
-                        // Ancestor spanned wrapper(s) exist → clone & preserve them.
-                        const { innermostId, outermostId } = cloneChainSlice(
-                            chain,
-                            0,
-                            chain.length - 1,
-                            originalParentId,
-                            contents
-                        );
+                        // Ada wrapper "spanned" leluhur → clone & pertahankan.
+                        const { innermostId, outermostId } = cloneChainSlice(chain, 0, chain.length - 1, originalParentId, contents);
 
-                        // Promote cloned wrappers: strip content so they act as
-                        // pure containers rather than duplicating text.
+                        // Promosikan wrapper hasil clone: hapus content-nya
+                        // supaya jadi pure container, bukan duplikat teks.
                         let cleanId = outermostId;
                         let guard = 0;
                         while (cleanId && guard++ < MAX_FIXPOINT_ITERATIONS) {
@@ -476,7 +643,7 @@ function applyFormattedInternal({
                             cleanId = kids.length > 0 ? kids[0].id : null;
                         }
 
-                        // New format node as a leaf inside the innermost clone.
+                        // Node format baru sebagai leaf di dalam clone paling dalam.
                         const newFormatNode = makeSpannedNode({
                             tagName: formattedTagName,
                             content: selectedText,
@@ -492,7 +659,7 @@ function applyFormattedInternal({
                             }
                         }
                     } else {
-                        // No ancestor wrapper → simple spanned leaf.
+                        // Tidak ada wrapper leluhur → cukup leaf spanned biasa.
                         const wrapper = makeSpannedNode({
                             tagName: formattedTagName,
                             content: selectedText,
@@ -513,7 +680,7 @@ function applyFormattedInternal({
                             tagName: "span",
                             content: before,
                             parent: rootNode.id,
-                            order: nodeOrder,
+                            order: baseOrder,
                         });
                         contents.set(beforeText.id, beforeText);
                     }
@@ -523,7 +690,7 @@ function applyFormattedInternal({
                             tagName: "span",
                             content: after,
                             parent: rootNode.id,
-                            order: segIdx + nodeOrder + ORDER_STEP,
+                            order: segIdx + baseOrder + ORDER_STEP,
                         });
                         contents.set(afterText.id, afterText);
                     }
@@ -533,7 +700,7 @@ function applyFormattedInternal({
                             tagName: formattedTagName,
                             content: selectedText,
                             parent: rootNode.id,
-                            order: nodeOrder,
+                            order: baseOrder,
                         });
                         contents.set(newFormatNode.id, newFormatNode);
                     }
@@ -543,11 +710,11 @@ function applyFormattedInternal({
                 if (targetNode.tagName === "span") {
                     const beforeNode = targetNode.clone();
                     beforeNode.content = before;
-                    beforeNode.order = nodeOrder + segIdx * ORDER_EPS;
+                    beforeNode.order = baseOrder + segIdx * ORDER_EPS;
 
                     const afterNode = targetNode.clone();
                     afterNode.content = after;
-                    afterNode.order = nodeOrder + ORDER_MAJOR + segIdx * ORDER_EPS;
+                    afterNode.order = baseOrder + ORDER_MAJOR + segIdx * ORDER_EPS;
 
                     if (hasBefore) contents.set(beforeNode.id, beforeNode);
                     if (hasAfter) contents.set(afterNode.id, afterNode);
@@ -557,7 +724,7 @@ function applyFormattedInternal({
                             tagName: formattedTagName,
                             content: selectedText,
                             parent: rootNode.id,
-                            order: nodeOrder + ORDER_EPS + segIdx * ORDER_EPS,
+                            order: baseOrder + ORDER_EPS + segIdx * ORDER_EPS,
                         });
                         contents.set(newFormatNode.id, newFormatNode);
                         contents.delete(targetNode.id);
@@ -568,19 +735,19 @@ function applyFormattedInternal({
 
                     const beforeNode = targetNode.clone();
                     beforeNode.content = before;
-                    beforeNode.order = nodeOrder + segIdx * ORDER_EPS;
+                    beforeNode.order = baseOrder + segIdx * ORDER_EPS;
                     beforeNode.parent = wrapper.id;
 
                     const afterNode = targetNode.clone();
                     afterNode.content = after;
-                    afterNode.order = nodeOrder + ORDER_MAJOR + segIdx * ORDER_EPS;
+                    afterNode.order = baseOrder + ORDER_MAJOR + segIdx * ORDER_EPS;
                     afterNode.parent = wrapper.id;
 
                     const newFormatNode = makeSpannedNode({
                         tagName: formattedTagName,
                         content: selectedText,
                         parent: wrapper.id,
-                        order: nodeOrder + ORDER_EPS + segIdx * ORDER_EPS,
+                        order: baseOrder + ORDER_EPS + segIdx * ORDER_EPS,
                     });
 
                     if (hasBefore) contents.set(beforeNode.id, beforeNode);
@@ -595,10 +762,15 @@ function applyFormattedInternal({
             // ── REMOVE formatting ──
             if (matchedIdx === -1) return;
 
-            // Fall back to rootNode if the parent isn't resolvable — keeps
-            // `wrapper` guaranteed defined (the original `has ? get : root`
-            // pattern could type-check to `NodeModel | undefined`).
-            const wrapper: NodeModel = (originalParentId && descendants.get(originalParentId)) || rootNode;
+            // PERBAIKAN BUG: sebelumnya wrapper diambil dari `descendants`
+            // (snapshot ASLI sebelum kloning), padahal seharusnya dari
+            // `contents` (map yang sedang dimutasi di loop ini). Kalau ada
+            // lebih dari satu segmen, lookup ke `descendants` bisa
+            // mengembalikan node yang sudah usang/berbeda dari kondisi
+            // terkini. `contents` tetap fallback ke rootNode bila parent
+            // tidak ditemukan, supaya `wrapper` selalu terdefinisi.
+            const wrapper: NodeModel = (originalParentId && contents.get(originalParentId)) || rootNode;
+
             contents.delete(targetNode.id);
 
             if (wrapper.id === rootNode.id) {
@@ -608,24 +780,23 @@ function applyFormattedInternal({
                     contents.set(beforeNode.id, beforeNode);
                 }
 
-                // Preserve the text AFTER the selection (keep it formatted).
+                // Pertahankan teks SETELAH selection (tetap terformat).
                 if (hasAfter) {
                     const afterNode = targetNode.clone();
                     afterNode.content = after;
-                    afterNode.order = (targetNode.order || 0) + ORDER_STEP;
+                    afterNode.order = baseOrder + ORDER_STEP;
                     contents.set(afterNode.id, afterNode);
                 }
 
-                // Handle the SELECTED text (remove the specific format).
+                // Tangani teks yang TERPILIH (hapus format spesifiknya).
                 if (selectedText.length > 0) {
                     const unformattedNode = makeSpannedNode({
-                        tagName: "span", // or the tag of the next parent in the chain
+                        tagName: "span", // atau tag dari parent berikutnya di rantai
                         content: selectedText,
-                        parent: wrapper.id, // attach it outside the removed wrapper
-                        order: (targetNode.order || 0) + ORDER_EPS,
+                        parent: wrapper.id, // taruh di luar wrapper yang dihapus
+                        order: baseOrder + ORDER_EPS,
                     });
                     contents.set(unformattedNode.id, unformattedNode);
-                    contents.delete(targetNode.id);
                 }
             } else {
                 if (hasBefore) {
@@ -636,48 +807,104 @@ function applyFormattedInternal({
                 if (hasAfter) {
                     const afterNode = targetNode.clone();
                     afterNode.content = after;
-                    afterNode.order = (targetNode.order || 0) + ORDER_STEP;
+                    afterNode.order = baseOrder + ORDER_STEP;
                     contents.set(afterNode.id, afterNode);
                 }
                 if (selectedText.length > 0) {
                     const unformattedNode = wrapper.clone();
                     unformattedNode.content = selectedText;
                     unformattedNode.parent = wrapper.id;
-                    unformattedNode.order = (targetNode.order || 0) + ORDER_EPS;
+                    unformattedNode.order = baseOrder + ORDER_EPS;
                     contents.set(unformattedNode.id, unformattedNode);
                 }
             }
         }
     });
 
-    contents.delete(rootNode.id); // root was only there for measurement/lookup purposes
+    contents.delete(rootNode.id); // root cuma dipakai untuk keperluan lookup/pengukuran
 
     normalizeNodeOrders(contents);
     cleanupEmptyFormatNodes(contents);
 
+    // 1. Gabungkan sibling dengan format yang identik persis.
     mergeAdjacentFormatNodes(contents);
+
+    // 2. Ratakan nesting yang redundan: strong>strong, em>em, dst.
     mergeNestedFormatNodes(contents);
+
+    // 3. Normalisasi rantai formatting yang setara:
+    //    strong>em dan em>strong → hierarki kanonik yang sama.
+    normalizeEquivalentFormatChains(contents);
+
+    // 4. Gabungkan text node yang dipisahkan whitespace.
+    normalizeNestedTextNodes(contents);
     mergeAdjacentFormatNodesWithWhitespace(contents);
 
     disableInteractions(contents);
     normalizeNodeOrders(contents);
 
     if (contents.size === 0) {
-        console.warn("applyFormatted: all nodes were purged, aborting update.");
+        console.warn("applyFormatted: semua node terhapus, update dibatalkan.");
         return undefined;
     }
 
     return contents;
 }
 
+const normalizeNestedTextNodes = (collections: Map<string, NodeModel>) => {
+    // Catatan: struktur di sini bisa berubah selama traversal (anak
+    // dipromosikan, node dihapus, lalu di-normalize ulang secara rekursif
+    // untuk node yang sama). Karena itu index anak TIDAK di-cache lintas
+    // pemanggilan `normalize()` — cukup dihitung ulang lewat helper kecil
+    // ini, yang tetap jauh lebih murah daripada scan penuh + filter di
+    // setiap tempat pemakaian.
+    const getChildren = (parentId: string) =>
+        Array.from(collections.values())
+            .filter((node) => node.parent === parentId)
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    const normalize = (node: NodeModel) => {
+        if (!isMergeable(node)) return;
+
+        let children = getChildren(node.id);
+        for (const child of children) normalize(child);
+
+        // Ambil ulang: rekursi di atas bisa saja mengubah daftar anak.
+        children = getChildren(node.id);
+
+        for (const child of children) {
+            if (!isMergeable(child) || !areMergeableFormatTags(node.tagName, child.tagName)) continue;
+
+            // Anak punya content sendiri → jangan dihapus begitu saja.
+            if (child.content) continue;
+
+            const grandchildren = getChildren(child.id);
+            for (const grandchild of grandchildren) {
+                grandchild.parent = node.id;
+            }
+
+            collections.delete(child.id);
+
+            // Normalize ulang: hasil promosi bisa saja masih punya wrapper
+            // redundan lain.
+            normalize(node);
+            return;
+        }
+    };
+
+    const roots = Array.from(collections.values()).filter((node) => !node.parent || !collections.has(node.parent));
+
+    for (const root of roots) normalize(root);
+};
+
 /**
- * Apply or remove `format` over the current selection.
+ * Terapkan atau hapus `format` pada selection saat ini.
  *
- * Wrapped in a try/catch: this function drives live editor state, so an
- * unexpected edge case (malformed chain, missing node, etc.) should degrade
- * to "no-op, log the error" rather than throwing and breaking the editor
- * mid-keystroke. If you're debugging a formatting issue, check the console
- * for an "applyFormatted failed" error first.
+ * Dibungkus try/catch: fungsi ini menggerakkan state editor yang live,
+ * jadi kalau ada edge case tak terduga (rantai malformed, node hilang, dst)
+ * seharusnya jatuh ke "no-op, log error" — bukan throw dan merusak editor
+ * di tengah keystroke. Kalau sedang debug masalah formatting, cek console
+ * untuk error "applyFormatted failed" terlebih dahulu.
  */
 export const applyFormatted = (props: ApplyFormattedProps): Map<string, NodeModel> | undefined => {
     try {

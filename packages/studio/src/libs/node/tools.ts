@@ -176,3 +176,37 @@ export const normalizeNodeOrders = (collections: Map<string, NodeModel>) => {
         normalize(node.id);
     });
 };
+
+
+
+type TreeNode = NodeObject & {
+    children: TreeNode[];
+};
+
+export const toNodeTree = (collections: Map<string, NodeModel>): TreeNode[] => {
+    const nodes = new Map<string, TreeNode>();
+    for (const node of collections.values()) {
+        nodes.set(node.id, {
+            ...node.toJSON(),
+            children: [],
+        });
+    }
+
+    const roots: TreeNode[] = [];
+    for (const node of nodes.values()) {
+        if (!node.parent || !nodes.has(node.parent)) {
+            roots.push(node);
+            continue;
+        }
+        nodes.get(node.parent)!.children.push(node);
+    }
+    const sort = (nodes: TreeNode[]) => {
+        nodes.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        for (const node of nodes) {
+            sort(node.children);
+        }
+    };
+
+    sort(roots);
+    return roots;
+};
