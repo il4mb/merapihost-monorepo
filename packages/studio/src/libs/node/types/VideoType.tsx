@@ -1,7 +1,7 @@
 import { useState, useEffect, SyntheticEvent } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import { Video as VideoIcon } from "lucide-react";
-import { createType } from "@/libs/node/createType";
+import { createType } from "../createType";
 
 export const VideoType = createType(({ node, ref }) => {
     const rawSrc = node.props?.src;

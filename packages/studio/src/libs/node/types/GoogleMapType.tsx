@@ -1,7 +1,7 @@
 import { useState, useEffect, SyntheticEvent } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import { MapPin as MapIcon } from "lucide-react";
-import { createType } from "@/libs/node/createType";
+import { createType } from "../createType";
 
 // Helper to handle full embed URLs or convert plain query strings (address, landmark) to embed URLs
 const getGoogleMapEmbedUrl = (urlOrQuery: string = "") => {

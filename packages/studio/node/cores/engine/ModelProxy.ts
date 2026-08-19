@@ -1,8 +1,8 @@
 import { NodeModel, TypeActionDefine, TypeComponent, TypeModel } from "@/types";
-import { REGISTRY } from "@/libs/node/types";
 import { NodeContext } from "./NodeModel";
 import { merge } from "lodash";
 import { ModelContext } from "./ModelContext";
+import { REGISTRY } from "../tools";
 
 /**
  * A proxy class that wraps a TypeModel and provides access to its properties, including inherited properties from parent models.

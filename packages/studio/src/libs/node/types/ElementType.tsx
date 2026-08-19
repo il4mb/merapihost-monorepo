@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
 import { Delete, Maximize, Square } from "lucide-react";
-import { createType } from "@/libs/node/createType";
+import { createType } from "../createType";
 import type { JSX } from "react/jsx-runtime";
 import { useDragging } from "@/contexts/DraggingProvider";
 

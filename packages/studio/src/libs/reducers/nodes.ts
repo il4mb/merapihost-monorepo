@@ -1,6 +1,6 @@
 import { NodeState, NodeObject, Variable, NodeHistory, NodeReducerAction } from "@/types";
 import { NodeModel } from "@/libs/node/NodeModel";
-import { getNodeDescendants, purgeOrphanNodes } from "@/libs/node";
+import { getNodeDescendants, purgeOrphanNodes } from "../node";
 
 export const ROOT_NODE = {
     id: "root",

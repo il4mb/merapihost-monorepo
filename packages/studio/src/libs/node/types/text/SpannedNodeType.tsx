@@ -1,7 +1,7 @@
 import { BoldIcon, ItalicIcon, TypeIcon, UnderlineIcon, LinkIcon, CodeIcon } from "lucide-react";
 import { createElement, JSX, useCallback } from "react";
-import { createType } from "@/libs/node/createType";
-import { useNodeInternal } from "@/libs/node";
+import { createType } from "../../createType";
+import { useNodeInternal } from "../..";
 
 export const FORMAT_NODE_TAGS = [
     "a",
@@ -43,7 +43,7 @@ export const SpannedNodeType = createType(
     },
     {
         name: "Spanned",
-        extends: "Text",
+        extends: "text",
         icon: ({ size, color, node }) => {
             const tagName = String(node?.tagName || "strong").toLowerCase();
             switch (tagName) {

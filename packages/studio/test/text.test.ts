@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getNodeAncestors, NodeModel } from "@/libs/node";
+import { getNodeAncestors, NodeModel } from "../src/libs/node";
 import { applyFormatted } from "@/libs/node/types/text/tools";
 import { TextTypeData } from "@/libs/node/types/text/TextType";
 

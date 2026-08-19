@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useEffect, Fragment } from "react";
 import { flushSync } from "react-dom";
-import { NodeModel, normalizeNodeOrders, useNodeInternal, useWireEffect } from "@/libs/node";
+import { NodeModel, normalizeNodeOrders, useNodeInternal, useWireEffect } from "../..";
 import RenderEditingType from "./RenderEditingType";
 import { getTextNodes } from "./tools";
 import { useNodes } from "@/contexts";

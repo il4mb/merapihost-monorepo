@@ -1,4 +1,4 @@
-import { NodeModel, useNodeInternal, useWireEffect } from "@/libs/node";
+import { NodeModel, useNodeInternal, useWireEffect } from "../..";
 import { Typography } from "@mui/material";
 import { BoldIcon, ItalicIcon, TypeIcon, UnderlineIcon, RemoveFormatting, LinkIcon } from "lucide-react";
 import { JSX } from "react/jsx-runtime";
@@ -7,12 +7,9 @@ import { useNodes } from "@/contexts";
 import RenderEditing from "./RenderEditing";
 import { useNodeDescendantsRef } from "@/hooks/useNodes";
 import { applyFormatted, getTextNodes } from "./tools";
-import { createType } from "@/libs/node/createType";
+import { createType } from "../../createType";
 
-export type TextTypeData = {
-    editing: boolean;
-    formats: string[];
-};
+export type TextTypeData = { editing: boolean; formats: string[] };
 export const TextType = createType<TextTypeData>(
     ({ node, children, ref }) => {
         const { invokeCommand } = useNodeInternal();
@@ -38,13 +35,7 @@ export const TextType = createType<TextTypeData>(
             setTimeout(() => {
                 dispatch({
                     type: "BULK",
-                    payload: [
-                        {
-                            type: "UPDATE_NODE",
-                            payload: { id: node.id, data: { editing: true } },
-                        },
-                        ...payloads,
-                    ],
+                    payload: [{ type: "UPDATE_NODE", payload: { id: node.id, data: { editing: true } } }, ...payloads],
                 });
                 clearWindowSelection();
             }, 50);
@@ -90,18 +81,9 @@ export const TextType = createType<TextTypeData>(
                 onDoubleClick={handleDoubleClick}
                 sx={{
                     ...node.props.sx,
-                    "&:empty:before": {
-                        content: '"Empty"',
-                        fontStyle: "italic",
-                        color: "#ccc",
-                    },
+                    "&:empty:before": { content: '"Empty"', fontStyle: "italic", color: "#ccc" },
                     ...(node.data.editing
-                        ? {
-                              position: "relative",
-                              userSelect: "none",
-                              cursor: "text",
-                              minHeight: "1.2em",
-                          }
+                        ? { position: "relative", userSelect: "none", cursor: "text", minHeight: "1.2em" }
                         : {}),
                 }}
                 ref={ref}
@@ -116,22 +98,14 @@ export const TextType = createType<TextTypeData>(
         icon: TypeIcon,
         draggable: true,
         accepts: ["formatted"],
-        data: {
-            editing: false,
-            formats: [],
-        },
+        data: { editing: false, formats: [] },
         isInstance(target) {
             const supportedTags = ["p", "h1", "h2", "h3", "h4", "h5", "h6", "span", "a"];
             return supportedTags.includes(String(target.tagName).toLowerCase()) || typeof target.content === "string";
         },
         default: {
             name: (ctx) => String(ctx?.node?.tagName || "span"),
-            props: {
-                sx: {
-                    userSelect: "none",
-                    whiteSpace: "break-spaces",
-                },
-            },
+            props: { sx: { userSelect: "none", whiteSpace: "break-spaces" } },
         },
         actions: (node) => {
             if (!node.data.editing) {
@@ -145,27 +119,11 @@ export const TextType = createType<TextTypeData>(
                 };
             }
             return {
-                clearFormat: {
-                    icon: RemoveFormatting,
-                    title: "clear formatted",
-                    disabled: Boolean(node.content),
-                },
-                link: {
-                    icon: LinkIcon,
-                    active: node.data.formats.includes("a"),
-                },
-                bold: {
-                    icon: BoldIcon,
-                    active: node.data.formats.includes("strong"),
-                },
-                italic: {
-                    icon: ItalicIcon,
-                    active: node.data.formats.includes("em"),
-                },
-                underline: {
-                    icon: UnderlineIcon,
-                    active: node.data.formats.includes("u"),
-                },
+                clearFormat: { icon: RemoveFormatting, title: "clear formatted", disabled: Boolean(node.content) },
+                link: { icon: LinkIcon, active: node.data.formats.includes("a") },
+                bold: { icon: BoldIcon, active: node.data.formats.includes("strong") },
+                italic: { icon: ItalicIcon, active: node.data.formats.includes("em") },
+                underline: { icon: UnderlineIcon, active: node.data.formats.includes("u") },
                 delete: false,
                 parent: false,
             };
@@ -220,7 +178,9 @@ export const TextType = createType<TextTypeData>(
 
             getRootText({ context, node }) {
                 const ancestors = context.getAncestors();
+
                 if (!node.type.isText) return node;
+
                 let rootTextNode = node;
                 let parentNode = ancestors.get(node.parent || "");
 
@@ -232,8 +192,11 @@ export const TextType = createType<TextTypeData>(
                 return rootTextNode;
             },
 
-            startEditing({ context }) {
+            startEditing({ context, node }) {
+                console.log("startEditing command invoked", node.type.name);
                 const rootText = context.command("getRootText") as NodeModel<TextTypeData>;
+                console.log(rootText);
+                
                 if (rootText && !rootText.data.editing) {
                     return rootText.type.invokeCommand("startEditing", context);
                 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, SyntheticEvent } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import YoutubeIcon from "@/components/icons/YoutubeIcon";
-import { createType } from "@/libs/node/createType";
+import { createType } from "../createType";
 
 // Helper to convert watch/short URLs into standard YouTube embed URLs
 const getYoutubeEmbedUrl = (url: string = "") => {

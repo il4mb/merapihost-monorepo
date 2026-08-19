@@ -1,6 +1,6 @@
 import { Button } from "@mui/material";
 import { ZapIcon } from "lucide-react";
-import { createType } from "@/libs/node/createType";
+import { createType } from "../createType";
 import type { JSX } from "react/jsx-runtime";
 
 export const ButtonType = createType(

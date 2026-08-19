@@ -1,7 +1,7 @@
 import React from "react";
 import { FC, RefObject } from "react";
 import { AssetObject } from "./asset";
-import type { NodeContext, NodeModel, NodeObject, NodeVariable, ModelContext } from "@/libs/node";
+import type { NodeContext, NodeModel, NodeObject, NodeVariable, ModelContext } from "../libs/node";
 import { SxProps } from "@mui/material";
 
 export interface ShortcutHandler {

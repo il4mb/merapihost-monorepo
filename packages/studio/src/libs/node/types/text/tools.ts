@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { NodeModel } from "@/libs/node";
+import { NodeModel } from "../..";
 import { TextTypeData } from "./TextType";
 
 // ---------------------------------------------------------------------------

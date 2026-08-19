@@ -1,8 +1,8 @@
 import type { NodeObject, BlockNodeObject, NodeData } from "@/types";
-import { REGISTRY } from "@/libs/node/types";
 import { ModelProxy } from "./ModelProxy";
 import { merge, pickBy } from "lodash";
 import { nanoid } from "nanoid";
+import { REGISTRY } from "../tools";
 
 export interface NodeContext {
     node: NodeObject | null;

@@ -1,7 +1,11 @@
-import { TypeModel, TypeComponent, NodeObject } from "@/types";
-import { NodeModel } from "@/libs/node/NodeModel";
-import { ROOT_NODE } from "../reducers/nodes";
+import { NodeObject, NodeModel } from "@nodes";
 
+export const REGISTRY = new Map<string, NodeModel>();
+export const ROOT_NODE: NodeObject = {
+    id: "root",
+    type: "root",
+    name: "Root Node",
+}
 export const findNode = (id: string | null | undefined, map: Map<string, NodeModel>) => id ? map.get(id) ?? null : null;
 
 /**

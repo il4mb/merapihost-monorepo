@@ -1,4 +1,4 @@
-import type { NodeModel } from "@/libs/node/NodeModel";
+import type { NodeModel } from "../../node/engine/NodeModel";
 import type { NodeObject, NodeVariable, AssetObject, PageObject, Block, Edge, Coordinates, NodeData, NodeUpdateInput } from "./index";
 
 export type DeepPartial<T> = T extends Function | Map<any, any> | Set<any> | HTMLElement

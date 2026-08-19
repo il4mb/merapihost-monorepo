@@ -1,4 +1,4 @@
-import { NodeModel } from "@/libs/node";
+import { NodeModel } from "../libs/node";
 import { RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutateNodeData } from "./useNodes";
 import { TextTypeData } from "@/libs/node/types/text/TextType";

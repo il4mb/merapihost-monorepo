@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useMemo, ReactNode, use
 import DropIndicator from "@/components/screens/indicators/DropIndicator";
 import { debounce } from "lodash";
 import { Block } from "@/types";
-import { NodeModel } from "@/libs/node";
+import { NodeModel } from "../libs/node";
 import { useNodes, useStudio } from "@/contexts";
 
 const getGeometry = (el: HTMLElement) => {

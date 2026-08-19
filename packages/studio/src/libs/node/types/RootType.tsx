@@ -1,8 +1,8 @@
-import { createType } from "@/libs/node/createType";
+import { createType } from "../createType";
 import PageIcon from "@/components/icons/PageIcon";
 import { Fragment, useEffect, useMemo } from "react";
 import { useNodes } from "@/contexts";
-import NodeRender from "../NodeRender";
+import NodeRender from "@/libs/node/NodeRender";
 import { ROOT_NODE } from "@/libs/reducers/nodes";
 
 type RootProps = {

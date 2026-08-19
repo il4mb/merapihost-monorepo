@@ -1,6 +1,6 @@
 import { Container } from "@mui/material";
 import { Proportions } from "lucide-react";
-import { createType } from "@/libs/node/createType";
+import { createType } from "../createType";
 import type { JSX } from "react/jsx-runtime";
 
 export const ContainerType = createType(({ node, children, ref }) => {

@@ -3,10 +3,14 @@
     "version": "0.1.0",
     "private": true,
     "type": "module",
+    "bin": {
+        "node-registry": "./bin/node-registry.ts"
+    },
     "scripts": {
         "dev": "next dev",
         "build": "next build",
         "start": "NODE_ENV=production node next start",
+        "watch-node": "bun ./scripts/node-registry.ts --watch",
         "test": "vitest"
     },
     "dependencies": {

@@ -1,9 +1,13 @@
 import { NodeUpdateInput } from "@/types";
 import { Dispatch } from "react";
-import { NodeModel } from "@/libs/node";
-import { NodeReducerAction } from "@/libs/reducers";
-import { getNodeChildren, getNodeAncestors, getNodeDescendants, getNodeSiblings } from "./tools";
+import { NodeModel } from "@nodes";
+// import { NodeReducerAction } from "../../src/libs/reducers";
+import { getNodeChildren, getNodeAncestors, getNodeDescendants, getNodeSiblings } from "../tools";
 
+type NodeReducerAction = {
+    type: string;
+    payload?: any;
+};
 
 export class ModelContext {
 

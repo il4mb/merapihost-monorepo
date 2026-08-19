@@ -1,5 +1,5 @@
 import { createContext, RefObject, useCallback, useContext, useEffect, useMemo, useRef } from "react";
-import { ModelContext, NodeModel, NodeRender } from "@/libs/node";
+import { ModelContext, NodeModel, NodeRender } from "@nodes";
 import { useNodes, useNodeCollectionRef } from "@/contexts";
 
 type NodeInternalProps = {
