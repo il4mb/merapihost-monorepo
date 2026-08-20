@@ -8,6 +8,11 @@ export default new Model({
             
         }
     },
+    commands: {
+        hallo() {
+
+        }
+    },
     name: "element",
     label: "Element",
 });

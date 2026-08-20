@@ -5,7 +5,7 @@ import type { Model } from "@nodes/engine/Model";
 import type { GetModel } from "@nodes/types/type";
 
 
-export type GetNode<T extends RegistryKey> = GetModel<T> extends Model<T, infer P, infer C>
+export type GetNode<T extends RegistryKey> = GetModel<T> extends Model<infer P, infer C>
     ? Node<T, P, C>
     : Node;
 

@@ -12,7 +12,7 @@ export class Document {
     }
 
     public createNode<T extends RegistryKey>(type: T, nodeObject?: PlainNodeObject): GetNode<T> {
-        const typeModel = TYPE_REGISTRY.get(type) as GetModel<T> | undefined;
+        const typeModel = TYPE_REGISTRY.get(type) as unknown as GetModel<T> | undefined;
         if (!typeModel) {
             throw new Error(`Type ${type} not found in registry`);
         }

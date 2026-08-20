@@ -1,15 +1,16 @@
 
 import { Document } from "../node/react";
 import { describe, it, expectTypeOf } from "vitest";
-// import type { InferModelNode } from "../node/types";
-
 
 describe("strict type checking", () => {
     const document = new Document();
     const textNode = document.createNode("text", { tagName: "div" });
 
+    const testCommand = textNode.commands.test;
+    console.log("testCommand", testCommand);
+
     it("should have correct types for text node", () => {
-        expectTypeOf(textNode.props).toEqualTypeOf();
+        expectTypeOf(textNode.props).toEqualTypeOf<{ text: string }>();
     });
 });
 

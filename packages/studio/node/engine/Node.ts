@@ -3,6 +3,7 @@ import type { Document } from "./Document";
 import type { Model } from "./Model";
 import { JSX } from "react/jsx-runtime";
 import { CommandDefinition, RegistryKey } from "@nodes/types/type";
+import { Commands } from "./Commands";
 
 export interface NodeContext {
     // node: NodeObject | null;
@@ -16,21 +17,24 @@ export class Node<
     C extends CommandDefinition<T> = CommandDefinition<T>
 > {
 
-    // id: string;
+    private _id = nanoid();
+    readonly commands: C
+
     parent: Node<T, P, C> | null = null;
     element: HTMLElement | null = null;
     tagName: keyof JSX.IntrinsicElements = "div";
     order: number = 0;
     type: T;
     props: P = {} as P;
-    private _id = nanoid();
+
 
     constructor(
         public owner: Document,
-        public model: Model<T, P, C>
+        public model: Model<P, C>
     ) {
         this.id = nanoid();
-        this.type = model.name;
+        this.type = model.name as T;
+        this.commands = new Proxy(model.commands, new Commands(this));
     }
 
     get id(): string {
@@ -67,7 +71,7 @@ export class Node<
     clone(): Node<T, P, C> {
         const clonedNode = new Node(this.owner, this.model);
         clonedNode.id = nanoid(); // Assign a new unique ID for the cloned node
-        return clonedNode;
+        return clonedNode as Node<T, P, C>;
     }
 
 

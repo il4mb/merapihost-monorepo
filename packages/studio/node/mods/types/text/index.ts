@@ -1,5 +1,6 @@
 import { Model } from "@nodes/engine/Model";
 import TextComponent from "./TextComponent";
+import { commands } from "./commands";
 
 export default new Model({
     name: "text",
@@ -12,24 +13,12 @@ export default new Model({
             id: "text-" + Math.random().toString(36).substr(2, 9),
         }
     },
-    commands: {
-        testing: (node) => {
-            node.props.id
-            return true;
-        }
-    },
+    commands: commands,
     component: TextComponent,
     onCreate: (node) => {
-        node.wire(() => {
-            console.log("Text node props changed:", node.props);
-        }, [node.props.text]);
+        console.log("Text node created:", node.type);
     },
     onUnmount: (node) => {
 
     },
-
-
-
 });
-
-// export default textModel;

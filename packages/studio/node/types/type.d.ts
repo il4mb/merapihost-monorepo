@@ -1,12 +1,20 @@
 import type { FC, JSX } from "react";
-import type { Node } from "@nodes";
+import type { Node } from "@nodes/engine/Node";
 import type { TypeRegistry } from "@nodes/registry";
 import type { Model } from "@nodes/engine/Model";
 import type { NodeObject, PlainNodeObject, GetNode } from "@nodes/types/node";
 
 export type RegistryKey = keyof TypeRegistry;
-export type GetModel<T extends RegistryKey> = TypeRegistry[T] extends Model<infer P, infer C, infer M>
-    ? Model<P, C, M>
+export type GetModel<T extends RegistryKey> = TypeRegistry[T] extends Model<infer P, infer C>
+    ? Model<P, C>
+    : never;
+
+export type InferProps<T extends RegistryKey> = GetModel<T> extends Model<infer P, infer C>
+    ? P
+    : never;
+
+export type InferCommands<T extends RegistryKey> = GetModel<T> extends Model<infer P, infer C>
+    ? C
     : never;
 
 export type ComponentProps<T extends RegistryKey> = {
@@ -17,13 +25,8 @@ export type ComponentProps<T extends RegistryKey> = {
 }
 
 
-export type Command<T extends RegistryKey, Args extends any[] = any[]> = (node: GetNode<T>, ...args: Args) => void;
-export type CommandDefinition<T extends RegistryKey> = {
-    [key: string]: Command<T, any[]>;
-}
-
-
-
+export type Command<T extends RegistryKey, Args extends any[] = any[]> = (this: GetNode<T>, ...args: Args) => void;
+export type CommandDefinition<T extends RegistryKey> = Record<string, Command<T, any[]>>;
 
 export interface ModelDefinition<
     T extends RegistryKey,
@@ -37,7 +40,7 @@ export interface ModelDefinition<
     * This name is used as the key in the TypeRegistry.
     * @example "button", "text", "image"
     */
-    name: T extends RegistryKey ? T : string;
+    name: T;
 
     /**
      * A human-readable label for the type. This is used in the UI to represent the type.

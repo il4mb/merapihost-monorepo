@@ -4,16 +4,16 @@ import type { ModelDefinition, ComponentProps, CommandDefinition, RegistryKey } 
 import type { NodeObject, PlainNodeObject } from "@nodes/types/node";
 import { nanoid } from "nanoid";
 import { FC } from "react";
+import { NodeProxy } from "./NodeProxy";
 
 export class Model<
-    T extends RegistryKey,
     P extends Record<string, unknown> = {},
-    C extends CommandDefinition<T> = CommandDefinition<T>
+    C extends CommandDefinition<any> = CommandDefinition<any>,
 > {
 
-    extends: Model<T, P> | undefined;
+    extends: Model<P, C> | undefined;
 
-    constructor(private definition: ModelDefinition<T, P, C>) {
+    constructor(private definition: ModelDefinition<any, P, C>) {
         // Assign a unique ID based on the type name
 
     }
@@ -22,23 +22,23 @@ export class Model<
         return this.definition.extends;
     }
 
-    get component(): FC<ComponentProps<T>> {
-        return this.definition.component as unknown as FC<ComponentProps<T>>;
+    get component(): FC<ComponentProps<RegistryKey>> {
+        return this.definition.component as unknown as FC<ComponentProps<RegistryKey>>;
     }
 
     get isInstance(): (node: NodeObject<any>) => boolean {
         return this.definition.isInstance || (() => false);
     }
 
-    get onCreate(): (node: Node<T, P, C>) => void {
+    get onCreate(): (node: Node<RegistryKey, P, C>) => void {
         return this.definition.onCreate || (() => { });
     }
 
-    get onMount(): (node: Node<T, P, C>) => void {
+    get onMount(): (node: Node<RegistryKey, P, C>) => void {
         return this.definition.onMount || (() => { });
     }
 
-    get onUnmount(): (node: Node<T, P, C>) => void {
+    get onUnmount(): (node: Node<RegistryKey, P, C>) => void {
         return this.definition.onUnmount || (() => { });
     }
 
@@ -46,15 +46,15 @@ export class Model<
         return this.definition.state || (() => ({} as P));
     }
 
-    get name(): T {
-        return this.definition.name as T;
+    get name(): string {
+        return this.definition.name as string;
     }
 
     get label(): string {
         return this.definition.label || this.definition.name as unknown as string;
     }
 
-    get icon(): FC<{ size: number; color: string; node: Node<T, P, C>; }> | undefined {
+    get icon(): FC<{ size: number; color: string; node: Node<RegistryKey, P, C>; }> | undefined {
         return this.definition.icon;
     }
 
@@ -81,7 +81,7 @@ export class Model<
         this.wiredMaps.delete(id);
     }
 
-    buildNode(owner: Document, data: PlainNodeObject): Node<T, P, C> {
+    buildNode(owner: Document, data: PlainNodeObject): Node<any, P, C> {
 
         const node = new Node(owner, this);
         if (data?.id) {
@@ -101,35 +101,9 @@ export class Model<
             node.props = {} as P;
         }
 
-        const proxyNode = new Proxy(node, new NodeProxy(this, node)) as Node<T, P, C>;
+        const proxyNode = new Proxy(node, new NodeProxy(this, node)) as Node<any, P, C>;
         this.onCreate(proxyNode);
         return proxyNode;
     }
 
-}
-
-class NodeProxy {
-    constructor(private model: Model<any, any, any>, private node: Node<any, any, any>) { }
-
-    get(target: any, prop: string) {
-        if (prop in target) {
-            return target[prop];
-        }
-        if (prop in this.node.props) {
-            return this.node.props[prop as keyof typeof this.node.props];
-        }
-        return undefined;
-    }
-
-    set(target: any, prop: string, value: any) {
-        if (prop in target) {
-            target[prop] = value;
-            return true;
-        }
-        if (prop in this.node.props) {
-            this.node.props[prop as keyof typeof this.node.props] = value;
-            return true;
-        }
-        return false;
-    }
 }
