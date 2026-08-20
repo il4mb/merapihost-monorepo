@@ -1,10 +1,10 @@
 "use client";
 import { useMemo, useEffect, useRef } from "react";
 import { useNodes } from "@/contexts";
-import { NodeModel, NodeInternal } from "@nodes";
+import { Node, NodeInternal } from "@nodes";
 
 type NodeRenderProps = {
-    node: NodeModel;
+    node: Node;
 };
 export default function NodeRender({ node }: NodeRenderProps) {
     const { state, dispatch } = useNodes();

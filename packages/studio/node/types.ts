@@ -1,10 +1,10 @@
 import type { FC } from "react";
-import { NodeModel } from "@nodes";
+import type { Node } from "@nodes";
 
-export type TypeProps<T> = {
-    node: NodeModel<T>;
+export type TypeProps<T extends Record<string, unknown>> = {
+    node: Node<T>;
     children: React.ReactNode;
-    childrenNode: NodeModel[];
+    childrenNode: Node[];
     ref: React.RefObject<HTMLElement | null>;
 }
 
@@ -43,13 +43,13 @@ export interface TypeModelDefinition<Props extends Record<string, unknown> = Rec
     /**
      * The icon component that will be used to represent this type in the UI.
      */
-    icon?: FC<{ size: number; color: string; node: NodeModel }>;
+    icon?: FC<{ size: number; color: string; node: Node }>;
 
     /**
      * A map of command functions that can be invoked on this type.
      */
     commands?: Record<string, (props?: any) => void>;
-    
+
     default?: Partial<
         Omit<NodeObject<Props>, "id" | "type" | "parent" | "order" | "visible">
     >;

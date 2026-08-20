@@ -3,20 +3,43 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { TypeModel } from "../node/cores";
+import "../node/engine/Model";
 
 // ---------------------------------------------------------------------------
-// ESM-compatible __dirname (sama dengan cwd)
+// ESM-compatible __dirname (cwd)
 // ---------------------------------------------------------------------------
 const __dirname = process.cwd();
 
 // ---------------------------------------------------------------------------
 // Direktori target
 // ---------------------------------------------------------------------------
-const MODULE_DIR = path.join(__dirname, "node", "mods");
+const BASE_DIR = path.join(__dirname, "node");
+const ENGINE_DIR = path.join(BASE_DIR, "engine");
+const MODULE_DIR = path.join(BASE_DIR, "mods");
 const TYPES_DIR = path.join(MODULE_DIR, "types");
 const BLOCKS_DIR = path.join(MODULE_DIR, "blocks");
-const OUTPUT_FILE = path.join(MODULE_DIR, "index.ts");
+const OUTPUT_FILE = path.join(ENGINE_DIR, "registry.ts");
+
+// ---------------------------------------------------------------------------
+// GUARANTEE: Ensure registry.ts exists IMMEDIATELY on script startup
+// ---------------------------------------------------------------------------
+function ensureRegistryStubExists(): void {
+    if (!fs.existsSync(ENGINE_DIR)) {
+        fs.mkdirSync(ENGINE_DIR, { recursive: true });
+    }
+
+    if (!fs.existsSync(OUTPUT_FILE)) {
+        const emptyStub = `// Temporary empty registry stub
+
+export const TYPE_REGISTRY = new Map<string, any>();
+export const BLOCK_REGISTRY = new Map<string, any>();
+`;
+        fs.writeFileSync(OUTPUT_FILE, emptyStub, "utf-8");
+    }
+}
+
+// Execute immediately at script load time BEFORE any generator logic
+ensureRegistryStubExists();
 
 // ---------------------------------------------------------------------------
 // Helper untuk mengubah path absolut menjadi relatif terhadap cwd
@@ -26,7 +49,7 @@ const toRelativePath = (filePath: string): string => {
     return rel === "" ? "." : rel.replace(/\\/g, "/");
 };
 
-console.log(`\n📦 Generate type registry untuk direktori: ${toRelativePath(MODULE_DIR)}`);
+console.log(`\n📦 Generate registry untuk direktori: ${toRelativePath(MODULE_DIR)}`);
 
 // ---------------------------------------------------------------------------
 // Scan semua file index.ts di dalam directory secara rekursif
@@ -57,28 +80,27 @@ function scanFiles(directory: string): string[] {
 // ---------------------------------------------------------------------------
 // Registry sementara
 // ---------------------------------------------------------------------------
-interface TypeRegistryEntry {
+interface RegistryEntry {
     originalName: string;
     file: string;
-    model: TypeModel;
+    model: any;
 }
 
 // ---------------------------------------------------------------------------
-// Fungsi utama: generate registry
+// Helper untuk memproses satu direktori registri (types / blocks)
 // ---------------------------------------------------------------------------
-async function generateRegistry(): Promise<void> {
-    console.log(`\n🔄 Memindai direktori...`);
-    const files = scanFiles(TYPES_DIR).sort((a, b) => a.localeCompare(b));
-
-    const registry = new Map<string, TypeRegistryEntry>();
+async function processRegistryDir(dirPath: string, ModelClass: any): Promise<Map<string, RegistryEntry>> {
+    const files = scanFiles(dirPath).sort((a, b) => a.localeCompare(b));
+    const registry = new Map<string, RegistryEntry>();
 
     for (const file of files) {
         try {
-            const module = await import(pathToFileURL(file).href);
+            const fileUrl = `${pathToFileURL(file).href}?t=${Date.now()}`;
+            const module = await import(fileUrl);
             const model = module.default;
 
-            if (!(model instanceof TypeModel)) {
-                console.warn(`⚠️  Default export dari ${toRelativePath(file)} bukan instance TypeModel, dilewati.`);
+            if (!(model instanceof ModelClass)) {
+                console.warn(`⚠️  Default export dari ${toRelativePath(file)} bukan instance Model, dilewati.`);
                 continue;
             }
 
@@ -87,7 +109,7 @@ async function generateRegistry(): Promise<void> {
 
             if (registry.has(key)) {
                 console.warn(
-                    `⚠️  Duplicate type "${originalName}" terdeteksi di ${toRelativePath(file)}. Menggunakan yang terakhir.`
+                    `⚠️  Duplicate entry "${originalName}" terdeteksi di ${toRelativePath(file)}. Menggunakan yang terakhir.`
                 );
             }
 
@@ -97,62 +119,80 @@ async function generateRegistry(): Promise<void> {
                 model,
             });
 
-            console.log(`✅ Registered type: ${originalName} (${toRelativePath(file)})`);
+            console.log(`✅ Registered: ${originalName} (${toRelativePath(file)})`);
         } catch (error) {
             console.error(`❌ Gagal mengimpor ${toRelativePath(file)}:`, error);
         }
     }
 
-    if (registry.size === 0) {
-        console.error("❌ Tidak ada TypeModel yang valid ditemukan. Registri tidak digenerate.");
-        return;
-    }
+    return registry;
+}
 
-    // -------------------------------------------------------------------------
-    // Generate isi file index.ts
-    // -------------------------------------------------------------------------
-    let importStatements = "";
-    let exportStatements = "export const TYPE_REGISTRY = new Map<string, TypeModel>([\n";
+// ---------------------------------------------------------------------------
+// Fungsi utama: generate registry
+// ---------------------------------------------------------------------------
+async function generateRegistry(): Promise<void> {
+    // Import Model dynamically or directly from concrete source file to avoid index.ts cycle
+    const modelModule = await import(pathToFileURL(path.join(ENGINE_DIR, "Model.ts")).href);
+    const ModelClass = modelModule.Model || modelModule.default;
 
-    // Import type TypeModel untuk typing yang benar
-    const coreFile = path.resolve(path.join(MODULE_DIR, "..", "cores.ts"));
-    const coreRelative = path
-        .relative(MODULE_DIR, coreFile)
-        .replace(/\\/g, "/")
-        .replace(/\.ts$/, "");
-    const coreImportPath = coreRelative.startsWith(".") ? coreRelative : `./${coreRelative}`;
-    importStatements += `import type { TypeModel } from "${coreImportPath}";\n\n`;
+    console.log(`\n🔄 Memindai direktori...`);
 
-    // Sortir berdasarkan nama asli agar output deterministik
-    const sortedEntries = Array.from(registry.entries()).sort(([a], [b]) =>
-        a.localeCompare(b)
-    );
+    console.log(`\n🔹 Types:`);
+    const typeRegistryMap = await processRegistryDir(TYPES_DIR, ModelClass);
 
+    console.log(`\n🔹 Blocks:`);
+    const blockRegistryMap = await processRegistryDir(BLOCKS_DIR, ModelClass);
+
+    let importStatements = ``;
     let importIndex = 0;
-    for (const [key, entry] of sortedEntries) {
-        const varName = `type${importIndex++}`;
-        const relativePath = path
-            .relative(MODULE_DIR, entry.file)
-            .replace(/\\/g, "/")
-            .replace(/\.ts$/, "");
 
-        importStatements += `import { default as ${varName} } from "./${relativePath}";\n`;
-        exportStatements += `  ["${entry.originalName.toLowerCase()}", ${varName}],\n`;
+    const buildExportMap = (mapName: string, entriesMap: Map<string, RegistryEntry>): string => {
+        let code = `export const ${mapName} = new Map<string, any>([\n`;
+        const sortedEntries = Array.from(entriesMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+
+        for (const [key, entry] of sortedEntries) {
+            const varName = `mod${importIndex++}`;
+            const relativePath = path
+                .relative(ENGINE_DIR, entry.file)
+                .replace(/\\/g, "/")
+                .replace(/\.ts$/, "");
+
+            importStatements += `import { default as ${varName} } from "./${relativePath}";\n`;
+            code += `  ["${entry.originalName.toLowerCase()}", ${varName}],\n`;
+        }
+
+        code += "]);\n\n";
+        return code;
+    };
+
+    const typeExportCode = buildExportMap("TYPE_REGISTRY", typeRegistryMap);
+    const blockExportCode = buildExportMap("BLOCK_REGISTRY", blockRegistryMap);
+
+    const linkCode = `const ALL_REGISTRY = new Map([...TYPE_REGISTRY, ...BLOCK_REGISTRY]);
+
+for (const model of ALL_REGISTRY.values()) {
+    const parentName = model?.extendsName;
+    if (!parentName) continue;
+
+    const parent = ALL_REGISTRY.get(String(parentName).toLowerCase());
+    if (parent) {
+        model.extends = parent;
     }
-
-    exportStatements += "]);\n";
+}
+`;
 
     const header = `// ===================================================================
 // Generated: ${new Date().toISOString()}
 // AUTOMATICALLY GENERATED FILE - DO NOT EDIT
-// Modify source files in 'mods/types' and run autoload script.
+// Modify source files in 'mods/types' or 'mods/blocks' and run watch-node script.
 // ===================================================================`;
 
-    const finalOutput = `${header}\n\n${importStatements}\n${exportStatements}`;
+    const finalOutput = `${header}\n\n${importStatements}${typeExportCode}${blockExportCode}${linkCode}`;
 
     try {
         fs.writeFileSync(OUTPUT_FILE, finalOutput, "utf-8");
-        console.log(`✨ Type registry berhasil digenerate: ${toRelativePath(OUTPUT_FILE)}`);
+        console.log(`✨ Registry berhasil digenerate: ${toRelativePath(OUTPUT_FILE)}`);
     } catch (error) {
         console.error(`❌ Gagal menulis ${toRelativePath(OUTPUT_FILE)}:`, error);
     }
@@ -175,19 +215,12 @@ function watchDirectories(dirs: string[]) {
         debounceTimer = setTimeout(async () => {
             console.clear();
             await generateRegistry();
-        }, 300); // debounce 300ms
+        }, 300);
     };
 
     const handleWatchEvent = (eventType: string, filename: string | null) => {
         console.log(`🔔 Perubahan terdeteksi: ${eventType} ${filename ?? ""}`);
-
-        // Hanya proses event create/delete. fs.watch melaporkan keduanya sebagai 'rename'
-        // (di Linux/Windows). Event 'change' menandakan update isi file → abaikan.
-        if (eventType === "rename") {
-            scheduleGenerate();
-        } else {
-            console.log(`ℹ️  Event ${eventType} diabaikan (hanya create/delete yang diproses).`);
-        }
+        scheduleGenerate();
     };
 
     const setupWatcher = (dir: string) => {
@@ -197,14 +230,12 @@ function watchDirectories(dirs: string[]) {
         }
 
         try {
-            // Recursive watcher (didukung di macOS & Windows, Node >= v14)
             const watcher = fs.watch(dir, { recursive: true }, handleWatchEvent);
             watchers.push(watcher);
         } catch (error) {
             console.warn(
                 `⚠️  Gagal memasang recursive watcher pada ${toRelativePath(dir)}. Fallback ke watcher per subdirektori.`
             );
-            // Fallback: pasang watcher untuk setiap subdirektori
             const subdirs = scanDirectories(dir);
             for (const subdir of subdirs) {
                 const subWatcher = fs.watch(subdir, handleWatchEvent);
@@ -217,7 +248,6 @@ function watchDirectories(dirs: string[]) {
         setupWatcher(dir);
     }
 
-    // Bersihkan watcher saat proses dihentikan
     process.on("SIGINT", () => {
         console.log("\n🛑 Menutup watcher...");
         watchers.forEach((w) => w.close());
@@ -226,10 +256,10 @@ function watchDirectories(dirs: string[]) {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: scan semua subdirektori (untuk fallback watcher)
+// Helper: scan semua subdirektori
 // ---------------------------------------------------------------------------
 function scanDirectories(directory: string): string[] {
-    const result: string[] = [directory]; // include root
+    const result: string[] = [directory];
     if (!fs.existsSync(directory)) return result;
 
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -247,7 +277,6 @@ async function main() {
     const args = process.argv.slice(2);
     const watchMode = args.includes("--watch");
 
-    // Jalankan generate sekali di awal
     await generateRegistry();
 
     if (watchMode) {

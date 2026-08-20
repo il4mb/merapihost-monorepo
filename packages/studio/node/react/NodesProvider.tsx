@@ -1,15 +1,15 @@
 import { createContext, useContext } from "react";
-import { NodeModel } from "@nodes";
+import { Node } from "@nodes";
 
 type ModelContext = {
-    findNode: (id: string) => NodeModel | null;
-    getChildren: () => NodeModel[];
-    getAncestors: () => NodeModel[];
-    getDescendants: () => NodeModel[];
-    getSiblings: () => NodeModel[];
-    getParent: () => NodeModel | undefined;
-    updateChildren: (children: Map<string, NodeModel>) => void;
-    update: (patch: Partial<NodeModel>) => void;
+    findNode: (id: string) => Node | null;
+    getChildren: () => Node[];
+    getAncestors: () => Node[];
+    getDescendants: () => Node[];
+    getSiblings: () => Node[];
+    getParent: () => Node | undefined;
+    updateChildren: (children: Map<string, Node>) => void;
+    update: (patch: Partial<Node>) => void;
 };
 
 const NodesContext = createContext<ModelContext | null>(null);

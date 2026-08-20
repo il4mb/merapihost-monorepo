@@ -1,22 +1,24 @@
-import { NodeObject, NodeModel } from "@nodes";
+import { NodeObject, Node } from "@nodes";
 
-export const REGISTRY = new Map<string, NodeModel>();
+export const REGISTRY = new Map<string, Node>();
 export const ROOT_NODE: NodeObject = {
     id: "root",
     type: "root",
     name: "Root Node",
 }
-export const findNode = (id: string | null | undefined, map: Map<string, NodeModel>) => id ? map.get(id) ?? null : null;
+
+
+export const findNode = (id: string | null | undefined, map: Map<string, Node>) => id ? map.get(id) ?? null : null;
 
 /**
  * Walk up finder
  * @param node 
  * @param collection 
- * @returns Map<string, NodeModel>
+ * @returns Map<string, Node>
  */
-export const getNodeAncestors = (node: NodeModel, collection: Map<string, NodeModel>) => {
-    const result = new Map<string, NodeModel>();
-    let currentNode: NodeModel | undefined = node;
+export const getNodeAncestors = (node: Node, collection: Map<string, Node>) => {
+    const result = new Map<string, Node>();
+    let currentNode: Node | undefined = node;
 
     while (currentNode.parent) {
         const parentNode = collection.get(currentNode.parent);
@@ -35,8 +37,8 @@ export const getNodeAncestors = (node: NodeModel, collection: Map<string, NodeMo
  * @param map the collection
  * @returns ancestor chain
  */
-export const getNodeAncestorChain = (startId: string, endId: string, map: Map<string, NodeModel>): NodeModel[] => {
-    const chain: NodeModel[] = [];
+export const getNodeAncestorChain = (startId: string, endId: string, map: Map<string, Node>): Node[] => {
+    const chain: Node[] = [];
     let current = findNode(startId, map);
     while (current && current.id !== endId) {
         chain.push(current);
@@ -50,10 +52,10 @@ export const getNodeAncestorChain = (startId: string, endId: string, map: Map<st
  * Walk down finder
  * @param node 
  * @param collection 
- * @returns Map<string, NodeModel>
+ * @returns Map<string, Node>
  */
-export const getNodeDescendants = (node: NodeModel, collection: Map<string, NodeModel>) => {
-    const childrenMap = new Map<string, NodeModel[]>();
+export const getNodeDescendants = (node: Node, collection: Map<string, Node>) => {
+    const childrenMap = new Map<string, Node[]>();
     for (const child of collection.values()) {
         if (!child.parent) continue;
         const children = childrenMap.get(child.parent);
@@ -64,7 +66,7 @@ export const getNodeDescendants = (node: NodeModel, collection: Map<string, Node
         }
     }
 
-    const descendants = new Map<string, NodeModel>();
+    const descendants = new Map<string, Node>();
     const walk = (parentId: string) => {
         for (const child of childrenMap.get(parentId) ?? []) {
             descendants.set(child.id, child);
@@ -80,9 +82,9 @@ export const getNodeDescendants = (node: NodeModel, collection: Map<string, Node
  * Node Children Only
  * @param node 
  * @param collection 
- * @returns Map<string, NodeModel>
+ * @returns Map<string, Node>
  */
-export const getNodeChildren = (node: NodeModel, collection: Map<string, NodeModel>) => {
+export const getNodeChildren = (node: Node, collection: Map<string, Node>) => {
     const childrenArray = Array.from(collection.values())
         .filter(n => n.parent === node.id)
         .sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -92,7 +94,7 @@ export const getNodeChildren = (node: NodeModel, collection: Map<string, NodeMod
 }
 
 
-export const getNodeSiblings = (node: NodeModel, collection: Map<string, NodeModel>) => {
+export const getNodeSiblings = (node: Node, collection: Map<string, Node>) => {
     const childrenArray = Array.from(collection.values())
         .filter(n => n.parent === node.parent)
         .sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -105,7 +107,7 @@ export const getNodeSiblings = (node: NodeModel, collection: Map<string, NodeMod
  * Remove parentles node
  * @param map 
  */
-export const purgeOrphanNodes = (map: Map<string, NodeModel>) => {
+export const purgeOrphanNodes = (map: Map<string, Node>) => {
     const validIds = new Set<string>();
     const traverse = (id: string) => {
         validIds.add(id);
@@ -121,7 +123,7 @@ export const purgeOrphanNodes = (map: Map<string, NodeModel>) => {
     });
 };
 
-const getTopLevelNodes = (collections: Map<string, NodeModel>) => {
+const getTopLevelNodes = (collections: Map<string, Node>) => {
     return Array.from(collections.values())
         .filter((node) => !node.parent || !collections.has(node.parent))
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -130,8 +132,8 @@ const getTopLevelNodes = (collections: Map<string, NodeModel>) => {
 /**
  * Normalize node orders recursively.
  */
-export const normalizeNodeOrders = (collections: Map<string, NodeModel>) => {
-    const childrenByParent = new Map<string, NodeModel[]>();
+export const normalizeNodeOrders = (collections: Map<string, Node>) => {
+    const childrenByParent = new Map<string, Node[]>();
 
     // Group children by parent
     for (const node of collections.values()) {
@@ -168,7 +170,7 @@ type TreeNode = NodeObject & {
     children: TreeNode[];
 };
 
-export const toNodeTree = (collections: Map<string, NodeModel>): TreeNode[] => {
+export const toNodeTree = (collections: Map<string, Node>): TreeNode[] => {
     const nodes = new Map<string, TreeNode>();
     for (const node of collections.values()) {
         nodes.set(node.id, {

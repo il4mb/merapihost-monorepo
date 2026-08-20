@@ -1,9 +1,9 @@
 import { createContext, RefObject, useCallback, useContext, useEffect, useMemo, useRef } from "react";
-import { ModelContext, NodeModel, NodeRender } from "@nodes";
+import { Model, Node, NodeRender } from "@nodes";
 import { useNodes, useNodeCollectionRef } from "@/contexts";
 
 type NodeInternalProps = {
-    node: NodeModel;
+    node: Node;
     ref: RefObject<HTMLElement>
 }
 
