@@ -1,10 +1,6 @@
-import { TypeProps } from "@nodes";
+import type { ComponentProps } from "@nodes/types/type";
 
-export type TextComponentProps = {
-    text: string;
-};
-
-export default function TextComponent({ ref, children }: TypeProps<TextComponentProps>) {
+export default function TextComponent({ ref, children, node }: ComponentProps<"text">) {
     return (
         <div>
             {/* TextComponent content goes here */}

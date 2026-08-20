@@ -1,4 +1,5 @@
-import { NodeObject, Node } from "@nodes";
+import {  Node } from "@nodes";
+import { NodeObject } from "@nodes/types/node";
 
 export const REGISTRY = new Map<string, Node>();
 export const ROOT_NODE: NodeObject = {

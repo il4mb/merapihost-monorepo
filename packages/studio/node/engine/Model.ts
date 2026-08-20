@@ -1,51 +1,87 @@
 import { Node } from "./Node";
-import type { NodeObject, TypeModelDefinition, TypeProps } from "@nodes/types";
+import { Document } from "./Document";
+import type { ModelDefinition, ComponentProps, CommandDefinition, RegistryKey } from "@nodes/types/type";
+import type { NodeObject, PlainNodeObject } from "@nodes/types/node";
+import { nanoid } from "nanoid";
 import { FC } from "react";
 
-export class Model<T extends Record<string, unknown> = Record<string, unknown>> {
+export class Model<
+    T extends RegistryKey,
+    P extends Record<string, unknown> = {},
+    C extends CommandDefinition<T> = CommandDefinition<T>
+> {
 
-    readonly id: string;
-    extends: Model<T> | undefined;
+    extends: Model<T, P> | undefined;
 
-    constructor(private definition: TypeModelDefinition<T>) {
+    constructor(private definition: ModelDefinition<T, P, C>) {
         // Assign a unique ID based on the type name
-        this.id = String(definition.name).toLowerCase();
+
     }
 
     get extendsName(): string | undefined {
         return this.definition.extends;
     }
 
-    get component(): FC<TypeProps<T>> {
-        return this.definition.component;
+    get component(): FC<ComponentProps<T>> {
+        return this.definition.component as unknown as FC<ComponentProps<T>>;
     }
 
     get isInstance(): (node: NodeObject<any>) => boolean {
         return this.definition.isInstance || (() => false);
     }
 
-    get state(): () => T {
-        return this.definition.state || (() => ({} as T));
+    get onCreate(): (node: Node<T, P, C>) => void {
+        return this.definition.onCreate || (() => { });
     }
 
-    get name(): string {
-        return this.definition.name;
+    get onMount(): (node: Node<T, P, C>) => void {
+        return this.definition.onMount || (() => { });
     }
 
-    get icon(): FC<{ size: number; color: string; node: Node; }> | undefined {
+    get onUnmount(): (node: Node<T, P, C>) => void {
+        return this.definition.onUnmount || (() => { });
+    }
+
+    get state(): () => P {
+        return this.definition.state || (() => ({} as P));
+    }
+
+    get name(): T {
+        return this.definition.name as T;
+    }
+
+    get label(): string {
+        return this.definition.label || this.definition.name as unknown as string;
+    }
+
+    get icon(): FC<{ size: number; color: string; node: Node<T, P, C>; }> | undefined {
         return this.definition.icon;
     }
 
-    get commands(): Record<string, (props?: any) => void> | undefined {
-        return this.definition.commands;
+    get commands(): C {
+        return this.definition.commands as C;
     }
 
-    get default(): Partial<Omit<NodeObject<T>, "id" | "type" | "parent" | "order" | "visible">> | undefined {
+    get default(): Partial<Omit<NodeObject<P>, "id" | "type" | "parent" | "order" | "visible">> | undefined {
         return this.definition.default;
     }
 
 
-    buildNode(owner: any, data: NodeObject<T>): Node {
+    private wiredMaps: Map<string, { callback: () => void; deps: any[] }> = new Map();
+    get wires() {
+        return this.wiredMaps;
+    }
+
+    wire(callback: () => void, deps: any[]) {
+        const id = nanoid();
+        this.wiredMaps.set(id, { callback, deps });
+    }
+
+    unWire(id: string) {
+        this.wiredMaps.delete(id);
+    }
+
+    buildNode(owner: Document, data: PlainNodeObject): Node<T, P, C> {
 
         const node = new Node(owner, this);
         if (data?.id) {
@@ -53,21 +89,47 @@ export class Model<T extends Record<string, unknown> = Record<string, unknown>> 
         }
         if (data?.tagName) {
             node.tagName = data.tagName;
+        } else if (this.default?.tagName) {
+            node.tagName = this.default.tagName;
         }
         if (data?.order !== undefined) {
             node.order = data.order;
         }
-        if (data?.parent !== undefined) {
-            node.parent = owner.findNode(data.parent) || null;
-        }
         if (data?.props) {
             node.props = { ...this.state(), ...data.props };
         } else {
-            node.props = {};
+            node.props = {} as P;
         }
 
-
-        return node;
+        const proxyNode = new Proxy(node, new NodeProxy(this, node)) as Node<T, P, C>;
+        this.onCreate(proxyNode);
+        return proxyNode;
     }
 
+}
+
+class NodeProxy {
+    constructor(private model: Model<any, any, any>, private node: Node<any, any, any>) { }
+
+    get(target: any, prop: string) {
+        if (prop in target) {
+            return target[prop];
+        }
+        if (prop in this.node.props) {
+            return this.node.props[prop as keyof typeof this.node.props];
+        }
+        return undefined;
+    }
+
+    set(target: any, prop: string, value: any) {
+        if (prop in target) {
+            target[prop] = value;
+            return true;
+        }
+        if (prop in this.node.props) {
+            this.node.props[prop as keyof typeof this.node.props] = value;
+            return true;
+        }
+        return false;
+    }
 }

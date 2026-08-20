@@ -1,42 +1,32 @@
-import type { NodeObject } from "@nodes/types";
-import { TYPE_REGISTRY } from "./registry";
-import { Model } from "./Model";
+import type { GetNode, PlainNodeObject } from "@nodes/types/node";
+import { TYPE_REGISTRY } from "@nodes/registry";
 import { Node } from "./Node";
+import { GetModel, RegistryKey } from "@nodes/types/type";
 
-type PlainNodeObject = Omit<NodeObject<any>, "type" | "id"> & {
-    id?: string;
-}
+export class Document {
 
-export class Document extends Model {
-
-    private _nodes: Map<string, Node> = new Map();
+    private _nodes: Map<string, Node<any>> = new Map();
 
     get nodes() {
         return Object.freeze(this._nodes);
     }
 
-    public createNode<T extends Record<string, unknown>>(type: string, nodeObject?: PlainNodeObject): Node<T> {
-        const typeModel = TYPE_REGISTRY.get(type);
+    public createNode<T extends RegistryKey>(type: T, nodeObject?: PlainNodeObject): GetNode<T> {
+        const typeModel = TYPE_REGISTRY.get(type) as GetModel<T> | undefined;
         if (!typeModel) {
             throw new Error(`Type ${type} not found in registry`);
         }
-        return typeModel.buildNode(this, nodeObject);
+        return typeModel.buildNode(this, nodeObject) as unknown as GetNode<T>;
     }
 
     constructor() {
-
-        super({
-            component: () => null,
-            state: () => ({}),
-            name: "Document",
-        });
 
         this._nodes.set("head", this.createNode("element", { id: 'head', tagName: 'head', }));
         this._nodes.set("body", this.createNode("element", { id: 'body', tagName: 'body', }));
     }
 
-    addNode(node: Node) {
-        
+    addNode<T extends RegistryKey>(node: Node<T>) {
+
         if (node.owner !== this) {
             throw new Error("Node owner does not match the document");
         }
@@ -50,7 +40,7 @@ export class Document extends Model {
             throw new Error("Node with tagName 'body' already exists");
         }
 
-        this._nodes.set(node.id, node);
+        this._nodes.set(node.id, node as Node<any>);
     }
 
     removeNode(nodeId: string) {
@@ -60,22 +50,21 @@ export class Document extends Model {
         this._nodes.delete(nodeId);
     }
 
-
-    findNodes(iterator: (node: Node) => boolean): Node[] {
-        const foundNodes: Node[] = [];
+    findNodes<T extends RegistryKey>(iterator: (node: Node<any>) => boolean): Node<T>[] {
+        const foundNodes: Node<any>[] = [];
         for (const node of this._nodes.values()) {
             if (iterator(node)) {
                 foundNodes.push(node);
             }
         }
-        return foundNodes;
+        return foundNodes as Node<T>[];
     }
 
-    getNode(nodeId: string): Node | undefined {
-        return this._nodes.get(nodeId);
+    getNode<T extends RegistryKey>(nodeId: string): Node<T> | undefined {
+        return this._nodes.get(nodeId) as Node<T> | undefined;
     }
 
-    getAllNodes(): Node[] {
+    getAllNodes(): Node<RegistryKey>[] {
         return Array.from(this._nodes.values());
     }
 }

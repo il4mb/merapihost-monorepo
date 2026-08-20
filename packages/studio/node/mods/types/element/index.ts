@@ -1,12 +1,13 @@
 import { Model } from "@nodes/engine/Model";
-import ElementComponent, { ElementComponentProps } from "./ElementComponent";
+import ElementComponent from "./ElementComponent";
 
-export default new Model<ElementComponentProps>({
+export default new Model({
     component: ElementComponent,
     state: () => {
         return {
             
         }
     },
-    name: "Element",
+    name: "element",
+    label: "Element",
 });

@@ -1,12 +1,10 @@
-export type ElementComponentProps = {
-    
-};
+import type { ComponentProps } from "@nodes/types/type";
 
-export default function ElementComponent({}: ElementComponentProps) {
+export default function ElementComponent({ node }: ComponentProps<"element">) {
+    const TagName = node.tagName || "div";
     return (
-        <div>
-            {/* ElementComponent content goes here */}
+        <TagName>
             <h1>ElementComponent</h1>
-        </div>
+        </TagName>
     );
 }

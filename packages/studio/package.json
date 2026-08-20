@@ -10,7 +10,7 @@
         "dev": "next dev",
         "build": "next build",
         "start": "NODE_ENV=production node next start",
-        "watch-node": "bun ./scripts/node-registry.ts --watch",
+        "watch-node": "bun --watch ./scripts/node-registry.ts",
         "test": "vitest",
         "test:node": "vitest test/node.test.ts"
     },
