@@ -1,28 +1,32 @@
+import { RegistryKey } from "@nodes/types/type";
 import { Model } from "./Model";
 import { Node } from "./Node";
 
-export class NodeProxy {
-    constructor(private model: Model<any, any>, private node: Node<any, any>) { }
+export class NodeProxy<T extends RegistryKey> implements ProxyHandler<Node<T>> {
+    constructor(
+        private node: Node<T>,
+        private notifyChange: () => void
+    ) { }
 
-    get(target: any, prop: string) {
-        if (prop in target) {
-            return target[prop];
+    get(target: Node<T>, prop: string) {
+        const value = (target as any)[prop];
+        if (typeof value === "function") {
+            return value.bind(target);
         }
-        if (prop in this.node.props) {
-            return this.node.props[prop as keyof typeof this.node.props];
+        if (prop in (this.node.data as object)) {
+            return this.node.data[prop as keyof typeof this.node.data];
         }
-        return undefined;
+        return value;
     }
 
-    set(target: any, prop: string, value: any) {
-        if (prop in target) {
-            target[prop] = value;
+    set(target: Node<T>, prop: string, value: any) {
+        console.log(`Setting property ${prop} to`, value);
+        if (prop in (this.node.data as object)) {
+            this.node.data[prop as keyof typeof this.node.data] = value;
+            this.notifyChange();
             return true;
         }
-        if (prop in this.node.props) {
-            this.node.props[prop as keyof typeof this.node.props] = value;
-            return true;
-        }
-        return false;
+        (target as any)[prop] = value;
+        return true;
     }
 }

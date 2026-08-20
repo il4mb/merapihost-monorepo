@@ -1,24 +1,12 @@
-import { CommandDefinition, RegistryKey } from "@nodes/types/type";
-import { Model } from "./Model";
+import { RegistryKey } from "@nodes/types/type";
 import { Node } from "./Node";
-import { GetNode } from "@nodes/types/node";
+import { ModelCommands } from "./Model";
 
-export class Commands<
-    T extends RegistryKey = RegistryKey,
-    C extends CommandDefinition<T> = CommandDefinition<T>,
-> implements ProxyHandler<C> {
+export class Commands<T extends RegistryKey = RegistryKey> implements ProxyHandler<ModelCommands<T>> {
 
-    constructor(private node: Node<T, any, C>) {
-
-    }
-
-
-    get(target: C, prop: string) {
-
-        if (prop in target) {
-            return target[prop as keyof C];
-        }
-        const command = this.node.model.commands[prop as keyof C];
+    constructor(private node: Node<T>) { }
+    get(target: ModelCommands<T>, prop: string) {
+        const command = target[prop];
         if (command) {
             return command.bind(this.node);
         }

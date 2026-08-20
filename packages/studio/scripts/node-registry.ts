@@ -133,9 +133,9 @@ async function generateRegistry(): Promise<void> {
         const typeData = processEntries(typeRegistryMap);
         const blockData = processEntries(blockRegistryMap);
 
-        const interfacesCode = `export interface TypeRegistry {\n${typeData.interfaceProps}}\n\nexport interface BlockRegistry {\n${blockData.interfaceProps}}\n`;
+        const interfacesCode = `export interface TypeRegistry {}\n\nexport interface BlockRegistry {\n${blockData.interfaceProps}}\n`;
         
-        const typeExportCode = `export const TYPE_REGISTRY = new Map<string, Model<keyof TypeRegistry>>([\n${typeData.mapEntries}]);\n\n`;
+        const typeExportCode = `export const TYPE_REGISTRY = new Map<string, Model<any>>([\n${typeData.mapEntries}]);\n\n`;
         const blockExportCode = `export const BLOCK_REGISTRY = new Map<string, any>([\n${blockData.mapEntries}]);\n\n`;
 
         const linkCode = `const ALL_REGISTRY = new Map([...TYPE_REGISTRY, ...BLOCK_REGISTRY]);

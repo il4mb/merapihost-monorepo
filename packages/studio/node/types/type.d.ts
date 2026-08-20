@@ -2,35 +2,32 @@ import type { FC, JSX } from "react";
 import type { Node } from "@nodes/engine/Node";
 import type { TypeRegistry } from "@nodes/registry";
 import type { Model } from "@nodes/engine/Model";
-import type { NodeObject, PlainNodeObject, GetNode } from "@nodes/types/node";
+import type { NodeObject, PlainNodeObject } from "@nodes/types/node";
 
 export type RegistryKey = keyof TypeRegistry;
-export type GetModel<T extends RegistryKey> = TypeRegistry[T] extends Model<infer P, infer C>
-    ? Model<P, C>
-    : never;
-
-export type InferProps<T extends RegistryKey> = GetModel<T> extends Model<infer P, infer C>
-    ? P
-    : never;
-
-export type InferCommands<T extends RegistryKey> = GetModel<T> extends Model<infer P, infer C>
-    ? C
-    : never;
 
 export type ComponentProps<T extends RegistryKey> = {
-    node: GetNode<T>;
+    node: Node<T>;
     children: React.ReactNode;
     childrenNode: Node[];
     ref: React.RefObject<HTMLElement | null>;
 }
 
+export type CommandDefinition<T extends RegistryKey> = TypeRegistry[T] extends { commands: infer C }
+    ? {
+        [K in keyof C]: C[K] extends (this: any, ...args: infer Args) => infer R
+        ? (this: Node<T>, ...args: Args) => R
+        : (this: Node<T>, ...args: any[]) => void;
+    }
+    : Record<string, (this: Node<T>, ...args: any[]) => void>;
 
-export type Command<T extends RegistryKey, Args extends any[] = any[]> = (this: GetNode<T>, ...args: Args) => void;
-export type CommandDefinition<T extends RegistryKey> = Record<string, Command<T, any[]>>;
+export type DataDefinition<T extends RegistryKey> = TypeRegistry[T] extends { data: infer D }
+    ? D
+    : Record<string, unknown>;
 
 export interface ModelDefinition<
     T extends RegistryKey,
-    P extends Record<string, unknown> = {},
+    D extends DataDefinition<T> = DataDefinition<T>,
     C extends CommandDefinition<T> = CommandDefinition<T>
 > {
 
@@ -61,10 +58,10 @@ export interface ModelDefinition<
     /**
      * A map of command functions that can be invoked on this type.
      */
-    commands?: C;
+    commands?: CommandDefinition<T>;
 
     default?: Partial<
-        Omit<NodeObject<P>, "id" | "type" | "parent" | "order" | "visible">
+        Omit<NodeObject<DataDefinition<T>>, "id" | "type" | "parent" | "order" | "visible">
     >;
 
 
@@ -86,7 +83,7 @@ export interface ModelDefinition<
      * This method is called when the node is added to the document.
      * @param node The node that is being created.
      */
-    onCreate?: (node: Node<T, P, C>) => void;
+    onCreate?: (this: Model<T>, node: Node<T>) => void;
 
 
     /**
@@ -94,21 +91,21 @@ export interface ModelDefinition<
      * This method is called when the node is added to the document.
      * @param node The node that is being mounted.
      */
-    onMount?: (node: Node<T, P, C>) => void;
+    onMount?: (node: Node<T>) => void;
 
     /**
      * Called when the node is unmounted from the DOM.
      * This method is called when the node is removed from the document.
      * @param node The node that is being unmounted.
      */
-    onUnmount?: (node: Node<T, P, C>) => void;
+    onUnmount?: (node: Node<T>) => void;
 
 
     /**
      * Special function to manipulate the props of the node before it is rendered.
      * @returns An object representing the initial state of the node.
      */
-    state?: () => P;
+    state?: () => D;
 
 
 }

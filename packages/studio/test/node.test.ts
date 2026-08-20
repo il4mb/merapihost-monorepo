@@ -1,18 +1,42 @@
 
 import { Document } from "../node/react";
-import { describe, it, expectTypeOf } from "vitest";
+import { describe, it, expectTypeOf, vi, expect } from "vitest";
+import { commands } from "../node/mods/types/text/commands";
 
 describe("strict type checking", () => {
     const document = new Document();
-    const textNode = document.createNode("text", { tagName: "div" });
+    const textNode = document.createNode("text");
 
-    const testCommand = textNode.commands.test;
-    console.log("testCommand", testCommand);
-
-    it("should have correct types for text node", () => {
-        expectTypeOf(textNode.props).toEqualTypeOf<{ text: string }>();
+    it("should have correct types for text node commands", () => {
+        expectTypeOf(textNode.commands).toEqualTypeOf<typeof commands>();
     });
 });
+
+describe("command execution", () => {
+    const document = new Document();
+    const textNode = document.createNode("text");
+
+    it("should execute the test command for text node", () => {
+        // Spy on console.log to verify the command execution
+        const consoleSpy = vi.spyOn(console, "log");
+        textNode.commands.test("Hello, World!");
+        expect(consoleSpy).toHaveBeenCalledWith("Hello, World! from text node");
+        consoleSpy.mockRestore();
+    });
+});
+
+describe("lifecycle hooks", () => {
+    const document = new Document();
+    const textNode = document.createNode("text");
+
+    it("text changes", () => {
+        const onCreateSpy = vi.spyOn(console, "log");
+        textNode.data.text = "New Text";
+        expect(onCreateSpy).toHaveBeenCalledWith("Text node data changed:", "New Text");
+        onCreateSpy.mockRestore();
+    });
+});
+
 
 
 

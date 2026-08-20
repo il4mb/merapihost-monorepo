@@ -1,25 +1,31 @@
 import { Node } from "./Node";
 import { Document } from "./Document";
-import type { ModelDefinition, ComponentProps, CommandDefinition, RegistryKey } from "@nodes/types/type";
+import type { ModelDefinition, ComponentProps, RegistryKey, DataDefinition } from "@nodes/types/type";
 import type { NodeObject, PlainNodeObject } from "@nodes/types/node";
-import { nanoid } from "nanoid";
 import { FC } from "react";
-import { NodeProxy } from "./NodeProxy";
+import { TypeRegistry } from "@nodes/registry";
+import { LifecycleHook } from "./LifecyleHook";
+import { NodeFiber } from "./NodeFiber";
 
-export class Model<
-    P extends Record<string, unknown> = {},
-    C extends CommandDefinition<any> = CommandDefinition<any>,
-> {
 
-    extends: Model<P, C> | undefined;
-
-    constructor(private definition: ModelDefinition<any, P, C>) {
-        // Assign a unique ID based on the type name
-
+export type ModelCommands<T extends RegistryKey> = TypeRegistry[T] extends { commands: infer C }
+    ? {
+        [K in keyof C]: C[K] extends (...args: infer Args) => infer R
+        ? (...args: Args) => R
+        : (...args: any[]) => void;
     }
+    : Record<string, (...args: any[]) => void>;
 
-    get extendsName(): string | undefined {
-        return this.definition.extends;
+
+
+
+export class Model<T extends RegistryKey = RegistryKey> extends LifecycleHook {
+
+    // do not assign, it will be assigned by registry when the model is registered
+    readonly extends: Model<T>;
+    
+    constructor(private definition: ModelDefinition<T>) {
+        super();
     }
 
     get component(): FC<ComponentProps<RegistryKey>> {
@@ -30,20 +36,16 @@ export class Model<
         return this.definition.isInstance || (() => false);
     }
 
-    get onCreate(): (node: Node<RegistryKey, P, C>) => void {
+    get onCreate(): (node: Node<RegistryKey>) => void {
         return this.definition.onCreate || (() => { });
     }
 
-    get onMount(): (node: Node<RegistryKey, P, C>) => void {
+    get onMount(): (node: Node<RegistryKey>) => void {
         return this.definition.onMount || (() => { });
     }
 
-    get onUnmount(): (node: Node<RegistryKey, P, C>) => void {
+    get onUnmount(): (node: Node<RegistryKey>) => void {
         return this.definition.onUnmount || (() => { });
-    }
-
-    get state(): () => P {
-        return this.definition.state || (() => ({} as P));
     }
 
     get name(): string {
@@ -54,36 +56,26 @@ export class Model<
         return this.definition.label || this.definition.name as unknown as string;
     }
 
-    get icon(): FC<{ size: number; color: string; node: Node<RegistryKey, P, C>; }> | undefined {
+    get icon(): FC<{ size: number; color: string; node: Node<RegistryKey>; }> | undefined {
         return this.definition.icon;
     }
 
-    get commands(): C {
-        return this.definition.commands as C;
+    get commands(): ModelCommands<T> {
+        return this.definition.commands as ModelCommands<T>;
     }
 
-    get default(): Partial<Omit<NodeObject<P>, "id" | "type" | "parent" | "order" | "visible">> | undefined {
+    get default(): Partial<Omit<NodeObject<T>, "id" | "type" | "parent" | "order" | "visible">> | undefined {
         return this.definition.default;
     }
 
-
-    private wiredMaps: Map<string, { callback: () => void; deps: any[] }> = new Map();
-    get wires() {
-        return this.wiredMaps;
-    }
-
-    wire(callback: () => void, deps: any[]) {
-        const id = nanoid();
-        this.wiredMaps.set(id, { callback, deps });
-    }
-
-    unWire(id: string) {
-        this.wiredMaps.delete(id);
-    }
-
-    buildNode(owner: Document, data: PlainNodeObject): Node<any, P, C> {
+    buildNode(owner: Document, data: PlainNodeObject): Node<RegistryKey> {
 
         const node = new Node(owner, this);
+
+        // Create fiber for the node and store it in the fibers map
+        // this is important for lifecycle management and tracking the state of the node
+        this.fibers.set(node.id, new NodeFiber(node));
+
         if (data?.id) {
             node.id = data.id;
         }
@@ -95,15 +87,16 @@ export class Model<
         if (data?.order !== undefined) {
             node.order = data.order;
         }
-        if (data?.props) {
-            node.props = { ...this.state(), ...data.props };
+        if (data?.data) {
+            node.data = { ...data.data };
         } else {
-            node.props = {} as P;
+            node.data = {} as DataDefinition<T>;
         }
 
-        const proxyNode = new Proxy(node, new NodeProxy(this, node)) as Node<any, P, C>;
-        this.onCreate(proxyNode);
-        return proxyNode;
+        // const proxyNode = new Proxy(node, new NodeProxy(node, () => this.triggerEffects())) as Node<T>;
+        // this.onCreate(proxyNode);
+        this.onCreate(node);
+        return node;
     }
 
 }

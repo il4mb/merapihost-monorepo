@@ -1,7 +1,8 @@
-import type { GetNode, PlainNodeObject } from "@nodes/types/node";
+import type { PlainNodeObject } from "@nodes/types/node";
 import { TYPE_REGISTRY } from "@nodes/registry";
 import { Node } from "./Node";
-import { GetModel, RegistryKey } from "@nodes/types/type";
+import { RegistryKey } from "@nodes/types/type";
+import type { Model } from "./Model";
 
 export class Document {
 
@@ -11,12 +12,12 @@ export class Document {
         return Object.freeze(this._nodes);
     }
 
-    public createNode<T extends RegistryKey>(type: T, nodeObject?: PlainNodeObject): GetNode<T> {
-        const typeModel = TYPE_REGISTRY.get(type) as unknown as GetModel<T> | undefined;
+    public createNode<T extends RegistryKey>(type: T, nodeObject?: PlainNodeObject): Node<T> {
+        const typeModel = TYPE_REGISTRY.get(type) as Model<T> | undefined;
         if (!typeModel) {
             throw new Error(`Type ${type} not found in registry`);
         }
-        return typeModel.buildNode(this, nodeObject) as unknown as GetNode<T>;
+        return typeModel.buildNode(this, nodeObject) as Node<T>;
     }
 
     constructor() {

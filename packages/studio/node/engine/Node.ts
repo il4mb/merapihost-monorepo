@@ -1,36 +1,28 @@
 import { nanoid } from "nanoid";
 import type { Document } from "./Document";
-import type { Model } from "./Model";
+import type { Model, ModelCommands } from "./Model";
 import { JSX } from "react/jsx-runtime";
-import { CommandDefinition, RegistryKey } from "@nodes/types/type";
+import { DataDefinition, RegistryKey } from "@nodes/types/type";
 import { Commands } from "./Commands";
 
-export interface NodeContext {
-    // node: NodeObject | null;
-    // type: ModelProxy | null;
-    // dom: HTMLElement | null;
-}
 
-export class Node<
-    T extends RegistryKey,
-    P extends Record<string, unknown> = {},
-    C extends CommandDefinition<T> = CommandDefinition<T>
-> {
+export class Node<T extends RegistryKey> {
 
     private _id = nanoid();
-    readonly commands: C
+    readonly commands: ModelCommands<T>;
+    readonly type: T;
 
-    parent: Node<T, P, C> | null = null;
+    parent: Node<T> | null = null;
     element: HTMLElement | null = null;
     tagName: keyof JSX.IntrinsicElements = "div";
     order: number = 0;
-    type: T;
-    props: P = {} as P;
 
+    data: DataDefinition<T> = {} as DataDefinition<T>;
+   
 
     constructor(
         public owner: Document,
-        public model: Model<P, C>
+        public model: Model<T>,
     ) {
         this.id = nanoid();
         this.type = model.name as T;
@@ -47,12 +39,12 @@ export class Node<
         this.owner.addNode(this); // Add the new ID to the document
     }
 
-    appendChild(child: Node<T, P, C>) {
+    appendChild(child: Node<T>) {
         child.parent = this;
         this.owner.addNode(child);
     }
 
-    removeChild(child: Node<T, P, C>) {
+    removeChild(child: Node<T>) {
         if (child.parent !== this) {
             throw new Error("The specified node is not a child of this node.");
         }
@@ -68,32 +60,10 @@ export class Node<
     }
 
 
-    clone(): Node<T, P, C> {
+    clone(): Node<T> {
         const clonedNode = new Node(this.owner, this.model);
         clonedNode.id = nanoid(); // Assign a new unique ID for the cloned node
-        return clonedNode as Node<T, P, C>;
+        return clonedNode as Node<T>;
     }
-
-
-    private wiredMaps: Map<string, { callback: () => void; deps: any[] }> = new Map();
-    get wires() {
-        return this.wiredMaps;
-    }
-
-    wire(callback: () => void, deps: any[]) {
-        const id = nanoid();
-        this.wiredMaps.set(id, { callback, deps });
-    }
-
-    unWire(id: string) {
-        this.wiredMaps.delete(id);
-    }
-
-    triggerWired() {
-        for (const { callback } of this.wiredMaps.values()) {
-            callback();
-        }
-    }
-
 
 }

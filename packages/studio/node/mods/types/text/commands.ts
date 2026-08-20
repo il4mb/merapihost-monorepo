@@ -1,7 +1,8 @@
+
 import { CommandDefinition } from "@nodes/types/type";
 
 export const commands: CommandDefinition<"text"> = {
-    test() {
-        this.props.text = "Hello, World!";
+    test(text) {
+        console.log(`${text} from ${this.type} node`);
     }
 }
