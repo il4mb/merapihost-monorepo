@@ -1,29 +1,15 @@
 import { Node } from "./Node";
 import type { Document } from "./Document";
-import type { ModelDefinition, ComponentProps, RegistryKey, DataDefinition, ModelHookDefinition, InferModelHookArgs } from "@nodes/types/type";
+import type { ModelDefinition, ComponentProps, RegistryKey, DataDefinition, ModelHookDefinition, InferModelHookArgs, CommandDefinition } from "@nodes/types/type";
 import type { NodeObject, PlainNodeObject } from "@nodes/types/node";
 import type { FC } from "react";
-import type { TypeRegistry } from "@nodes/registry";
-
-export type ModelCommands<T extends RegistryKey> = TypeRegistry[T] extends { commands: infer C }
-    ? {
-        [K in keyof C]: C[K] extends (...args: infer Args) => infer R
-        ? (...args: Args) => R
-        : (...args: any[]) => void;
-    }
-    : Record<string, (...args: any[]) => void>;
-
-
-
 
 export class Model<T extends RegistryKey = RegistryKey> {
 
     // do not assign, it will be assigned by registry when the model is registered
     readonly extends: Model<T>;
 
-    constructor(private definition: ModelDefinition<T>) {
-        // super();
-    }
+    constructor(private definition: ModelDefinition<T>) { }
 
     get component(): FC<ComponentProps<T>> {
         return this.definition.component as unknown as FC<ComponentProps<T>>;
@@ -41,8 +27,8 @@ export class Model<T extends RegistryKey = RegistryKey> {
         return this.definition.icon;
     }
 
-    get commands(): ModelCommands<T> {
-        return this.definition.commands as ModelCommands<T>;
+    get commands(): CommandDefinition<T> {
+        return this.definition.commands as CommandDefinition<T>;
     }
 
     get default(): Partial<Omit<NodeObject<T>, "id" | "type" | "parent" | "order" | "visible">> | undefined {

@@ -1,5 +1,5 @@
 // ===================================================================
-// Generated: 2026-08-21T17:20:30.396Z
+// Generated: 2026-08-21T17:24:35.187Z
 // AUTOMATICALLY GENERATED FILE - DO NOT EDIT
 // Modify source files in 'mods/types' or 'mods/blocks' and run watch-node script.
 // ===================================================================

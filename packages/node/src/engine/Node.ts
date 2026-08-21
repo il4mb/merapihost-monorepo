@@ -1,18 +1,18 @@
 import { nanoid } from "nanoid";
-import type { Model, ModelCommands } from "./Model";
+import type { Model } from "./Model";
 import { JSX } from "react/jsx-runtime";
-import { DataDefinition, RegistryKey } from "@nodes/types/type";
+import { CommandDefinition, DataDefinition, RegistryKey } from "@nodes/types/type";
 import { Commands } from "./Commands";
 import { MutableObject } from "./MutableObject";
 import { NodeObject } from "@/types";
 import { Document } from "./Document";
 
-export class Node<T extends RegistryKey> {
+export class Node<T extends RegistryKey = RegistryKey> {
 
     private _id = nanoid();
     private parentId: string | null = null;
 
-    readonly commands: ModelCommands<T>;
+    readonly commands: CommandDefinition<T>;
     readonly type: T;
     readonly element: HTMLElement | null = null;
 

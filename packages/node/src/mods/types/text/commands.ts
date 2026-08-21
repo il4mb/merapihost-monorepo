@@ -1,5 +1,4 @@
 
-import { Node } from "@nodes/engine";
 import { CommandDefinition } from "@nodes/types/type";
 
 export const commands: CommandDefinition<"text"> = {

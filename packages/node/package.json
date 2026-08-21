@@ -1,0 +1,29 @@
+{
+    "name": "@merapihost/node",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+
+    },
+    "dependencies": {
+        "glob": "^13.0.6",
+        "lodash": "^4.18.1",
+        "lucide-react": "^1.14.0",
+        "motion": "^12.38.0",
+        "nanoid": "^5.1.9",
+        "react": "19.2.4",
+        "react-dom": "19.2.4"
+    },
+    "devDependencies": {
+        "@types/lodash": "^4.17.24",
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "babel-plugin-react-compiler": "1.0.0",
+        "tsx": "^4.23.12",
+        "typescript": "7.0.2",
+        "vite-tsconfig-paths": "^6.1.1",
+        "vitest": "^4.1.11"
+    }
+}
