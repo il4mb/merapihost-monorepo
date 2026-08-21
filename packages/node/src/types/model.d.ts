@@ -1,32 +1,32 @@
 import type { FC, JSX } from "react";
-import type { Node } from "@nodes/engine/Node";
-import type { TypeRegistry } from "@nodes/registry";
-import type { Model } from "@nodes/engine/Model";
-import type { NodeObject, PlainNodeObject } from "@nodes/types/node";
+import type { Node } from "@/engine/Node";
+import type { Model } from "@/engine/Model";
+import type { NodeObject, PlainNodeObject } from "@/types/node";
 
-export type RegistryKey = keyof TypeRegistry;
-
-export type ComponentProps<T extends RegistryKey> = {
+export type ComponentProps<T extends ModelName> = {
     node: Node<T>;
     children: React.ReactNode;
     childrenNode: Node[];
     ref: React.RefObject<HTMLElement | null>;
 }
 
-export type CommandDefinition<T extends RegistryKey> = TypeRegistry[T] extends { commands: infer C }
+export type InferCommand<
+    T extends ModelName,
+    WithThis extends boolean = true
+> = ModelRegistry[T] extends { commands: infer C }
     ? {
         [K in keyof C]: C[K] extends (this: any, ...args: infer Args) => infer R
-        ? (this: Node<T>, ...args: Args) => R
-        : (this: Node<T>, ...args: any[]) => void;
+        ? WithThis extends true ? (this: Node<T>, ...args: Args) => R : (...args: Args) => R
+        : WithThis extends true ? (this: Node<T>, ...args: any[]) => void : (...args: any[]) => void;
     }
     : Record<string, (this: Node<T>, ...args: any[]) => void>;
 
-export type DataDefinition<T extends RegistryKey> = TypeRegistry[T] extends { data: infer D }
+export type InferData<T extends ModelName> = ModelRegistry[T] extends { data: infer D }
     ? D
     : Record<string, unknown>;
 
 
-export interface ModelHookDefinition<T extends RegistryKey> {
+export interface HookDefinition<T extends ModelName> {
     /**
     * Determine if a given node is an instance of this type.
     * This method are called when the node is at initialization.
@@ -58,7 +58,7 @@ export interface ModelHookDefinition<T extends RegistryKey> {
     onUnmount?: (this: Model<T>, node: Node<T>) => void;
 
 
-    onChildAdd?: (this: Model<T>, child: Node<any> & { parent: Node<T> }) => void;
+    onChildAdd?: (this: Model<T>, child: Omit<Node<any>, "parent"> & { parent: Node<T> }) => void;
 
     /**
      * Special function to manipulate the props of the node before it is rendered.
@@ -67,22 +67,22 @@ export interface ModelHookDefinition<T extends RegistryKey> {
     state?: () => D;
 }
 
-export type InferModelHookArgs<
-    K extends keyof ModelHookDefinition<any>,
-    T extends RegistryKey = any
-> = ModelHookDefinition<T>[K] extends (...args: infer Args) => any ? Args : never;
+export type InferHookArgs<
+    K extends keyof HookDefinition<any>,
+    T extends ModelName = any
+> = HookDefinition<T>[K] extends (...args: infer Args) => any ? Args : never;
 
 
 export interface ModelDefinition<
-    T extends RegistryKey,
-    D extends DataDefinition<T> = DataDefinition<T>,
-    C extends CommandDefinition<T> = CommandDefinition<T>
-> extends ModelHookDefinition<T> {
+    T extends ModelName,
+    D extends InferData<T> = InferData<T>,
+    C extends InferCommand<T> = InferCommand<T>
+> extends HookDefinition<T> {
 
     /**
     * The unique name of the type. This is used to identify the type in the registry.
     * It should be a lowercase string without spaces or special characters.
-    * This name is used as the key in the TypeRegistry.
+    * This name is used as the key in the ModelRegistry.
     * @example "button", "text", "image"
     */
     name: T;
@@ -106,10 +106,10 @@ export interface ModelDefinition<
     /**
      * A map of command functions that can be invoked on this type.
      */
-    commands?: CommandDefinition<T>;
+    commands?: InferCommand<T>;
 
     default?: Partial<
-        Omit<NodeObject<DataDefinition<T>>, "id" | "type" | "parent" | "order" | "visible">
+        Omit<NodeObject<T>, "id" | "type" | "parent" | "order" | "visible">
     >;
 
 

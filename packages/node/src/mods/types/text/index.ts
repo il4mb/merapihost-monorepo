@@ -1,7 +1,6 @@
-import TextComponent from "./TextComponent";
-import type { Node } from "@nodes/engine";
+import type { Node } from "@/engine";
 import { commands } from "./commands";
-import { createModel } from "@nodes/mods";
+import { createModel } from "@/mods";
 
 export type TextNodeData = {
     text: string;
@@ -12,8 +11,8 @@ export type TextSelection = {
     focus: number;
 }
 
-declare module "@nodes/registry" {
-    interface TypeRegistry {
+declare global {
+    interface ModelRegistry {
         text: {
             commands: {
                 test: (text: string) => void;

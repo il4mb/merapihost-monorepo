@@ -1,9 +1,6 @@
-import { TYPE_REGISTRY } from "@nodes/registry";
-import type { Model } from "./Model";
-import type { PlainNodeObject } from "@nodes/types/node";
-import type { Node } from "./Node";
-import type { RegistryKey } from "@nodes/types/type";
-import { LifecycleHook } from "./LifecyleHook";
+import { TYPE_REGISTRY } from "@/registry";
+import { LifecycleHook, Model, Node } from "@/engine";
+import type { PlainNodeObject } from "@/types";
 
 export class Document extends LifecycleHook {
 
@@ -19,7 +16,7 @@ export class Document extends LifecycleHook {
      * @param nodeObject raw data of node
      * @returns Node
      */
-    public createNode<T extends RegistryKey>(type: T, nodeObject?: PlainNodeObject<T>): Node<T> {
+    public createNode<T extends ModelName>(type: T, nodeObject?: PlainNodeObject<T>): Node<T> {
 
         const typeModel = TYPE_REGISTRY.get(type) as Model<T> | undefined;
         if (!typeModel) {
@@ -47,7 +44,7 @@ export class Document extends LifecycleHook {
      * @param id The ID of the node to find.
      * @returns The node with the specified ID, or null if not found.
      */
-    public findNode<T extends RegistryKey>(id: string): Node<T> | null {
+    public findNode<T extends ModelName>(id: string): Node<T> | null {
         return this.collection.has(id)
             ? this.collection.get(id)
             : null;
@@ -104,7 +101,7 @@ export class Document extends LifecycleHook {
      * @param node starting point
      * @returns 
      */
-    public getAncestors<T extends RegistryKey>(node: Node<T>) {
+    public getAncestors<T extends ModelName>(node: Node<T>) {
         this.ensureOwner(node);
         const result = new Map<string, Node<any>>();
         let currentNode: Node<any> | undefined = node;
@@ -126,7 +123,7 @@ export class Document extends LifecycleHook {
      * @param map the collection
      * @returns ancestor chain
      */
-    public getAncestorChain<T extends RegistryKey>(start: Node<any>, end: Node<any>): Node<T>[] {
+    public getAncestorChain<T extends ModelName>(start: Node<any>, end: Node<any>): Node<T>[] {
         this.ensureOwner(start, end);
         const chain: Node<any>[] = [];
         let current = this.findNode(start.id);
@@ -144,7 +141,7 @@ export class Document extends LifecycleHook {
      * @param collection 
      * @returns Map<string, Node>
      */
-    public getDescendants<T extends RegistryKey>(node: Node<T>) {
+    public getDescendants<T extends ModelName>(node: Node<T>) {
         this.ensureOwner(node);
         const childrenMap = new Map<string, Node<any>[]>();
         for (const child of this.collection.values()) {

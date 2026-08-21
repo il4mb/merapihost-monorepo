@@ -1,4 +1,4 @@
-import type { ComponentProps } from "@nodes/types/type";
+import type { ComponentProps } from "@/types/model";
 
 export default function ElementComponent({ node }: ComponentProps<"element">) {
     const TagName = node.tagName || "div";

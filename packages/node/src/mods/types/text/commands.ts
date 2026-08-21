@@ -1,7 +1,6 @@
+import { InferCommand } from "@/types";
 
-import { CommandDefinition } from "@nodes/types/type";
-
-export const commands: CommandDefinition<"text"> = {
+export const commands: InferCommand<"text"> = {
     test(text) {
         console.log(`${text} from ${this.type} node`);
     },

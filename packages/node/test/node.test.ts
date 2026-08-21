@@ -1,10 +1,9 @@
-import { Document } from "../node/engine/Document";
 import { describe, it, expectTypeOf, vi, expect } from "vitest";
-import { commands } from "../node/mods/types/text/commands";
-import { Node } from "@nodes/engine";
+import { commands } from "@/mods/types/text/commands";
+import { Node, Document } from "@/engine";
 
 describe("strict type checking", () => {
-    
+
     const document = new Document();
     const textNode = document.createNode("text");
 
@@ -14,7 +13,7 @@ describe("strict type checking", () => {
 });
 
 describe("command execution", () => {
-    
+
     const document = new Document();
     const textNode = document.createNode("text");
 
@@ -37,14 +36,14 @@ describe("node managements", () => {
 
     const document = new Document();
     const textNode = document.createNode("text", { data: { text: "Initial Text" } });
-    
+
     it("append children", () => {
         const childNode = document.createNode("text", { data: { text: "Child Text" } });
         textNode.append(childNode);
         const children = Array.from(textNode.children.values());
         expect(children).toEqual([childNode]);
     });
-    
+
     it("append at index", () => {
         const newChild = document.createNode("element", { data: { text: "this shuld at 2" } });
         const newChild2 = document.createNode("element", { data: { text: "this shuld at 1" } });

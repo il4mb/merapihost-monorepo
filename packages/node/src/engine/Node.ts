@@ -1,18 +1,18 @@
 import { nanoid } from "nanoid";
 import type { Model } from "./Model";
 import { JSX } from "react/jsx-runtime";
-import { CommandDefinition, DataDefinition, RegistryKey } from "@nodes/types/type";
+import { InferCommand, InferData } from "@/types/model";
 import { Commands } from "./Commands";
 import { MutableObject } from "./MutableObject";
-import { NodeObject } from "@/types";
+import { NodeObject } from "@/types/node";
 import { Document } from "./Document";
 
-export class Node<T extends RegistryKey = RegistryKey> {
+export class Node<T extends ModelName = ModelName> {
 
     private _id = nanoid();
     private parentId: string | null = null;
 
-    readonly commands: CommandDefinition<T>;
+    readonly commands: InferCommand<T, false>;
     readonly type: T;
     readonly element: HTMLElement | null = null;
 
@@ -31,11 +31,11 @@ export class Node<T extends RegistryKey = RegistryKey> {
         this.mutableData = new MutableObject(this.owner, {}) as any;
     }
 
-    private mutableData: MutableObject<DataDefinition<T>>;
-    get data(): DataDefinition<T> {
+    private mutableData: MutableObject<InferData<T>>;
+    get data(): InferData<T> {
         return this.mutableData as any;
     }
-    set data(value: DataDefinition<T>) {
+    set data(value: InferData<T>) {
         this.mutableData = new MutableObject(this.owner, value) as any;
     }
 
@@ -78,7 +78,7 @@ export class Node<T extends RegistryKey = RegistryKey> {
                 tagName: this.tagName,
                 data: this.data,
                 order: this.order,
-                children: Array.from(this.children.values()).map(e => e.toJSON())
+                children: Array.from(this.children.values()).map(e => e.toJSON()) as any
             }
         }
         return {

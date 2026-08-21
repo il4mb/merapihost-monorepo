@@ -1,4 +1,4 @@
-export * from "../engine";
+export * from "@/engine";
 
 export { default as NodeInternal } from "./NodeInternal";
 export { default as NodeRender } from "./NodeRender";

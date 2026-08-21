@@ -1,4 +1,4 @@
-import { ModelDefinition, RegistryKey } from "@nodes/types/type";
-export function createModel<T extends RegistryKey>(definition: ModelDefinition<T>): ModelDefinition<T> {
+import { ModelDefinition } from "@/types/model";
+export function createModel<T extends ModelName>(definition: ModelDefinition<T>): ModelDefinition<T> {
     return definition;
 }

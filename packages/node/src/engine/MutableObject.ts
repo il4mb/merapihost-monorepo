@@ -1,4 +1,4 @@
-import { LifecycleHook } from "./LifecyleHook";
+import { LifecycleHook } from "./LifecycleHook";
 
 /**
  * Lifecycle Object

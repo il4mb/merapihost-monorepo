@@ -1,15 +1,19 @@
 import { Node } from "./Node";
 import type { Document } from "./Document";
-import type { ModelDefinition, ComponentProps, RegistryKey, DataDefinition, ModelHookDefinition, InferModelHookArgs, CommandDefinition } from "@nodes/types/type";
-import type { NodeObject, PlainNodeObject } from "@nodes/types/node";
+import type { ModelDefinition, ComponentProps, InferData, HookDefinition, InferHookArgs, InferCommand } from "@/types/model";
+import type { NodeObject, PlainNodeObject } from "@/types/node";
 import type { FC } from "react";
 
-export class Model<T extends RegistryKey = RegistryKey> {
+export class Model<T extends ModelName = ModelName> {
 
     // do not assign, it will be assigned by registry when the model is registered
     readonly extends: Model<T>;
 
     constructor(private definition: ModelDefinition<T>) { }
+
+    get extendsName() {
+        return this.definition.extends;
+    }
 
     get component(): FC<ComponentProps<T>> {
         return this.definition.component as unknown as FC<ComponentProps<T>>;
@@ -27,17 +31,17 @@ export class Model<T extends RegistryKey = RegistryKey> {
         return this.definition.icon;
     }
 
-    get commands(): CommandDefinition<T> {
-        return this.definition.commands as CommandDefinition<T>;
+    get commands(): InferCommand<T> {
+        return this.definition.commands as InferCommand<T>;
     }
 
     get default(): Partial<Omit<NodeObject<T>, "id" | "type" | "parent" | "order" | "visible">> | undefined {
         return this.definition.default as any;
     }
 
-    public invokeHook<N extends keyof ModelHookDefinition<T>>(
+    public invokeHook<N extends keyof HookDefinition<T>>(
         name: N,
-        ...args: InferModelHookArgs<N, T>
+        ...args: InferHookArgs<N, T>
     ) {
         const hook = this.definition[name];
         if (typeof hook === 'function') {
@@ -61,7 +65,7 @@ export class Model<T extends RegistryKey = RegistryKey> {
             node.data = {
                 ...(this.default?.data as any),
                 ...(object.data as any)
-            } as DataDefinition<T>;
+            } as InferData<T>;
         } else {
             node.data = {
                 ...(this.default?.data as any)

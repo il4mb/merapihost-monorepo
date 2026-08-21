@@ -1,7 +1,6 @@
-import { RegistryKey } from "@nodes/types/type";
-import { Node } from "./Node";
+import type { INode } from "@/types";
 
-export type EffectCallback = (triggering?: Node<RegistryKey>) => void | (() => void);
+export type EffectCallback = (triggering?: INode<ModelName>) => void | (() => void);
 
 export type EffectDeps = (() => any[]) | (() => any)[] | null;
 
@@ -69,7 +68,7 @@ export class LifecycleHook {
     /**
      * Notify that something changed – re‑evaluates all effects.
      */
-    public notifyChange(triggering?: Node<RegistryKey>): void {
+    public notifyChange(triggering?: INode<ModelName>): void {
         for (const effect of this.effects) {
             const currentDeps = effect.depsFn();
 

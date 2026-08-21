@@ -1,8 +1,8 @@
 import ElementComponent from "./ElementComponent";
-import { createModel } from "@nodes/mods";
+import { createModel } from "@/mods";
 
-declare module "@nodes/registry" {
-    interface TypeRegistry {
+declare global {
+    interface ModelRegistry {
         element: {
             commands: {
                 // hallo: () => void;
