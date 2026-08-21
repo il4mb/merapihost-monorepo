@@ -1,5 +1,5 @@
 // ===================================================================
-// Generated: 2026-08-20T21:51:16.548Z
+// Generated: 2026-08-21T17:20:30.396Z
 // AUTOMATICALLY GENERATED FILE - DO NOT EDIT
 // Modify source files in 'mods/types' or 'mods/blocks' and run watch-node script.
 // ===================================================================
@@ -14,8 +14,8 @@ export interface BlockRegistry {
 }
 
 export const TYPE_REGISTRY = new Map<string, Model<any>>([
-  ["element", mod0],
-  ["text", mod1],
+  ["element", new Model(mod0 as any)],
+  ["text", new Model(mod1 as any)],
 ]);
 
 export const BLOCK_REGISTRY = new Map<string, any>([

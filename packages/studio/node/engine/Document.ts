@@ -1,71 +1,282 @@
-import type { PlainNodeObject } from "@nodes/types/node";
 import { TYPE_REGISTRY } from "@nodes/registry";
-import { Node } from "./Node";
-import { RegistryKey } from "@nodes/types/type";
 import type { Model } from "./Model";
+import type { PlainNodeObject } from "@nodes/types/node";
+import type { Node } from "./Node";
+import type { RegistryKey } from "@nodes/types/type";
+import { LifecycleHook } from "./LifecyleHook";
 
-export class Document {
+export class Document extends LifecycleHook {
 
-    private _nodes: Map<string, Node<any>> = new Map();
+    static ORDER_EPS = 0.001; // increment terkecil, biasanya dikalikan segIdx
+    static ORDER_MINOR = 0.01; // offset gaya "before"
+    static ORDER_MAJOR = 0.02; // offset gaya "after"
 
-    get nodes() {
-        return Object.freeze(this._nodes);
-    }
+    private collection: Map<string, Node<any>> = new Map();
 
-    public createNode<T extends RegistryKey>(type: T, nodeObject?: PlainNodeObject): Node<T> {
+    /**
+     * Create Node at this Document
+     * @param type Model of node
+     * @param nodeObject raw data of node
+     * @returns Node
+     */
+    public createNode<T extends RegistryKey>(type: T, nodeObject?: PlainNodeObject<T>): Node<T> {
+
         const typeModel = TYPE_REGISTRY.get(type) as Model<T> | undefined;
         if (!typeModel) {
             throw new Error(`Type ${type} not found in registry`);
         }
-        return typeModel.buildNode(this, nodeObject) as Node<T>;
-    }
 
-    constructor() {
+        const node = typeModel.buildNode(this, nodeObject) as Node<T>;
+        this.collection.set(node.id, node);
 
-        this._nodes.set("head", this.createNode("element", { id: 'head', tagName: 'head', }));
-        this._nodes.set("body", this.createNode("element", { id: 'body', tagName: 'body', }));
-    }
-
-    addNode<T extends RegistryKey>(node: Node<T>) {
-
-        if (node.owner !== this) {
-            throw new Error("Node owner does not match the document");
-        }
-
-        const existingHeadNode = this.findNodes(n => n.tagName === "head");
-        const existingBodyNode = this.findNodes(n => n.tagName === "body");
-        if (node.tagName === "head" && existingHeadNode.length > 0) {
-            throw new Error("Node with tagName 'head' already exists");
-        }
-        if (node.tagName === "body" && existingBodyNode.length > 0) {
-            throw new Error("Node with tagName 'body' already exists");
-        }
-
-        this._nodes.set(node.id, node as Node<any>);
-    }
-
-    removeNode(nodeId: string) {
-        if (nodeId === "head" || nodeId === "body") {
-            throw new Error("Cannot remove node 'head' or 'body'");
-        }
-        this._nodes.delete(nodeId);
-    }
-
-    findNodes<T extends RegistryKey>(iterator: (node: Node<any>) => boolean): Node<T>[] {
-        const foundNodes: Node<any>[] = [];
-        for (const node of this._nodes.values()) {
-            if (iterator(node)) {
-                foundNodes.push(node);
+        if (nodeObject?.parent) {
+            const parent = this.findNode(nodeObject.parent);
+            if (parent) {
+                this.addNodeChildren(parent, node, nodeObject.order);
             }
         }
-        return foundNodes as Node<T>[];
+
+        node.model.invokeHook("onCreate", node);
+
+        return node;
     }
 
-    getNode<T extends RegistryKey>(nodeId: string): Node<T> | undefined {
-        return this._nodes.get(nodeId) as Node<T> | undefined;
+
+    /**
+     * Find a node by its ID in the document's children.
+     * @param id The ID of the node to find.
+     * @returns The node with the specified ID, or null if not found.
+     */
+    public findNode<T extends RegistryKey>(id: string): Node<T> | null {
+        return this.collection.has(id)
+            ? this.collection.get(id)
+            : null;
     }
 
-    getAllNodes(): Node<RegistryKey>[] {
-        return Array.from(this._nodes.values());
+
+
+    /**
+     * Add Children
+     */
+    public addNodeChildren(parent: Node<any>, node: Node<any>, at?: number) {
+        this.ensureOwner(parent, node);
+        const children = this.getChildren(parent); // Map<string, Node>
+        const entries = Array.from(children.values()).sort((a, b) => a.order - b.order);
+
+        if (at === undefined || at === null) {
+            // Append: set order after last existing child
+            node.order = entries.length > 0 ? entries[entries.length - 1].order + Document.ORDER_EPS : 0;
+        } else {
+            const targetIndex = Math.max(0, Math.min(Math.floor(at), entries.length));
+
+            if (targetIndex === 0) {
+                // Insert at beginning
+                const firstOrder = entries.length > 0 ? entries[0].order : 0;
+                node.order = firstOrder - Document.ORDER_EPS;
+            } else if (targetIndex >= entries.length) {
+                // Insert at end
+                const lastOrder = entries.length > 0 ? entries[entries.length - 1].order : 0;
+                node.order = lastOrder + Document.ORDER_EPS;
+            } else {
+                // Insert between two nodes
+                const prevOrder = entries[targetIndex - 1].order;
+                const nextOrder = entries[targetIndex].order;
+                node.order = (prevOrder + nextOrder) / 2; // Fractional average
+            }
+        }
+
+        node.parent = parent;
+        this.normalizeChildrenOrder(parent);
+    }
+
+    public removeChildren(parent: Node<any>, child: Node<any>) {
+
+    }
+
+    public reorderChildren(parent: Node<any>, startIndex?: number) {
+        this.ensureOwner(parent)
+        const children = this.getChildren(parent);
+    }
+
+
+    /**
+     * Get Node Ancestors
+     * @param node starting point
+     * @returns 
+     */
+    public getAncestors<T extends RegistryKey>(node: Node<T>) {
+        this.ensureOwner(node);
+        const result = new Map<string, Node<any>>();
+        let currentNode: Node<any> | undefined = node;
+
+        while (currentNode.parent.id) {
+            const parentNode = this.collection.get(currentNode.parent.id);
+            if (!parentNode) break;
+
+            result.set(parentNode.id, parentNode);
+            currentNode = parentNode;
+        }
+        return this.toReadonlyMap(result);
+    }
+
+    /**
+     * Walk up finder until endId
+     * @param startId starting node id
+     * @param endId finish node id
+     * @param map the collection
+     * @returns ancestor chain
+     */
+    public getAncestorChain<T extends RegistryKey>(start: Node<any>, end: Node<any>): Node<T>[] {
+        this.ensureOwner(start, end);
+        const chain: Node<any>[] = [];
+        let current = this.findNode(start.id);
+        while (current && current.id !== end.id) {
+            chain.push(current);
+            current = this.findNode(current.parent.id);
+        }
+        return chain;
+    };
+
+
+    /**
+     * Walk down finder
+     * @param node 
+     * @param collection 
+     * @returns Map<string, Node>
+     */
+    public getDescendants<T extends RegistryKey>(node: Node<T>) {
+        this.ensureOwner(node);
+        const childrenMap = new Map<string, Node<any>[]>();
+        for (const child of this.collection.values()) {
+            if (!child.parent) continue;
+            const children = childrenMap.get(child.parent.id);
+            if (children) {
+                children.push(child);
+            } else {
+                childrenMap.set(child.parent.id, [child]);
+            }
+        }
+
+        const descendants = new Map<string, Node<any>>();
+        const walk = (parentId: string) => {
+            for (const child of childrenMap.get(parentId) ?? []) {
+                descendants.set(child.id, child);
+                walk(child.id);
+            }
+        };
+        walk(node.id);
+
+        return this.toReadonlyMap(descendants);
+    }
+
+    /**
+     * Node Children Only
+     * @param node 
+     * @param collection 
+     * @returns Map<string, Node>
+     */
+    public getChildren(node: Node<any>) {
+        this.ensureOwner(node);
+        const childrenArray = Array.from(this.collection.values())
+            .filter(n => n.parent?.id === node.id)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+        return this.toReadonlyMap(new Map(childrenArray.map(n => [n.id, n])));
+    }
+
+
+    public getSiblings(node: Node<any>) {
+        this.ensureOwner(node);
+        const childrenArray = Array.from(this.collection.values())
+            .filter(n => n.parent === node.parent)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+        return this.toReadonlyMap(new Map(childrenArray.map(n => [n.id, n])));
+    }
+
+    /**
+     * Remove parentles node
+     * @param map 
+     */
+    public purgeOrphan() {
+        const validIds = new Set<string>();
+        const traverse = (id: string | null) => {
+            validIds.add(id);
+            const children = Array.from(this.collection.values()).filter((n) => n.parent.id === id);
+            children.forEach((child) => traverse(child.id));
+        };
+        traverse(null);
+
+        this.collection.forEach((n, id) => {
+            if (!validIds.has(id)) {
+                this.collection.delete(id);
+            }
+        });
+    };
+
+
+
+    /**
+     * Normalize node orders recursively.
+     */
+    public normalizeOrder() {
+        const topLevelNodes = this.getTopLevelNodes();
+        topLevelNodes.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        topLevelNodes.forEach((node, index) => {
+            node.order = index;
+            this.normalizeChildrenOrder(node, true);
+        });
+    }
+
+    /**
+     * Normalize Spesific Node Children Order
+     * @param parent 
+     * @param recursive 
+     * @returns 
+     */
+    public normalizeChildrenOrder(parent: Node<any>, recursive: boolean = false) {
+        const children = Array.from(this.collection.values())
+            .filter(node => node.parent?.id === parent.id);
+
+        if (children.length === 0) return;
+        children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        children.forEach((child, index) => {
+            child.order = index;
+            if (recursive) {
+                this.normalizeChildrenOrder(child, true);
+            }
+        });
+    }
+
+
+    getTopLevelNodes() {
+        return Array.from(this.collection.values())
+            .filter((node) => !node.parent || !this.collection.has(node.parent.id))
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    }
+
+
+    /**
+     * Helper Create Readonly Map
+     * @param map 
+     * @returns 
+     */
+    private toReadonlyMap(map: Map<string, Node<any>>): ReadonlyMap<string, Node<any>> {
+        const mutatingMethods = new Set(['set', 'delete', 'clear']);
+        return new Proxy(map, {
+            get(target, prop: string) {
+                // Block mutating methods
+                if (mutatingMethods.has(prop)) {
+                    throw new TypeError(`Method '${prop}' cannot be called on a ReadonlyMap.`);
+                }
+                const value = target[prop];
+                // Bind methods like .get(), .has(), .keys() to the original Map instance
+                return typeof value === 'function' ? value.bind(target) : value;
+            }
+        });
+    }
+
+    public ensureOwner(...nodes: Node<any>[]) {
+        if (!(Array.isArray(nodes) ? nodes : [nodes]).every(e => e.owner === this)) {
+            throw new Error("Canot find ancestors node is not owned by this document");
+        }
     }
 }

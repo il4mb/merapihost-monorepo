@@ -25,11 +25,59 @@ export type DataDefinition<T extends RegistryKey> = TypeRegistry[T] extends { da
     ? D
     : Record<string, unknown>;
 
+
+export interface ModelHookDefinition<T extends RegistryKey> {
+    /**
+    * Determine if a given node is an instance of this type.
+    * This method are called when the node is at initialization.
+    * @param node The plain object to check.
+    * @returns A boolean indicating if the node is an instance of this type.
+    */
+    isInstance?: (this: Model<T>, node: PlainNodeObject<T>) => boolean;
+
+    /**
+     * Called when the node is created.
+     * This method is called when the node is added to the document.
+     * @param node The node that is being created.
+     */
+    onCreate?: (this: Model<T>, node: Node<T>) => void;
+
+
+    /**
+     * Called when the node is mounted to the DOM.
+     * This method is called when the node is added to the document.
+     * @param node The node that is being mounted.
+     */
+    onMount?: (this: Model<T>, node: Node<T>) => void;
+
+    /**
+     * Called when the node is unmounted from the DOM.
+     * This method is called when the node is removed from the document.
+     * @param node The node that is being unmounted.
+     */
+    onUnmount?: (this: Model<T>, node: Node<T>) => void;
+
+
+    onChildAdd?: (this: Model<T>, child: Node<any> & { parent: Node<T> }) => void;
+
+    /**
+     * Special function to manipulate the props of the node before it is rendered.
+     * @returns An object representing the initial state of the node.
+     */
+    state?: () => D;
+}
+
+export type InferModelHookArgs<
+    K extends keyof ModelHookDefinition<any>,
+    T extends RegistryKey = any
+> = ModelHookDefinition<T>[K] extends (...args: infer Args) => any ? Args : never;
+
+
 export interface ModelDefinition<
     T extends RegistryKey,
     D extends DataDefinition<T> = DataDefinition<T>,
     C extends CommandDefinition<T> = CommandDefinition<T>
-> {
+> extends ModelHookDefinition<T> {
 
     /**
     * The unique name of the type. This is used to identify the type in the registry.
@@ -68,45 +116,7 @@ export interface ModelDefinition<
     /**
      * The React component that will be used to render this type.
      */
-    component: FC<ComponentProps<T>>;
-
-    /**
-     * Determine if a given node is an instance of this type.
-     * This method are called when the node is at initialization.
-     * @param node The plain object to check.
-     * @returns A boolean indicating if the node is an instance of this type.
-     */
-    isInstance?: (node: PlainNodeObject) => boolean;
-
-    /**
-     * Called when the node is created.
-     * This method is called when the node is added to the document.
-     * @param node The node that is being created.
-     */
-    onCreate?: (this: Model<T>, node: Node<T>) => void;
-
-
-    /**
-     * Called when the node is mounted to the DOM.
-     * This method is called when the node is added to the document.
-     * @param node The node that is being mounted.
-     */
-    onMount?: (node: Node<T>) => void;
-
-    /**
-     * Called when the node is unmounted from the DOM.
-     * This method is called when the node is removed from the document.
-     * @param node The node that is being unmounted.
-     */
-    onUnmount?: (node: Node<T>) => void;
-
-
-    /**
-     * Special function to manipulate the props of the node before it is rendered.
-     * @returns An object representing the initial state of the node.
-     */
-    state?: () => D;
-
+    component?: FC<ComponentProps<T>>;
 
 }
 

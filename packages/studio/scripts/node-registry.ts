@@ -77,10 +77,10 @@ async function processRegistryDir(dirPath: string, ModelClass: any): Promise<Map
             const module = await import(fileUrl);
             const model = module.default;
 
-            if (!(model instanceof ModelClass)) {
-                console.warn(`⚠️  Default export dari ${toRelative(file)} bukan instance Model, dilewati.`);
-                continue;
-            }
+            // if (!(model instanceof ModelClass)) {
+            //     console.warn(`⚠️  Default export dari ${toRelative(file)} bukan instance Model, dilewati.`);
+            //     continue;
+            // }
 
             const originalName = model.name;
             const key = originalName.toLowerCase();
@@ -125,7 +125,7 @@ async function generateRegistry(): Promise<void> {
                 const varName = `mod${importIndex++}`;
                 importStatements += `import ${varName} from "${toRelative(entry.file)}";\n`;
                 interfaceProps += `    "${key}": typeof ${varName};\n`;
-                mapEntries += `  ["${key}", ${varName}],\n`;
+                mapEntries += `  ["${key}", new Model(${varName} as any)],\n`;
             }
             return { interfaceProps, mapEntries };
         };

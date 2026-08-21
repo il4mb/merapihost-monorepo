@@ -1,9 +1,10 @@
-
-import { Document } from "../node/react";
+import { Document } from "../node/engine/Document";
 import { describe, it, expectTypeOf, vi, expect } from "vitest";
 import { commands } from "../node/mods/types/text/commands";
+import { Node } from "@nodes/engine";
 
 describe("strict type checking", () => {
+    
     const document = new Document();
     const textNode = document.createNode("text");
 
@@ -13,27 +14,62 @@ describe("strict type checking", () => {
 });
 
 describe("command execution", () => {
+    
     const document = new Document();
     const textNode = document.createNode("text");
 
     it("should execute the test command for text node", () => {
-        // Spy on console.log to verify the command execution
         const consoleSpy = vi.spyOn(console, "log");
         textNode.commands.test("Hello, World!");
         expect(consoleSpy).toHaveBeenCalledWith("Hello, World! from text node");
         consoleSpy.mockRestore();
     });
+
+    it("should execute creation", () => {
+        const span = textNode.commands.makeSpanned();
+        expectTypeOf(span).toEqualTypeOf<Node<any>>();
+        expect(span.parent).toEqual(textNode);
+        expect(document.findNode(span.id)).toBeDefined();
+    });
 });
 
-describe("lifecycle hooks", () => {
-    const document = new Document();
-    const textNode = document.createNode("text");
+describe("node managements", () => {
 
-    it("text changes", () => {
-        const onCreateSpy = vi.spyOn(console, "log");
-        textNode.data.text = "New Text";
-        expect(onCreateSpy).toHaveBeenCalledWith("Text node data changed:", "New Text");
-        onCreateSpy.mockRestore();
+    const document = new Document();
+    const textNode = document.createNode("text", { data: { text: "Initial Text" } });
+    
+    it("append children", () => {
+        const childNode = document.createNode("text", { data: { text: "Child Text" } });
+        textNode.append(childNode);
+        const children = Array.from(textNode.children.values());
+        expect(children).toEqual([childNode]);
+    });
+    
+    it("append at index", () => {
+        const newChild = document.createNode("element", { data: { text: "this shuld at 2" } });
+        const newChild2 = document.createNode("element", { data: { text: "this shuld at 1" } });
+        const newChild3 = document.createNode("element", { data: { text: "this shuld at 0" } });
+        textNode.append(newChild, 0);
+        textNode.append(newChild2, 0);
+        textNode.append(newChild3, 0);
+
+        const children = Array.from(textNode.children.values());
+        const oldChildNode = children.find(n => n.type == "text");
+
+        expect(children).toEqual([
+            newChild3,
+            newChild2,
+            newChild,
+            oldChildNode
+        ]);
+        expect(oldChildNode.order).toEqual(3);
+        expect(newChild.order).toEqual(2);
+        expect(newChild2.order).toEqual(1);
+        expect(newChild3.order).toEqual(0);
+
+        expect(document.findNode(newChild3.id)).toEqual(newChild3);
+
+        // console.log(JSON.stringify(textNode, null, 2))
     });
 });
 

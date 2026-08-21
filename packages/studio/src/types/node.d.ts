@@ -39,10 +39,11 @@ export type NodeObject = {
     tagName?: string;
     name?: string;
     content?: string;
-    props?: Record<string, any>;
+    data?: Record<string, any>;
     parent?: string | null;
     order?: number;
     visible?: boolean;
+    children?: NodeObject[];
 };
 
 

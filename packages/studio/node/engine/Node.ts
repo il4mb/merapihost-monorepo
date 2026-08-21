@@ -1,32 +1,42 @@
 import { nanoid } from "nanoid";
-import type { Document } from "./Document";
 import type { Model, ModelCommands } from "./Model";
 import { JSX } from "react/jsx-runtime";
 import { DataDefinition, RegistryKey } from "@nodes/types/type";
 import { Commands } from "./Commands";
-
+import { MutableObject } from "./MutableObject";
+import { NodeObject } from "@/types";
+import { Document } from "./Document";
 
 export class Node<T extends RegistryKey> {
 
     private _id = nanoid();
+    private parentId: string | null = null;
+
     readonly commands: ModelCommands<T>;
     readonly type: T;
+    readonly element: HTMLElement | null = null;
 
-    parent: Node<T> | null = null;
-    element: HTMLElement | null = null;
     tagName: keyof JSX.IntrinsicElements = "div";
     order: number = 0;
 
-    data: DataDefinition<T> = {} as DataDefinition<T>;
-   
+    selectable: boolean = true;
+    hoverable: boolean = true;
+    resizeable: boolean = true;
 
-    constructor(
-        public owner: Document,
-        public model: Model<T>,
-    ) {
-        this.id = nanoid();
+    constructor(readonly owner: Document, readonly model: Model<T>,) {
+        this._id = nanoid();
+        this.parentId = null;
         this.type = model.name as T;
         this.commands = new Proxy(model.commands, new Commands(this));
+        this.mutableData = new MutableObject(this.owner, {}) as any;
+    }
+
+    private mutableData: MutableObject<DataDefinition<T>>;
+    get data(): DataDefinition<T> {
+        return this.mutableData as any;
+    }
+    set data(value: DataDefinition<T>) {
+        this.mutableData = new MutableObject(this.owner, value) as any;
     }
 
     get id(): string {
@@ -34,36 +44,50 @@ export class Node<T extends RegistryKey> {
     }
 
     set id(value: string) {
-        this.owner.removeNode(this._id); // Remove the old ID from the document
         this._id = value;
-        this.owner.addNode(this); // Add the new ID to the document
     }
 
-    appendChild(child: Node<T>) {
-        child.parent = this;
-        this.owner.addNode(child);
+    get parent() {
+        return this.owner.findNode(this.parentId);
     }
 
-    removeChild(child: Node<T>) {
-        if (child.parent !== this) {
-            throw new Error("The specified node is not a child of this node.");
+    set parent(value: Node<any> | null) {
+        if (value && value.owner !== this.owner) {
+            throw new Error("Canot set parent with difrent owner");
         }
-        child.parent = null;
-        this.owner.removeNode(child.id);
+        this.parentId = value.id;
     }
 
-    delete() {
-        if (this.parent) {
-            this.parent.removeChild(this);
+
+    get children() {
+        return this.owner.getChildren(this);
+    }
+
+
+    append(node: Node<any>, at?: number) {
+        return this.owner.addNodeChildren(this, node, at);
+    }
+
+
+    toJSON(): NodeObject {
+        if (this.children.size > 0) {
+            return {
+                id: this._id,
+                parent: this.parentId,
+                type: this.type,
+                tagName: this.tagName,
+                data: this.data,
+                order: this.order,
+                children: Array.from(this.children.values()).map(e => e.toJSON())
+            }
         }
-        this.owner.removeNode(this.id);
+        return {
+            id: this._id,
+            parent: this.parentId,
+            type: this.type,
+            tagName: this.tagName,
+            data: this.data,
+            order: this.order
+        }
     }
-
-
-    clone(): Node<T> {
-        const clonedNode = new Node(this.owner, this.model);
-        clonedNode.id = nanoid(); // Assign a new unique ID for the cloned node
-        return clonedNode as Node<T>;
-    }
-
 }

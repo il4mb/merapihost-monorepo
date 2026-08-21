@@ -1,18 +1,18 @@
 import type { FC, JSX } from "react";
-import type { RegistryKey } from "@nodes/types/type";
+import type { RegistryKey, DataDefinition } from "@nodes/types/type";
 
-export type NodeObject<T extends RegistryKey> = {
+export type NodeObject<T extends RegistryKey = RegistryKey> = {
     id: string;
-    type?: string;
+    type?: T;
     tagName?: keyof JSX.IntrinsicElements;
     name?: string;
     content?: string;
-    data?: DataDefinition<T>;
+    data?: Partial<DataDefinition<T>>;
     parent?: string | null;
     order?: number;
     visible?: boolean;
 };
 
-export type PlainNodeObject = Omit<NodeObject<any>, "type" | "id"> & {
+export type PlainNodeObject<T extends RegistryKey> = Omit<NodeObject<T>, "type" | "id"> & {
     id?: string;
 }

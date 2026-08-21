@@ -1,48 +1,150 @@
-import { NodeFiber } from "./NodeFiber";
+import { RegistryKey } from "@nodes/types/type";
+import { Node } from "./Node";
 
-export type EffectCallback = () => void | (() => void);
+export type EffectCallback = (triggering?: Node<RegistryKey>) => void | (() => void);
+
+export type EffectDeps = (() => any[]) | (() => any)[] | null;
+
 export type Effect = {
     callback: EffectCallback;
-    deps: any[];
-    prevDeps: any[] | null;
+    depsFn: () => any[] | null;       // Always a function that returns current deps
+    prevDeps?: any[] | null;
     cleanup?: () => void;
+    hasRun?: boolean;
 };
 
 export class LifecycleHook {
-
-    readonly fibers: Map<string, NodeFiber> = new Map();
     private effects: Set<Effect> = new Set();
 
-    constructor() {
+    /**
+     * Register an effect with dependencies.
+     * 
+     * @param callback - The effect function (optionally returns a cleanup)
+     * @param deps - Can be:
+     *   - `null` or `undefined`: runs on every notifyChange
+     *   - `() => any[]`: lazy function, re‑evaluated each time
+     *   - `(() => any)[]`: array of getters, each re‑evaluated each time
+     * @returns A cleanup function to remove this effect
+     * 
+     * @example
+     * // Lazy function (most flexible)
+     * hook.useEffect(() => console.log(text, count), () => [text, count]);
+     * 
+     * @example
+     * // Array of getters (more concise)
+     * hook.useEffect(() => console.log(text, count), [() => text, () => count]);
+     * 
+     * @example
+     * // No dependencies – runs every time
+     * hook.useEffect(() => console.log('always runs'), null);
+     */
+    public useEffect(callback: EffectCallback, deps?: EffectDeps): () => void {
+        let depsFn: () => any[] | null;
 
+        if (deps === null || deps === undefined) {
+            depsFn = () => null;
+        } else if (Array.isArray(deps)) {
+            // It's an array of getter functions
+            depsFn = () => deps.map(fn => fn());
+        } else {
+            // It's a lazy function
+            depsFn = deps;
+        }
+
+        const effect: Effect = {
+            callback,
+            depsFn,
+            prevDeps: null,
+            hasRun: false,
+        };
+
+        this.effects.add(effect);
+
+        return () => {
+            if (effect.cleanup) effect.cleanup();
+            this.effects.delete(effect);
+        };
     }
 
-    public useEffect(callback: () => void | (() => void), deps: any[]) {
-        this.effects.add({ callback, deps, prevDeps: null });
-    }
-    public triggerEffects() {
+    /**
+     * Notify that something changed – re‑evaluates all effects.
+     */
+    public notifyChange(triggering?: Node<RegistryKey>): void {
         for (const effect of this.effects) {
-            const hasNoDeps = !effect.deps;
-            const hasChangedDeps = effect.prevDeps === null ||
-                effect.deps.some((dep, i) => !Object.is(dep, effect.prevDeps![i]));
+            const currentDeps = effect.depsFn();
 
-            if (hasNoDeps || hasChangedDeps) {
-                // 1. Run cleanup from the previous execution if it exists
-                if (effect.cleanup) {
-                    effect.cleanup();
+            let shouldRun = false;
+
+            if (currentDeps === null) {
+                // No deps → run every time
+                shouldRun = true;
+            } else if (!effect.hasRun || effect.prevDeps === undefined) {
+                // First run
+                shouldRun = true;
+            } else {
+                // Compare using Object.is on each element
+                shouldRun = currentDeps.some(
+                    (dep, index) => !Object.is(dep, effect.prevDeps![index])
+                );
+            }
+
+            if (shouldRun) {
+                // Run cleanup if any
+                if (typeof effect.cleanup === "function") {
+                    try {
+                        effect.cleanup();
+                    } catch (error) {
+                        console.error("Error during effect cleanup:", error);
+                    }
+                    effect.cleanup = undefined;
                 }
 
-                // 2. Run the actual effect callback
-                const cleanup = effect.callback();
+                // Store current deps for next comparison
+                effect.prevDeps = currentDeps ? [...currentDeps] : null;
+                effect.hasRun = true;
 
-                // 3. Store the cleanup function if returned
-                if (typeof cleanup === 'function') {
-                    effect.cleanup = cleanup;
+                // Execute the callback
+                try {
+                    const cleanup = effect.callback(triggering);
+                    if (typeof cleanup === "function") {
+                        effect.cleanup = cleanup;
+                    }
+                } catch (error) {
+                    console.error("Error executing lifecycle effect:", error);
                 }
-
-                // 4. Update previous dependencies for the next cycle
-                effect.prevDeps = [...effect.deps];
             }
         }
+    }
+
+    /**
+     * Manually update the dependency getter for an existing effect.
+     */
+    public updateDeps(effect: Effect, newDeps: EffectDeps): void {
+        if (Array.isArray(newDeps)) {
+            effect.depsFn = () => newDeps.map(fn => fn());
+        } else if (typeof newDeps === 'function') {
+            effect.depsFn = newDeps;
+        } else {
+            effect.depsFn = () => null;
+        }
+        // Reset so the effect will run on next notify
+        effect.prevDeps = null;
+        effect.hasRun = false;
+    }
+
+    /**
+     * Dispose all effects (runs all cleanups).
+     */
+    public dispose(): void {
+        for (const effect of this.effects) {
+            if (typeof effect.cleanup === "function") {
+                try {
+                    effect.cleanup();
+                } catch (error) {
+                    console.error("Error during effect disposal:", error);
+                }
+            }
+        }
+        this.effects.clear();
     }
 }

@@ -1,12 +1,9 @@
 import { Node } from "./Node";
-import { Document } from "./Document";
-import type { ModelDefinition, ComponentProps, RegistryKey, DataDefinition } from "@nodes/types/type";
+import type { Document } from "./Document";
+import type { ModelDefinition, ComponentProps, RegistryKey, DataDefinition, ModelHookDefinition, InferModelHookArgs } from "@nodes/types/type";
 import type { NodeObject, PlainNodeObject } from "@nodes/types/node";
-import { FC } from "react";
-import { TypeRegistry } from "@nodes/registry";
-import { LifecycleHook } from "./LifecyleHook";
-import { NodeFiber } from "./NodeFiber";
-
+import type { FC } from "react";
+import type { TypeRegistry } from "@nodes/registry";
 
 export type ModelCommands<T extends RegistryKey> = TypeRegistry[T] extends { commands: infer C }
     ? {
@@ -19,33 +16,17 @@ export type ModelCommands<T extends RegistryKey> = TypeRegistry[T] extends { com
 
 
 
-export class Model<T extends RegistryKey = RegistryKey> extends LifecycleHook {
+export class Model<T extends RegistryKey = RegistryKey> {
 
     // do not assign, it will be assigned by registry when the model is registered
     readonly extends: Model<T>;
-    
+
     constructor(private definition: ModelDefinition<T>) {
-        super();
+        // super();
     }
 
-    get component(): FC<ComponentProps<RegistryKey>> {
-        return this.definition.component as unknown as FC<ComponentProps<RegistryKey>>;
-    }
-
-    get isInstance(): (node: NodeObject<any>) => boolean {
-        return this.definition.isInstance || (() => false);
-    }
-
-    get onCreate(): (node: Node<RegistryKey>) => void {
-        return this.definition.onCreate || (() => { });
-    }
-
-    get onMount(): (node: Node<RegistryKey>) => void {
-        return this.definition.onMount || (() => { });
-    }
-
-    get onUnmount(): (node: Node<RegistryKey>) => void {
-        return this.definition.onUnmount || (() => { });
+    get component(): FC<ComponentProps<T>> {
+        return this.definition.component as unknown as FC<ComponentProps<T>>;
     }
 
     get name(): string {
@@ -56,7 +37,7 @@ export class Model<T extends RegistryKey = RegistryKey> extends LifecycleHook {
         return this.definition.label || this.definition.name as unknown as string;
     }
 
-    get icon(): FC<{ size: number; color: string; node: Node<RegistryKey>; }> | undefined {
+    get icon(): FC<{ size: number; color: string; node: Node<T>; }> | undefined {
         return this.definition.icon;
     }
 
@@ -65,37 +46,41 @@ export class Model<T extends RegistryKey = RegistryKey> extends LifecycleHook {
     }
 
     get default(): Partial<Omit<NodeObject<T>, "id" | "type" | "parent" | "order" | "visible">> | undefined {
-        return this.definition.default;
+        return this.definition.default as any;
     }
 
-    buildNode(owner: Document, data: PlainNodeObject): Node<RegistryKey> {
-
-        const node = new Node(owner, this);
-
-        // Create fiber for the node and store it in the fibers map
-        // this is important for lifecycle management and tracking the state of the node
-        this.fibers.set(node.id, new NodeFiber(node));
-
-        if (data?.id) {
-            node.id = data.id;
+    public invokeHook<N extends keyof ModelHookDefinition<T>>(
+        name: N,
+        ...args: InferModelHookArgs<N, T>
+    ) {
+        const hook = this.definition[name];
+        if (typeof hook === 'function') {
+            return (hook as Function).apply(this, args);
         }
-        if (data?.tagName) {
-            node.tagName = data.tagName;
+    }
+
+    public buildNode(owner: Document, object: PlainNodeObject<T>): Node<T> {
+        const node = new Node<T>(owner, this);
+        if (object?.id) node.id = object.id;
+
+        if (object?.tagName) {
+            node.tagName = object.tagName;
         } else if (this.default?.tagName) {
             node.tagName = this.default.tagName;
         }
-        if (data?.order !== undefined) {
-            node.order = data.order;
+        if (object?.order !== undefined) {
+            node.order = object.order;
         }
-        if (data?.data) {
-            node.data = { ...data.data };
+        if (object?.data) {
+            node.data = {
+                ...(this.default?.data as any),
+                ...(object.data as any)
+            } as DataDefinition<T>;
         } else {
-            node.data = {} as DataDefinition<T>;
+            node.data = {
+                ...(this.default?.data as any)
+            };
         }
-
-        // const proxyNode = new Proxy(node, new NodeProxy(node, () => this.triggerEffects())) as Node<T>;
-        // this.onCreate(proxyNode);
-        this.onCreate(node);
         return node;
     }
 

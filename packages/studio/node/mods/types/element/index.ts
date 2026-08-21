@@ -1,28 +1,24 @@
-import { Model } from "@nodes/engine/Model";
 import ElementComponent from "./ElementComponent";
+import { createModel } from "@nodes/mods";
 
 declare module "@nodes/registry" {
     interface TypeRegistry {
         element: {
             commands: {
-                hallo: () => void;
+                // hallo: () => void;
             }
         }
     }
 }
 
-export default new Model({
+export default createModel({
     component: ElementComponent,
     state: () => {
         return {
-            
-        }
-    },
-    commands: {
-        hallo() {
 
         }
     },
+    commands: {},
     name: "element",
     label: "Element",
-});
+})

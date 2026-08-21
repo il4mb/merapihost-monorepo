@@ -1,25 +1,33 @@
-import { Model } from "@nodes/engine/Model";
 import TextComponent from "./TextComponent";
+import type { Node } from "@nodes/engine";
 import { commands } from "./commands";
+import { createModel } from "@nodes/mods";
 
 export type TextNodeData = {
     text: string;
+    editing: boolean;
 };
+export type TextSelection = {
+    anchor: number;
+    focus: number;
+}
 
 declare module "@nodes/registry" {
     interface TypeRegistry {
         text: {
             commands: {
                 test: (text: string) => void;
+                toggleEditing: () => void;
+                makeSpanned: () => Node<any>;
+                format: (tagName: string, selection: TextSelection) => void;
+
             },
             data: TextNodeData;
         }
     }
 }
 
-
-
-export default new Model({
+export default createModel({
     name: "text",
     label: "Text",
     extends: "element",
@@ -30,17 +38,10 @@ export default new Model({
         }
     },
     commands: commands,
-    component: TextComponent,
-    onCreate: function (node) {
-        console.log("Text node created:", node.type);
-        this.useEffect(() => {
-            console.log("Text node data changed:", node.data.text);
-        }, [node.data.text]);
-    },
-    onMount: function (node) {
-        console.log("Text node mounted:", node.type);
-    },
-    onUnmount: function (node) {
-        console.log("Text node unmounted:", node.type);
+    // component: TextComponent,
+    onChildAdd(child) {
+        // disable interaction when the parent is editing
+        child.selectable = !child.parent.data.editing;
+        child.hoverable = !child.parent.data.editing;
     },
 });
