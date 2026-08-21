@@ -1,4 +1,4 @@
-import type { ComponentProps } from "@nodes/types/type";
+import type { ComponentProps } from "@/types/model";
 
 export default function TextComponent({ ref, children, node }: ComponentProps<"text">) {
     return (

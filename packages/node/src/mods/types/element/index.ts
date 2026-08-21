@@ -21,4 +21,7 @@ export default createModel({
     commands: {},
     name: "element",
     label: "Element",
+    onCreate(node) {
+        console.log("Created", node);
+    },
 })

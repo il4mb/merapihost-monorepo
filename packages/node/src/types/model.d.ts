@@ -3,12 +3,12 @@ import type { Node } from "@/engine/Node";
 import type { Model } from "@/engine/Model";
 import type { NodeObject, PlainNodeObject } from "@/types/node";
 
-export type ComponentProps<T extends ModelName> = {
+export type ComponentProps<T extends ModelName, E extends Element = Element> = {
     node: Node<T>;
     children: React.ReactNode;
-    childrenNode: Node[];
-    ref: React.RefObject<HTMLElement | null>;
+    ref: React.RefObject<E | null>; // Uses the specific element type passed
 }
+
 
 export type InferCommand<
     T extends ModelName,

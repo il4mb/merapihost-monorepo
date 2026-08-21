@@ -1,8 +1,8 @@
-import { TYPE_REGISTRY } from "@/registry";
-import { LifecycleHook, Model, Node } from "@/engine";
-import type { PlainNodeObject } from "@/types";
+import { MODEL_REGISTRY } from "@/registry";
+import { Model, Node } from "@/engine";
+import type { NodeObject, PlainNodeObject } from "@/types";
 
-export class Document extends LifecycleHook {
+export class Document {
 
     static ORDER_EPS = 0.001; // increment terkecil, biasanya dikalikan segIdx
     static ORDER_MINOR = 0.01; // offset gaya "before"
@@ -10,15 +10,32 @@ export class Document extends LifecycleHook {
 
     private collection: Map<string, Node<any>> = new Map();
 
+    readonly head: Node<"element">;
+    readonly body: Node<"element">;
+
+    constructor(nodes?: NodeObject<ModelName>[]) {
+        this.head = this.createNode("element", { tagName: "head" });
+        this.body = this.createNode("element", { tagName: "body" });
+        if (nodes && Array.isArray(nodes)) {
+            nodes.forEach(raw => {
+                this.createNode(raw.type || "element", raw);
+            })
+        }
+    }
+
+    get nodes() {
+        return new Map(this.collection);
+    }
+
     /**
      * Create Node at this Document
      * @param type Model of node
      * @param nodeObject raw data of node
      * @returns Node
      */
-    public createNode<T extends ModelName>(type: T, nodeObject?: PlainNodeObject<T>): Node<T> {
+    public createNode<T extends ModelName>(type: T, nodeObject?: PlainNodeObject<T> | NodeObject<T>): Node<T> {
 
-        const typeModel = TYPE_REGISTRY.get(type) as Model<T> | undefined;
+        const typeModel = MODEL_REGISTRY.get(type) as Model<T> | undefined;
         if (!typeModel) {
             throw new Error(`Type ${type} not found in registry`);
         }
@@ -30,11 +47,17 @@ export class Document extends LifecycleHook {
             const parent = this.findNode(nodeObject.parent);
             if (parent) {
                 this.addNodeChildren(parent, node, nodeObject.order);
+            } else {
+                console.warn(`Cannot add children to node with id ${nodeObject.order} was not found!`);
             }
         }
 
-        node.model.invokeHook("onCreate", node);
+        if (this.body && !node.parent) {
+            console.warn(`Node ${node.id} does't have parent, fallback to the body`);
+            this.addNodeChildren(this.body, node);
+        }
 
+        node.model.invokeHook("onCreate", node);
         return node;
     }
 

@@ -6,6 +6,7 @@ import { Commands } from "./Commands";
 import { MutableObject } from "./MutableObject";
 import { NodeObject } from "@/types/node";
 import { Document } from "./Document";
+import { createElement, createRef, RefObject } from "react";
 
 export class Node<T extends ModelName = ModelName> {
 
@@ -14,8 +15,8 @@ export class Node<T extends ModelName = ModelName> {
 
     readonly commands: InferCommand<T, false>;
     readonly type: T;
-    readonly element: HTMLElement | null = null;
 
+    readonly elementRef: RefObject<Element> = createRef();
     tagName: keyof JSX.IntrinsicElements = "div";
     order: number = 0;
 
@@ -63,6 +64,27 @@ export class Node<T extends ModelName = ModelName> {
         return this.owner.getChildren(this);
     }
 
+    render() {
+        const children = Array.from(this.children.values()).map(child => child.render());
+        const component = this.model.component;
+        if (component) {
+            return createElement(component, {
+                key: this.id,
+                node: this,
+                ref: this.elementRef,
+                children
+            }, children);
+        }
+
+        return createElement(this.tagName, {
+            key: this.id,
+            ref: this.elementRef
+        }, [
+            `Component not found model "${this.model.label || this.model.name}", node id ${this.id}`,
+            ...children
+        ]);
+    }
+
 
     append(node: Node<any>, at?: number) {
         return this.owner.addNodeChildren(this, node, at);
@@ -79,7 +101,7 @@ export class Node<T extends ModelName = ModelName> {
                 data: this.data,
                 order: this.order,
                 children: Array.from(this.children.values()).map(e => e.toJSON()) as any
-            }
+            } as any
         }
         return {
             id: this._id,
@@ -88,6 +110,6 @@ export class Node<T extends ModelName = ModelName> {
             tagName: this.tagName,
             data: this.data,
             order: this.order
-        }
+        } as any;
     }
 }

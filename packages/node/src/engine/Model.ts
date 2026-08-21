@@ -15,8 +15,9 @@ export class Model<T extends ModelName = ModelName> {
         return this.definition.extends;
     }
 
-    get component(): FC<ComponentProps<T>> {
-        return this.definition.component as unknown as FC<ComponentProps<T>>;
+    get component(): FC<ComponentProps<T>> | null {
+        console.log(this)
+        return this.definition.component || this.extends?.component || null;;
     }
 
     get name(): string {

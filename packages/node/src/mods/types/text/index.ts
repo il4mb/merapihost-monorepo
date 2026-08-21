@@ -1,6 +1,7 @@
 import type { Node } from "@/engine";
 import { commands } from "./commands";
 import { createModel } from "@/mods";
+import TextComponent from "./TextComponent";
 
 export type TextNodeData = {
     text: string;
@@ -33,11 +34,12 @@ export default createModel({
     default: {
         tagName: "p",
         data: {
-            text: "Hello, World!"
+            text: "Hello, World!",
+            editing: false
         }
     },
     commands: commands,
-    // component: TextComponent,
+    component: TextComponent,
     onChildAdd(child) {
         // disable interaction when the parent is editing
         child.selectable = !child.parent.data.editing;

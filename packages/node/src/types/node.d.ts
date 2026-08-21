@@ -1,5 +1,5 @@
 import type { FC, JSX } from "react";
-import type { DataDefinition } from "@/types/type";
+import type { InferData } from "@/types";
 
 export type NodeObject<T extends ModelName = ModelName> = {
     id: string;
@@ -7,11 +7,11 @@ export type NodeObject<T extends ModelName = ModelName> = {
     tagName?: keyof JSX.IntrinsicElements;
     name?: string;
     content?: string;
-    data?: Partial<DataDefinition<T>>;
+    data?: Partial<InferData<T>>;
     parent?: string | null;
     order?: number;
     visible?: boolean;
-    children?: NodeObject<ModelName>;
+    children?: NodeObject;
 };
 
 export type PlainNodeObject<T extends ModelName = ModelName> = Omit<NodeObject<T>, "type" | "id"> & {
