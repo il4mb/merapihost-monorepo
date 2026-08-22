@@ -1,5 +1,5 @@
 import { transform, ColorType } from "@tbela99/css-parser/web";
-import { Document } from "../Document";
+import { Container } from "../Container";
 import { Node } from "../node/Node";
 
 export class Stylish {
@@ -9,7 +9,7 @@ export class Stylish {
 
     protected cachedStyle = "";
 
-    constructor(protected document: Document) { }
+    constructor(protected document: Container) { }
 
     async parseNodeStyle(node: Node) {
         const css = "body {color: red;};\n p {color: blue; };";

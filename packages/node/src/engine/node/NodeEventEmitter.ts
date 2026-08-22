@@ -1,42 +1,31 @@
 import { nanoid } from "nanoid";
 import { JSX } from "react/jsx-runtime";
-import { Document } from "../Document";
+import { Container } from "../Container";
 import { EventEmitter } from "../EventEmitter";
 import { Node } from "./Node";
+import { NodeState } from "@/types";
 
-type State = {
-    id: string;
-    parent: string | null;
-    tagName: keyof JSX.IntrinsicElements;
-    order: number;
-    element: Element | null;
-    option: {
-        selectable: boolean
-        hoverable: boolean
-        resizeable: boolean
-    }
-    selected: boolean
-    hovered: boolean
-}
 
-type NodeEventMap = {
-    hovered: () => void;
-    unhovered: () => void;
+type NodeInternalEventMap = {
+    hover: (hovered: boolean) => void;
+    select: (selected: boolean) => void;
     reorder: () => void;
-    selected: () => void;
-    unselected: () => void;
+
     mounted: (element: HTMLElement) => void;
-    unmounted: () => void;
+    unmounted: (element: HTMLElement) => void;
+
     childAttached: (child: Node) => void;
     childDetached: (child: Node) => void;
 
     parentAttached: (parent: Node) => void;
     parentDetached: (parent: Node) => void;
+
+    option: (updated: NodeState['option'], old: NodeState['option']) => void
 };
 
-export class NodeEventEmitter extends EventEmitter<NodeEventMap> {
+export class NodeEventEmitter extends EventEmitter<NodeInternalEventMap> {
 
-    protected state: State = {
+    protected state: NodeState = {
         id: nanoid(),
         parent: null,
         tagName: "div",
@@ -116,40 +105,42 @@ export class NodeEventEmitter extends EventEmitter<NodeEventMap> {
         this.set("option", { ...this.state.option, resizeable: value });
     }
 
-    constructor(public owner: Document) { super(); }
+    constructor(public owner: Container) { super(); }
 
-    protected set<K extends keyof State>(key: K, value: State[K]) {
+    protected set<K extends keyof NodeState>(key: K, next: NodeState[K]) {
         const previous = this.state[key];
-        this.state[key] = value;
+        this.state[key] = next;
+
+        if (previous === next) return false;
 
         switch (key) {
             case "element": {
-                this.trigger(value ? "mounted" : "unmounted");
-                this.state[key] = value;
+                this.trigger(next ? "mounted" : "unmounted", next || previous as any);
                 return true;
             }
             case "order": {
-                this.state[key] = value;
                 this.trigger("reorder");
                 return true;
             }
             case "hovered": {
-                this.state[key] = value;
-                this.trigger(value ? "hovered" : "unhovered");
+                this.trigger("hover", Boolean(next));
                 return true;
             }
             case "selected": {
-                this.state[key] = value;
-                this.trigger(value ? "selected" : "unselected");
+                this.trigger("select", Boolean(next));
                 return true;
             }
 
             case "parent": {
                 this.updateParent(
                     previous as string | null,
-                    value as string | null
+                    next as string | null
                 );
                 return true;
+            }
+            case "option": {
+                // @ts-ignore
+                this.trigger("option", next, previous);
             }
         }
 

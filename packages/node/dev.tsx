@@ -1,14 +1,14 @@
 import { createRoot } from "react-dom/client";
 import { useState } from "react";
-import DocumentProvider from "@/react/DocumentProvider";
+import ContainerProvider from "@/react/ContainerProvider";
 import RootDocument from "@/react/RootDocument";
 
 function App() {
     const [count, setCount] = useState(0);
     return (
-        <DocumentProvider>
+        <ContainerProvider>
             <RootDocument />
-        </DocumentProvider>
+        </ContainerProvider>
     );
 }
 

@@ -1,10 +1,11 @@
 import { describe, it, expectTypeOf, vi, expect } from "vitest";
 import { commands } from "@/mods/types/text/commands";
 import { Node, Document } from "@/engine";
+import { Register } from "@/engine/Register";
 
 describe("strict type checking", () => {
 
-    const document = new Document();
+    const document = new Document(new Register());
     const textNode = document.createNode("text");
 
     it("should have correct types for text node commands", () => {
@@ -14,7 +15,7 @@ describe("strict type checking", () => {
 
 describe("command execution", () => {
 
-    const document = new Document();
+    const document = new Document(new Register());
     const textNode = document.createNode("text");
 
     it("should execute the test command for text node", () => {
@@ -34,7 +35,7 @@ describe("command execution", () => {
 
 describe("node managements", () => {
 
-    const document = new Document();
+    const document = new Document(new Register());
     const textNode = document.createNode("text", { data: { text: "Initial Text" } });
 
     it("append children", () => {

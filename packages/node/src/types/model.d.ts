@@ -49,24 +49,6 @@ export interface HookDefinition<T extends ModelName> {
      * @param node The node that is being created.
      */
     onCreate?: (this: Model<T>, node: Node<T>) => void;
-
-
-    /**
-     * Called when the node is mounted to the DOM.
-     * This method is called when the node is added to the document.
-     * @param node The node that is being mounted.
-     */
-    onMount?: (this: Model<T>, node: Node<T>) => void;
-
-    /**
-     * Called when the node is unmounted from the DOM.
-     * This method is called when the node is removed from the document.
-     * @param node The node that is being unmounted.
-     */
-    onUnmount?: (this: Model<T>, node: Node<T>) => void;
-
-
-    onChildAdd?: (this: Model<T>, child: Omit<Node<any>, "parent"> & { parent: Node<T> }) => void;
 }
 
 export type InferHookArgs<
@@ -112,7 +94,9 @@ export interface ModelDefinition<
 
     default?: Partial<
         Omit<NodeObject<T>, "id" | "type" | "parent" | "order" | "visible">
-    >;
+    > & {
+        
+    }
 
 
     /**

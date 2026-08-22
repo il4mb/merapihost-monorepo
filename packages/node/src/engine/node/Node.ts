@@ -3,22 +3,42 @@ import { InferCommand, InferData } from "@/types/model";
 import { Commands } from "../Commands";
 import { MutableObject } from "../MutableObject";
 import { NodeObject, PlainNodeObject } from "@/types/node";
-import { Document } from "../Document";
+import { Container } from "../Container";
 import { createElement } from "react";
 import { NodeEventEmitter } from "./NodeEventEmitter";
 
+/**
+ * Node Class 
+ * - do not reg any event to it self
+ * - provider should only trigering
+ */
 export class Node<T extends ModelName = ModelName> extends NodeEventEmitter {
 
     readonly commands: InferCommand<T, false>;
     readonly type: T;
 
-    constructor(owner: Document, readonly model: Model<T>,) {
+    constructor(owner: Container, readonly model: Model<T>,) {
         super(owner);
         this.type = model.name as T;
         this.commands = new Proxy(model.commands, new Commands(this));
         this.mutableData = new MutableObject(this.owner, {}) as any;
     }
 
+    get hovered() {
+        return this.state.hovered;
+    }
+
+    set hovered(value: boolean) {
+        this.set("hovered", value);
+    }
+
+    get selected() {
+        return this.state.selected;
+    }
+
+    set selected(value: boolean) {
+        this.set("selected", value);
+    }
 
     private mutableData: MutableObject<InferData<T>>;
     get data(): InferData<T> {

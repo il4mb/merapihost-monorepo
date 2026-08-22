@@ -1,10 +1,10 @@
 import { Fragment, useMemo } from "react";
-import { useDocument } from "./DocumentProvider";
+import { useContainer } from "./ContainerProvider";
 
 type RootDocumentProps = {};
 
 export default function RootDocument({}: RootDocumentProps) {
-    const { nodes, body } = useDocument();
+    const { nodes, body } = useContainer();
     const rootNodes = useMemo(() => Array.from(body.children.values()), [nodes]);
     return (
         <Fragment>

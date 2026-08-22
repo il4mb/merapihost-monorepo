@@ -1,14 +1,14 @@
 import { Node } from "./node/Node";
-import type { Document } from "./Document";
-import type { ModelDefinition, ComponentProps, InferData, HookDefinition, InferHookArgs, InferCommand } from "@/types/model";
+import type { Container } from "./Container";
+import type { ModelDefinition, ComponentProps, InferData, InferCommand } from "@/types/model";
 import type { NodeObject, PlainNodeObject } from "@/types/node";
 import type { FC } from "react";
-import { Container } from "./Container";
+import { Register } from "./Register";
 
 export class Model<T extends ModelName = ModelName> {
 
     constructor(
-        private container: Container,
+        private container: Register,
         private definition: ModelDefinition<T>) { }
 
     get extends() {
@@ -44,17 +44,17 @@ export class Model<T extends ModelName = ModelName> {
         return this.definition.default as any;
     }
 
-    public invokeHook<N extends keyof HookDefinition<T>>(
-        name: N,
-        ...args: InferHookArgs<N, T>
-    ) {
-        const hook = this.definition[name];
-        if (typeof hook === 'function') {
-            return (hook as Function).apply(this, args);
-        }
+    public isInstance(raw: PlainNodeObject<T>) {
+        const hook = this.definition.isInstance || this.extends?.isInstance || (() => false);
+        return hook.bind(this)(raw);
     }
 
-    public buildNode(owner: Document, object: PlainNodeObject<T>): Node<T> {
+    public onCreate(node: Node<T>) {
+        const hook = this.definition.onCreate || this.extends?.onCreate || (() => false);
+        return hook.bind(this)(node);
+    }
+
+    public buildNode(owner: Container, object: PlainNodeObject<T>): Node<T> {
         const node = new Node<T>(owner, this);
         if (object?.id) node.id = object.id;
 
@@ -76,6 +76,7 @@ export class Model<T extends ModelName = ModelName> {
                 ...(this.default?.data as any)
             };
         }
+        this.onCreate(node);
         return node;
     }
 

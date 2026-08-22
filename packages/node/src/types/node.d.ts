@@ -17,3 +17,18 @@ export type NodeObject<T extends ModelName = ModelName> = {
 export type PlainNodeObject<T extends ModelName = ModelName> = Omit<NodeObject<T>, "type" | "id"> & {
     id?: string;
 }
+
+export type NodeState = {
+    id: string;
+    parent: string | null;
+    tagName: keyof JSX.IntrinsicElements;
+    order: number;
+    element: Element | null;
+    option: {
+        selectable: boolean
+        hoverable: boolean
+        resizeable: boolean
+    }
+    selected: boolean
+    hovered: boolean
+}

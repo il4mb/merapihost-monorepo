@@ -2,7 +2,6 @@ import type { Node } from "@/engine";
 import { commands } from "./commands";
 import { createModel } from "@/mods";
 import TextComponent from "./TextComponent";
-import { InferCommand } from "@/types/model";
 
 export type TextNodeData = {
     text: string;
@@ -28,10 +27,6 @@ declare global {
     }
 }
 
-type Test = InferCommand<"text">['test'];
-
-type ss = InferCommand<'text', false>
-
 export default createModel({
     name: "text",
     label: "Text",
@@ -45,9 +40,13 @@ export default createModel({
     },
     commands: commands,
     component: TextComponent,
-    onChildAdd(child) {
-        // disable interaction when the parent is editing
-        child.selectable = !child.parent.data.editing;
-        child.hoverable = !child.parent.data.editing;
-    },
+    onCreate(node) {
+        node.on("hover", (hovered) => {
+            console.log(node.element, " is Hovered", hovered);
+        });
+
+        node.on("select", () => {
+            console.log(node.element, " is Selected");
+        });
+    }
 });
