@@ -1,18 +1,23 @@
-import { Node } from "./Node";
+import { Node } from "./node/Node";
 import type { Document } from "./Document";
 import type { ModelDefinition, ComponentProps, InferData, HookDefinition, InferHookArgs, InferCommand } from "@/types/model";
 import type { NodeObject, PlainNodeObject } from "@/types/node";
 import type { FC } from "react";
+import { Container } from "./Container";
 
 export class Model<T extends ModelName = ModelName> {
 
-    // do not assign, it will be assigned by registry when the model is registered
-    readonly extends: Model<T>;
+    constructor(
+        private container: Container,
+        private definition: ModelDefinition<T>) { }
 
-    constructor(private definition: ModelDefinition<T>) { }
-
-    get extendsName() {
-        return this.definition.extends;
+    get extends() {
+        if (this.definition.extends
+            && this.container.has(this.definition.extends)
+        ) {
+            return this.container.get(this.definition.extends as T)
+        }
+        return null;
     }
 
     get component(): FC<ComponentProps<T>> | null {

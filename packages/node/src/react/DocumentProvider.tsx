@@ -1,4 +1,5 @@
 import { Document, Node } from "@/engine";
+import { Container } from "@/engine/Container";
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 type DocumentContext = {
@@ -20,7 +21,7 @@ type DocumentProviderProps = {
 
 export default function DocumentProvider({ children }: DocumentProviderProps) {
     const [document, setDocument] = useState(
-        new Document([
+        new Document(new Container(), [
             {
                 id: "123",
                 type: "element",
@@ -61,8 +62,8 @@ export default function DocumentProvider({ children }: DocumentProviderProps) {
     const getChildren = useCallback((node: Node<any>) => document.getChildren(node), [document]);
 
     useEffect(() => {
-        document.body.elementRef.current = window.document.body;
-        document.head.elementRef.current = window.document.head;
+        document.head.element = window.document.head;
+        document.body.element = window.document.body;
     }, [document.body, document.head]);
 
     const values = useMemo<DocumentContext>(

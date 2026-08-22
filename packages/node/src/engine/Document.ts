@@ -1,8 +1,11 @@
-import { MODEL_REGISTRY } from "@/registry";
+// import { MODEL_REGISTRY } from "@/registry";
+import { LifecycleHook } from "./LifecycleHook";
 import { Model, Node } from "@/engine";
 import type { NodeObject, PlainNodeObject } from "@/types";
+import { Container } from "./Container";
+import { Stylish } from "./styles/Stylish";
 
-export class Document {
+export class Document extends LifecycleHook {
 
     static ORDER_EPS = 0.001; // increment terkecil, biasanya dikalikan segIdx
     static ORDER_MINOR = 0.01; // offset gaya "before"
@@ -12,13 +15,27 @@ export class Document {
 
     readonly head: Node<"element">;
     readonly body: Node<"element">;
+    readonly stylish: Stylish;
 
-    constructor(nodes?: NodeObject<ModelName>[]) {
+    constructor(
+        public container: Container,
+        nodes?: NodeObject<ModelName>[]
+    ) {
+        super();
+
         this.head = this.createNode("element", { tagName: "head" });
         this.body = this.createNode("element", { tagName: "body" });
+        this.stylish = new Stylish(this);
+
+        this.head.on("mounted", () => {
+            console.log("Head Mounted");
+            this.stylish.render();
+        });
+
         if (nodes && Array.isArray(nodes)) {
             Node.sort(nodes).forEach(raw => this.createNode(raw.type || "element", raw));
         }
+
     }
 
     get nodes() {
@@ -33,7 +50,7 @@ export class Document {
      */
     public createNode<T extends ModelName>(type: T, nodeObject?: PlainNodeObject<T> | NodeObject<T>): Node<T> {
 
-        const typeModel = MODEL_REGISTRY.get(type) as Model<T> | undefined;
+        const typeModel = this.container.get(type) as Model<T> | undefined;
         if (!typeModel) {
             throw new Error(`Type ${type} not found in registry`);
         }
@@ -55,6 +72,9 @@ export class Document {
             this.addNodeChildren(this.body, node);
         }
 
+        if (this.head && this.stylish) { // ensure after head
+            this.stylish?.parseNodeStyle(node);
+        }
         node.model.invokeHook("onCreate", node);
 
         if (nodeObject.children && Array.isArray(nodeObject.children)) {

@@ -2,6 +2,7 @@ import type { Node } from "@/engine";
 import { commands } from "./commands";
 import { createModel } from "@/mods";
 import TextComponent from "./TextComponent";
+import { InferCommand } from "@/types/model";
 
 export type TextNodeData = {
     text: string;
@@ -26,6 +27,10 @@ declare global {
         }
     }
 }
+
+type Test = InferCommand<"text">['test'];
+
+type ss = InferCommand<'text', false>
 
 export default createModel({
     name: "text",

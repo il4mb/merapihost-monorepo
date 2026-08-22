@@ -1,5 +1,5 @@
 import type { FC, JSX } from "react";
-import type { Node } from "@/engine/Node";
+import type { Node } from "@/engine/node/Node";
 import type { Model } from "@/engine/Model";
 import type { NodeObject, PlainNodeObject } from "@/types/node";
 
@@ -9,21 +9,29 @@ export type ComponentProps<T extends ModelName, E extends Element = Element> = {
     ref: React.RefObject<E | null>; // Uses the specific element type passed
 }
 
+export type InferData<T extends ModelName> = ModelRegistry[T] extends { data: infer D }
+    ? D
+    : Record<string, unknown>;
+
 
 export type InferCommand<
     T extends ModelName,
     WithThis extends boolean = true
 > = ModelRegistry[T] extends { commands: infer C }
     ? {
-        [K in keyof C]: C[K] extends (this: any, ...args: infer Args) => infer R
+        // Use NonNullable/Exclude in case 'commands' is optional in the registry
+        [K in Exclude<keyof C, undefined>]: C[K] extends (this: any, ...args: infer Args) => infer R
         ? WithThis extends true ? (this: Node<T>, ...args: Args) => R : (...args: Args) => R
         : WithThis extends true ? (this: Node<T>, ...args: any[]) => void : (...args: any[]) => void;
     }
-    : Record<string, (this: Node<T>, ...args: any[]) => void>;
+    : {};
 
-export type InferData<T extends ModelName> = ModelRegistry[T] extends { data: infer D }
-    ? D
-    : Record<string, unknown>;
+export type InferEvents<T extends ModelName = ModelName> = {
+    [K in keyof InferCommand<T>]: InferCommand<T>[K] extends (this: any, ...args: infer Args) => infer R
+    ? (...args: Args) => R
+    : never;
+}
+
 
 
 export interface HookDefinition<T extends ModelName> {
@@ -59,12 +67,6 @@ export interface HookDefinition<T extends ModelName> {
 
 
     onChildAdd?: (this: Model<T>, child: Omit<Node<any>, "parent"> & { parent: Node<T> }) => void;
-
-    /**
-     * Special function to manipulate the props of the node before it is rendered.
-     * @returns An object representing the initial state of the node.
-     */
-    state?: () => D;
 }
 
 export type InferHookArgs<
