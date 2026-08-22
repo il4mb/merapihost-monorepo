@@ -4,7 +4,7 @@ import { JSX } from "react/jsx-runtime";
 import { InferCommand, InferData } from "@/types/model";
 import { Commands } from "./Commands";
 import { MutableObject } from "./MutableObject";
-import { NodeObject } from "@/types/node";
+import { NodeObject, PlainNodeObject } from "@/types/node";
 import { Document } from "./Document";
 import { createElement, createRef, RefObject } from "react";
 
@@ -71,14 +71,19 @@ export class Node<T extends ModelName = ModelName> {
             return createElement(component, {
                 key: this.id,
                 node: this,
-                ref: this.elementRef,
-                children
-            }, children);
+                ref: (el) => {
+                    this.elementRef.current = el;
+                    this.model.invokeHook("onMount", this);
+                },
+            } as any, children);
         }
 
         return createElement(this.tagName, {
             key: this.id,
-            ref: this.elementRef
+            ref: (el) => {
+                this.elementRef.current = el;
+                this.model.invokeHook("onMount", this);
+            }
         }, [
             `Component not found model "${this.model.label || this.model.name}", node id ${this.id}`,
             ...children
@@ -111,5 +116,10 @@ export class Node<T extends ModelName = ModelName> {
             data: this.data,
             order: this.order
         } as any;
+    }
+
+
+    static sort<T extends Node | NodeObject | PlainNodeObject>(nodes: T[]) {
+        return nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
     }
 }

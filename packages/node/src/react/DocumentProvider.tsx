@@ -33,6 +33,28 @@ export default function DocumentProvider({ children }: DocumentProviderProps) {
                     text: "Hallo World",
                 },
             },
+            {
+                id: "333",
+                type: "element",
+                children: [
+                    {
+                        id: "222",
+                        type: "text",
+                        order: 1,
+                        data: {
+                            text: "Hallo World",
+                        },
+                    },
+                    {
+                        id: "2232",
+                        type: "text",
+                        order: 0,
+                        data: {
+                            text: "Hallo World 2",
+                        },
+                    },
+                ],
+            },
         ]),
     );
     const [nodes, setNodes] = useState<ReadonlyMap<string, Node>>(document.nodes);

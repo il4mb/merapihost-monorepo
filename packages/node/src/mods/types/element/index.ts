@@ -21,7 +21,10 @@ export default createModel({
     commands: {},
     name: "element",
     label: "Element",
-    onCreate(node) {
-        console.log("Created", node);
-    },
+    // onCreate(node) {
+    //     console.log("Created", node);
+    // },
+    // onMount(node) {
+    //     console.log("Mounted", node.elementRef.current);
+    // },
 })

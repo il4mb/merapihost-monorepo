@@ -17,9 +17,7 @@ export class Document {
         this.head = this.createNode("element", { tagName: "head" });
         this.body = this.createNode("element", { tagName: "body" });
         if (nodes && Array.isArray(nodes)) {
-            nodes.forEach(raw => {
-                this.createNode(raw.type || "element", raw);
-            })
+            Node.sort(nodes).forEach(raw => this.createNode(raw.type || "element", raw));
         }
     }
 
@@ -58,6 +56,15 @@ export class Document {
         }
 
         node.model.invokeHook("onCreate", node);
+
+        if (nodeObject.children && Array.isArray(nodeObject.children)) {
+            Node.sort(nodeObject.children)
+                .forEach(childRaw => {
+                    const child = this.createNode(childRaw.type || "element", childRaw);
+                    this.addNodeChildren(node, child);
+                });
+        }
+
         return node;
     }
 
@@ -267,11 +274,12 @@ export class Document {
     }
 
 
-    getTopLevelNodes() {
+    public getTopLevelNodes() {
         return Array.from(this.collection.values())
             .filter((node) => !node.parent || !this.collection.has(node.parent.id))
             .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     }
+
 
 
     /**

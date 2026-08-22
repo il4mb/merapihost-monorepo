@@ -11,7 +11,7 @@ export type NodeObject<T extends ModelName = ModelName> = {
     parent?: string | null;
     order?: number;
     visible?: boolean;
-    children?: NodeObject;
+    children?: NodeObject<T>[];
 };
 
 export type PlainNodeObject<T extends ModelName = ModelName> = Omit<NodeObject<T>, "type" | "id"> & {
